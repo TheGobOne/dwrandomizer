@@ -3826,6 +3826,158 @@ void random_princess_location(dw_rom *rom)
     rom->princess_map = locations[i][0];
 }
 
+#define LO(a) ((a) & 0xff)
+#define HI(a) (((a) >> 8) & 0xff)
+static uint16_t run_bank_win_code = 0;
+
+/**
+ * Run Bank: each win banks one guaranteed escape (max 99), shown and spent
+ * through a BANK row in the battle command window. Bank 1 addresses are
+ * offset by 0x4000 from their CPU address ($8000 window).
+ *
+ * @param rom The rom struct
+ */
+static void run_bank(dw_rom *rom)
+{
+    const uint16_t ram = 0x6806;
+    const uint16_t last = 0x6807;
+    static const char vanilla_names[] = "HEAL HURT SLEEPRADNTSTOP OUTSDRETRNREPELHEALMHURTM";
+    static const char modern_names[]  = "HEAL SIZZ SNOOZGLOW FIZZLEVAC ZOOM PROTEMIDHLKASIZ";
+    const char *names;
+    size_t i;
+    uint16_t c;
+    uint16_t init_target;
+
+    if (!RUN_BANK(rom))
+        return;
+    printf("Opening the run bank...\n");
+
+    /* Window 4: one block taller than vanilla and starting one block higher, rows on lines 2, 4 and 6. */
+    vpatch(rom, 0x7096, 1, 0x04);                 /* height in blocks */
+    vpatch(rom, 0x7098, 1, 0x06);                 /* one block higher: closing a window restores map tiles, so it must not cover the battle scene */
+    vpatch(rom, 0x709a, 32,
+        0x21,                                     /* cursor home Y=2, X=1 */
+        0x88,
+        0x81, 0x29, 0x2c, 0x2a, 0x2b, 0x37, 0x83, 0xf8,             /* FIGHT last */
+        0x81, 0x35, 0x38, 0x31, 0x85, 0x36, 0x33, 0x28, 0x2f, 0x2f, /* RUN SPELL */
+        0x81, 0x25, 0x24, 0x31, 0x2e, 0xf0, 0x81, 0x2c, 0x37, 0x28, 0x30, 0x80); /* BANK nnn ITEM */
+
+    /* Window code $F0: print the bank left aligned in a 3 tile field. */
+    c = find_free_space(rom->content, 0x7f0a, 43);
+    vpatch(rom, c, 43,
+        0xa9, 0x03, 0x8d, 0xe2, 0x64, 0xad, LO(ram), HI(ram), 0x85, 0x1a,
+        0xa9, 0x00, 0x85, 0x1b, 0x85, 0x1c,
+        0x20, 0x53, 0xa7, 0x20, 0x64, 0xa7,
+        0xad, 0xcb, 0x64, 0xc9, 0x5f, 0xd0, 0x0b,
+        0xad, 0xca, 0x64, 0x8d, 0xcb, 0x64, 0xa9, 0x5f, 0x8d, 0xca, 0x64,
+        0x4c, 0x2b, 0xa6);
+    vpatch(rom, 0x66df, 2, LO(c + 0x4000), HI(c + 0x4000));
+
+    /* Window code $F8: print the last spell's short name, in the fixed bank. */
+    c = find_free_space(rom->content, 0xc422, 99);
+    vpatch(rom, c, 49,
+        0xa9, 0x05, 0x8d, 0xe2, 0x64,
+        0xae, LO(last), HI(last), 0xf0, 0x1a,
+        0xca, 0x86, 0x1a, 0x8a, 0x0a, 0x0a, 0x18, 0x65, 0x1a, 0xaa,
+        0xea,
+        0xa0, 0x05,
+        0xbd, LO(c + 49), HI(c + 49),
+        0x99, 0xc9, 0x64, 0xe8, 0x88, 0xd0, 0xf6, 0x4c, 0x2b, 0xa6,
+        0xa0, 0x05, 0xa9, 0x5f, 0x99, 0xc9, 0x64, 0x88, 0xd0, 0xfa,
+        0x4c, 0x2b, 0xa6);
+    names = MODERN_SPELLS(rom) ? modern_names : vanilla_names;
+    for (i = 0; i < 50; i++) {
+        char ch = names[i];
+        rom->content[c + 49 + i] = (ch == ' ') ? 0x5f : (uint8_t)(0x24 + ch - 'A');
+    }
+    vpatch(rom, 0x66e1, 2, LO(c), HI(c));
+
+    /* Up in window 4 moves one row and wraps; other windows run the old code. */
+    c = find_free_space(rom->content, 0x7f0a, 45);
+    vpatch(rom, c, 45,
+        0xad, 0xdc, 0x64, 0xc9, 0x04, 0xf0, 0x08,
+        MENU_WRAP(rom) ? 0x4c : 0xa5, MENU_WRAP(rom) ? 0xa0 : 0xd9,
+        MENU_WRAP(rom) ? 0xbe : 0xd0, MENU_WRAP(rom) ? 0xea : 0x01,
+        MENU_WRAP(rom) ? 0xea : 0x60, 0x4c, 0xe4, 0xa9,
+        0x20, 0x30, 0xab, 0xa5, 0xd9, 0xf0, 0x0b,
+        0xc6, 0xd9, 0xad, 0xf3, 0x64, 0x38, 0xe9, 0x02,
+        0x4c, LO(c + 0x4000 + 39), HI(c + 0x4000 + 39),
+        0xa9, 0x02, 0x85, 0xd9, 0xa9, 0x06,
+        0x8d, 0xf3, 0x64, 0x4c, 0x35, 0xab);
+    vpatch(rom, 0x69e0, 4, 0x4c, LO(c + 0x4000), HI(c + 0x4000), 0xea);
+
+    /* Down */
+    c = find_free_space(rom->content, 0x7f0a, 41);
+    vpatch(rom, c, 41,
+        0xad, 0xdc, 0x64, 0xc9, 0x04, 0xf0, 0x03, 0x4c, 0x0e, 0xaa,
+        0x20, 0x30, 0xab, 0xa5, 0xd9, 0xc9, 0x02, 0xf0, 0x0a,
+        0xe6, 0xd9, 0xad, 0xf3, 0x64, 0x18, 0x69, 0x02, 0xd0, 0x06,
+        0xa9, 0x00, 0x85, 0xd9, 0xa9, 0x02,
+        0x8d, 0xf3, 0x64, 0x4c, 0x35, 0xab);
+    vpatch(rom, 0x6a0b, 3, 0x4c, LO(c + 0x4000), HI(c + 0x4000));
+
+    /* Selection: map column * 3 + row to a command number.
+     * FIGHT 0, RUN 1, BANK 4, last spell 5, SPELL 2, ITEM 3 */
+    c = find_free_space(rom->content, 0x7f0a, 31);
+    vpatch(rom, c, 31,
+        0xad, 0xdc, 0x64, 0xc9, 0x04, 0xd0, 0x11,
+        0xa5, 0x20, 0x0a, 0x65, 0x20, 0x18, 0x65, 0x21, 0xaa,
+        0xbd, LO(c + 0x4000 + 25), HI(c + 0x4000 + 25),
+        0x85, 0xd7, 0x68, 0x68, 0x60, 0x60,
+        0x00, 0x01, 0x04, 0x05, 0x02, 0x03);
+    vpatch(rom, 0x6b64, 3, 0x20, LO(c + 0x4000), HI(c + 0x4000));
+
+    /* Battle: 4 spends a run, 5 recasts. An empty bank, a Dragonlord or no
+     * last spell goes back to the prompt with no turn lost. */
+    c = find_free_space(rom->content, 0xc422, 63);
+    vpatch(rom, c, 63,
+        0xc9, 0x04, 0xf0, 0x19,          /*  0 bank -> 29 */
+        0xc9, 0x05, 0xf0, 0x03,          /*  4 last -> 11 */
+        0x4c, 0xb6, 0xe6,                /*  8 old dispatch */
+        0xad, LO(last), HI(last), 0xf0, 0x2c, /* 11 empty -> 60 */
+        0x38, 0xe9, 0x01, 0x48,          /* 16 id = last - 1, keep it */
+        0xa9, 0x04, 0x20, 0xa2, 0xa7,    /* 20 close the window */
+        0x68, 0x4c, 0x04, 0xe7,          /* 25 pull id, MP check and cast */
+        0xad, LO(ram), HI(ram), 0xf0, 0x1a, /* 29 empty -> 60 */
+        0xa5, 0xe0, 0xc9, 0x26, 0xb0, 0x14,
+        0xce, LO(ram), HI(ram),
+        0xa9, 0x04, 0x20, 0xa2, 0xa7,
+        0xa9, 0x83, 0x00, 0x04, 0x17,
+        0x20, 0xcb, 0xc7, 0xf5,
+        0x4c, 0xa4, 0xe8,
+        0x4c, 0xef, 0xe5);               /* 60 retry */
+    vpatch(rom, 0xe5fb, 3, 0x4c, LO(c), HI(c));
+
+    /* Remember spells cast in battle (replaces STA $D7 / LDA $DF). */
+    c = find_free_space(rom->content, 0xc422, 11);
+    vpatch(rom, c, 11,
+        0x85, 0xd7, 0x18, 0x69, 0x01, 0x8d, LO(last), HI(last),
+        0xa5, 0xdf, 0x60);
+    vpatch(rom, 0xe711, 4, 0x20, LO(c), HI(c), 0xea);
+
+    /* New game: empty bank. */
+    init_target = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
+    c = find_free_space(rom->content, 0xc422, 11);
+    vpatch(rom, c, 11, 0xa9, 0x00, 0x8d, LO(ram), HI(ram), 0x8d, LO(last), HI(last),
+        0x4c, LO(init_target), HI(init_target));
+    vpatch(rom, 0xca1a, 3, 0x20, LO(c), HI(c));
+
+    /* Wins bank one run; setup_expansion's stats hook is called from here. */
+    c = find_free_space(rom->content, 0xc422, 14);
+    vpatch(rom, c, 14, 0x20, LO(COUNT_WIN), HI(COUNT_WIN),
+        0xad, LO(ram), HI(ram), 0xc9, 0x63, 0xb0, 0x03,
+        0xee, LO(ram), HI(ram), 0x60);
+    run_bank_win_code = c;
+}
+
+static void run_bank_win_hook(dw_rom *rom)
+{
+    uint16_t c = run_bank_win_code;
+    if (!RUN_BANK(rom))
+        return;
+    vpatch(rom, 0xe98c, 3, 0x20, LO(c), HI(c));
+}
+
 /**
  * Hooks to set initial RAM values for new flags
  *
@@ -4178,6 +4330,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     dwr_speed_hacks(rom);
     open_charlock(rom);
     chaos_mode(rom);
+    run_bank(rom);
     no_keys(rom);
     cursed_princess(rom);
     radish_finish(rom);
@@ -4313,6 +4466,7 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
 
     skip_vanilla_credits(rom);
     setup_expansion(rom);
+    run_bank_win_hook(rom);
 
     sprite(rom, sprite_name);
     invisible_npcs(rom); // in case the custom sprite also changed NPCS.

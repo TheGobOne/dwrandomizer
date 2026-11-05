@@ -289,6 +289,8 @@ function setup_ui() {
         'One of the above': 7
     });
 
+    ui.addTriOption('2', 12, 11, 2, 'Run Bank',
+        'Each win banks a guaranteed escape (max 99). Spend one with the BANK battle command. Not usable on the Dragonlord.');
     ui.addTriOption('2',  0, 15, 6, 'Charlock Inn',
         'Make the final dive easier by having a comfy bed and breakfast at the Dragonlord\'s.');
     ui.addTriOption('2',  2, 19, 0, 'Random Key Carry',
