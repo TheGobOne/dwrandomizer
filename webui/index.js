@@ -247,6 +247,8 @@ function setup_ui() {
         'The stats window will also have a death counter.');
     ui.addOption   ('Cosm.',   3, 14, 3, 'Allow Custom Spell Names',
         'Allow spell names to be changed based on the chosen sprite.', true);
+    ui.addOption   ('Cosm.',   9, 14, 1, 'Disable Screen Shake',
+        'Keeps the screen still when you take damage.', true);
     ui.addOption   ('Cosm.',   5, 14, 2, 'Skip Original Credits',
         'Skip the original credits and go straight to stat scroll.', true);
 

@@ -17,6 +17,7 @@
 #include "chests.h"
 #include "challenge.h"
 #include "crc64.h"
+#include "custom_music.h"
 #include "mt64.h"
 #include "polyfit.h"
 #include "base32.h"
@@ -1452,23 +1453,26 @@ static void update_title_screen(dw_rom *rom)
     pos = pvpatch(pos, 4, 0xf7, 32, 0x5f, 0xfc); /* blank line */
     pos = center_title_text(pos, "RANDOMIZER");  /* RANDOMIZER text */
     pos = pvpatch(pos, 4, 0xf7, 32, 0x5f, 0xfc); /* blank line */
-    pos = center_title_text(pos, DWR_VERSION);   /* version number */
-
+    pos = center_title_text(pos, DWR_EDITION);
     pos = pvpatch(pos, 4, 0xf7, 32, 0x5f, 0xfc); /* blank line */
-    pos = pvpatch(pos, 4, 0xf7, 32, 0x5f, 0xfc); /* blank line */
-    pos = pvpatch(pos, 4, 0xf7, 32, 0x5f, 0xfc); /* blank line */
-    pos = pvpatch(pos, 4, 0xf7, 32, 0x5f, 0xfc); /* blank line */
+    pos = center_title_text(pos, DWR_BASED_ON);
+    pos = pvpatch(pos, 4, 0xf7, 64, 0x5f, 0xfc); /* 2 blank lines */
 
     //pos = center_title_text(pos, (const char *)rom->flags_encoded); /* flags */
     pos = center_title_text(pos, "Seed number:");
     snprintf((char *)text, 33, "%"PRIu64, rom->seed);
 
      /* blank line */
-    pos = pad_title_screen(pos, end, 15 + strlen((const char *)text));
+    pos = pad_title_screen(pos, end, 11 + strlen((const char *)text));
     pos = center_title_text(pos, (const char*)text);  /* seed number */
-    pos = pad_title_screen(pos, end, 4); /* blank line */
-    pos = pad_title_screen(pos, end, 0); /* blank line */
+    pos = pvpatch(pos, 4, 0xf7, 64, 0x5f, 0xfc); /* 2 blank lines */
 
+    /* Colors: the edition line is green, the rest is white. Text needs a palette
+     * with black as color 1, and the logo and border use the other two. */
+    vpatch(rom, 0xbe06, 2, 0x2a, 0x2a);       /* palette 2: green */
+    vpatch(rom, 0xbe09, 2, 0x30, 0x30);       /* palette 3: white */
+    vpatch(rom, 0x3fc1, 1, 0xf5);             /* rows 16-17: palette 1, 18-19: palette 3 */
+    vpatch(rom, 0x3fc4, 1, 0xfa);             /* rows 20-21: palette 2, 22-23: palette 3 */
     // 0x3fc5
 }
 
@@ -2771,6 +2775,20 @@ static void no_red_flash(dw_rom *rom)
 
     // RTS after the wait for nmi
     vpatch(rom, 0xee17, 1, 0x60);
+}
+
+/**
+ * Keeps the screen still when the player is hit, without changing the timing.
+ *
+ * @param rom The rom struct
+ */
+static void no_screen_shake(dw_rom *rom)
+{
+    if(!NO_SCREEN_SHAKE(rom))
+        return;
+
+    vpatch(rom, 0xed60, 1, 0x00); /* adc #$02 on the X scroll */
+    vpatch(rom, 0xed6a, 1, 0x00); /* adc #$02 on the Y scroll */
 }
 
 static void crit_changes(dw_rom *rom)
@@ -4459,6 +4477,7 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
     update_title_screen(rom);
     no_screen_flash(rom);
     no_red_flash(rom);
+    no_screen_shake(rom);
     disable_music(rom);
 
     /* reseed the RNG so the rest isn't deterministic */
@@ -4467,6 +4486,7 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
     skip_vanilla_credits(rom);
     setup_expansion(rom);
     run_bank_win_hook(rom);
+    custom_music_apply(rom);
 
     sprite(rom, sprite_name);
     invisible_npcs(rom); // in case the custom sprite also changed NPCS.

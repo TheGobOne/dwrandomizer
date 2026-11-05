@@ -11,6 +11,8 @@
 
 #define DWR_VERSION "UNOFFICIAL - JUEF v3.0.3.20"
 #define VERSION DWR_VERSION
+#define DWR_EDITION "THEGOBONE EDITION"
+#define DWR_BASED_ON "BASED ON JUEF V3.0.3.20"
 
 #define DEFAULT_FLAGS "IVIAAVCEKACAAAAAAAAAAEAUAAQBAAAAABYCAAAA"
 #define CHEST_COUNT 31
@@ -76,6 +78,7 @@
 #define DEATH_COUNTER(x)          (x->flags[14] & 0x10)
 #define CUSTOM_SPELLS(x)          (x->flags[14] & 0x08)
 #define SKIP_VANILLA_CREDITS(x)   (x->flags[14] & 0x04)
+#define NO_SCREEN_SHAKE(x)        (x->flags[14] & 0x02)
 
 #define INN_IN_CHARLOCK(x)        ((x->flags[15] & 0xc0) >> 6) // 2
 #define ONLY_HEALMORE(x)          ((x->flags[15] & 0x30) >> 4) // 2

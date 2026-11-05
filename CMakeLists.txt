@@ -48,7 +48,8 @@ set(SOURCE_FILES
         common/challenge.c
         common/polyfit.c
         common/base32.c
-        common/credit_music.c)
+        common/credit_music.c
+        common/custom_music.c)
 
 if (ALPHA)
     add_definitions(-DDWR_ALPHA)

@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "custom_music.h"
 #include "dwr.h"
 #include "dwr_types.h"
 #include "map.h"
@@ -43,6 +44,13 @@ int main(int argc, char **argv)
     char *input_file, *output_dir;
 
     printf("DWRandomizer version %s\n", VERSION);
+    if (argc >= 3 && !strcmp(argv[1], "--music")) {
+        if (!custom_music_load(argv[2]))
+            exit(1);
+        argv[2] = argv[0];
+        argv += 2;
+        argc -= 2;
+    }
     if (argc < 3) {
         print_usage(argv[0], default_flags);
         exit(0);
