@@ -156,7 +156,10 @@ extern "C" {
 uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
         const char *sprite_name, const char* output_dir);
 uint16_t set_text(dw_rom *rom, const size_t address, char *text);
+/* Bank 1's free space ends here (not inclusive): see notes/free_space.txt. */
+#define BANK_1_FREE_END 0x7fd8
 uint16_t find_free_space(uint8_t *content, uint16_t start, uint8_t n);
+uint16_t find_free_space_in(uint8_t *content, uint16_t start, uint16_t end, uint8_t n);
 void check_free_space(uint8_t *content, uint16_t start);
 void print_rom_data(uint8_t *content, uint16_t start, uint8_t n);
 

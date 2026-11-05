@@ -14,6 +14,7 @@
 
 #include "custom_music.h"
 #include "dwr.h"
+#include "expansion.h"
 #include "ft_driver.h"
 #include "mt64.h"
 #include "patch.h"
@@ -139,8 +140,14 @@ static void read_key(reader *r, char *buf, size_t n)
     skip_space(r);
 }
 
-static void skip_value(reader *r)
+#define MAX_NESTING 64
+
+static void skip_value_at(reader *r, int depth)
 {
+    if (depth > MAX_NESTING) {
+        r->error = TRUE;
+        return;
+    }
     skip_space(r);
     if (*r->p == '"' || *r->p == '\'') {
         free(read_string(r));
@@ -161,7 +168,7 @@ static void skip_value(reader *r)
             }
             if (object)
                 read_key(r, key, sizeof(key));
-            skip_value(r);
+            skip_value_at(r, depth + 1);
         }
     } else {
         const char *start = r->p;
@@ -445,6 +452,11 @@ static void read_group(reader *r)
     r->p = scan.p;
 }
 
+static void skip_value(reader *r)
+{
+    skip_value_at(r, 0);
+}
+
 BOOL custom_music_load(const char *path)
 {
     FILE *f = fopen(path, "rb");
@@ -460,7 +472,12 @@ BOOL custom_music_load(const char *path)
     fseek(f, 0, SEEK_END);
     size = ftell(f);
     fseek(f, 0, SEEK_SET);
-    text = malloc((size_t)size + 1);
+    text = (size < 0) ? NULL : malloc((size_t)size + 1);
+    if (!text) {
+        fprintf(stderr, "Unable to read music pack '%s'\n", path);
+        fclose(f);
+        return FALSE;
+    }
     size = (long)fread(text, 1, (size_t)size, f);
     fclose(f);
     text[size] = '\0';
@@ -718,6 +735,9 @@ void custom_music_apply(dw_rom *rom)
                 return;
             }
         }
+    }
+    for (b = 0; b < 2; b++) {
+        uint8_t *base = &rom->expansion[(banks[b] - 3) * 0x4000];
         memcpy(base + (FT_BASE - 0x8000), ft_image, sizeof(ft_image));
         memcpy(base + (FT_MAP - 0x8000), map, sizeof(map));
         memcpy(base + (FT_LO - 0x8000), lo, sizeof(lo));
@@ -762,11 +782,14 @@ void custom_music_apply(dw_rom *rom)
 
     /* Credits: ask for the tagged song and update the driver from their NMI. */
     if (event_song[0] >= 0) {
-        static const uint8_t start[14] = {0xa9, 0x01, 0xa2, 0x00, 0xa0, 0x80, 0x20, 0x75, 0xaa,
-                0xa9, 0x00, 0x20, 0x38, 0xab};
-        static const uint8_t update[3] = {0x20, 0x11, 0xac};
+        const uint8_t start[14] = {0xa9, 0x01, 0xa2, 0x00, 0xa0, 0x80,
+                0x20, LO8(CREDITS_FAMISTUDIO_INIT), HI8(CREDITS_FAMISTUDIO_INIT),
+                0xa9, 0x00, 0x20, LO8(CREDITS_FAMISTUDIO_PLAY), HI8(CREDITS_FAMISTUDIO_PLAY)};
+        const uint8_t update[3] = {0x20, LO8(CREDITS_FAMISTUDIO_UPDATE), HI8(CREDITS_FAMISTUDIO_UPDATE)};
         uint8_t *credits = &rom->expansion[0x4000];
-        if (!memcmp(credits + 0x204b, start, 14) && !memcmp(credits + 0x2a63, update, 3)) {
+        uint8_t *start_at = credits + (CREDITS_MUSIC_START - 0x8000);
+        uint8_t *update_at = credits + (CREDITS_MUSIC_UPDATE - 0x8000);
+        if (!memcmp(start_at, start, 14) && !memcmp(update_at, update, 3)) {
             /* Same bytes at the same address in banks 5 and 7, because the switch to
              * banks 6 and 7 happens while this code is running. */
             static const uint8_t stub[51] = {
@@ -790,16 +813,20 @@ void custom_music_apply(dw_rom *rom)
                 if (n == sizeof(stub))
                     break;
             }
-            patch(rom, u, sizeof(stub), stub);
-            memcpy(bank5 + (u - 0xc000), stub, sizeof(stub));
-            memset(credits + 0x204b, 0xea, 14);
-            credits[0x204b] = 0xa9;
-            credits[0x204c] = REQUEST_CREDITS;
-            credits[0x204d] = 0x8d;
-            credits[0x204e] = LO8(RAM_WANT);
-            credits[0x204f] = HI8(RAM_WANT);
-            credits[0x2a64] = LO8(u);
-            credits[0x2a65] = HI8(u);
+            if (u >= 0xff00 - sizeof(stub)) {
+                printf("No room for the credits song, keeping the original credits music.\n");
+            } else {
+                patch(rom, u, sizeof(stub), stub);
+                memcpy(bank5 + (u - 0xc000), stub, sizeof(stub));
+                memset(start_at, 0xea, 14);
+                start_at[0] = 0xa9;
+                start_at[1] = REQUEST_CREDITS;
+                start_at[2] = 0x8d;
+                start_at[3] = LO8(RAM_WANT);
+                start_at[4] = HI8(RAM_WANT);
+                update_at[1] = LO8(u);
+                update_at[2] = HI8(u);
+            }
         } else {
             printf("Credits code not recognized, keeping the original credits music.\n");
         }

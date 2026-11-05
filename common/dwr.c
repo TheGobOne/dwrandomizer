@@ -1,4 +1,5 @@
 
+#include <setjmp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -169,6 +170,8 @@ static BOOL dwr_init(dw_rom *rom, const char *input_file, char *flags)
     input = fopen(input_file, "rb");
     if (!input) {
         fprintf(stderr, "Unable to open ROM file '%s'", input_file);
+        free(rom->header);
+        free(rom->expansion);
         return FALSE;
     }
     read = fread(rom->header, 1, ROM_SIZE, input);
@@ -176,6 +179,8 @@ static BOOL dwr_init(dw_rom *rom, const char *input_file, char *flags)
         fprintf(stderr, "File '%s' is too small and may be corrupt, aborting.",
                 input_file);
         fclose(input);
+        free(rom->header);
+        free(rom->expansion);
         return FALSE;
     }
     fclose(input);
@@ -393,7 +398,7 @@ void dwx_run_mechanics(dw_rom *rom)
 	const uint16_t ram_blocks = 0x663c;
     const uint16_t battle_start_hook = 0xe4f0;
     const uint16_t battle_start_newcode = find_free_space(rom->content, 0xc422, 8);
-    const uint16_t costs_xp_newcode = find_free_space(rom->content, 0xc422, 14);
+    const uint16_t costs_xp_newcode = find_free_space(rom->content, 0xc422, 17);
     const uint16_t tryrun_newcode = 0xee94; // Overwrites original code post rng call
     const uint16_t tryrunsafer_hook_check_n = 0xe898; // Hook into original code (overwrites jsr to TryRun)
     uint16_t tryrunsafer_newcode_check_n;
@@ -1024,10 +1029,10 @@ static void build_extras(dw_rom *rom, uint16_t new_window_data)
     0x08,                  /*   php          */
     0x48,                  /*   pha          */
     0xa5, 0xbb,            /*   lda $bb      */
-    0xd0, 0x0f,            /*   bne 0f       */
+    0xd0, 0x0e,            /*   bne 0e       */
 
     0xa5, 0xba,            /*   lda $ba      */
-    0xd0, 0x0b,            /*   bne 0b       */
+    0xd0, 0x0a,            /*   bne 0a       */
 
     0x68,                  /*   pla          */
     0x28,                  /*   plp          */
@@ -1043,14 +1048,14 @@ static void build_extras(dw_rom *rom, uint16_t new_window_data)
     set_text(rom, 0x7224, " CHG BUILD IF EXP 0  ");
     set_text(rom, 0x7262, " CHG BUILD IF EXP 0  ");
 
-    newcode_stats_calc = find_free_space(rom->content, 0xc422, 129);
+    newcode_stats_calc = find_free_space(rom->content, 0xc422, 127);
 
     //head over to our new stats calcuations for all builds
     vpatch(rom, 0xf09e, 3,
     0x4c, newcode_stats_calc & 0xff, (newcode_stats_calc >> 8) & 0xff); // jmp
 
     //New logic for determing stats with vanilla and all build options.
-    vpatch(rom, newcode_stats_calc, 129,
+    vpatch(rom, newcode_stats_calc, 127,
     //19
     0xa6, 0xe5,        //ldx 0xe5
     0xf0, 0x0f,        //beq hp-mp, 15
@@ -1159,10 +1164,10 @@ static void no_builds(dw_rom *rom)
 
 static void vanilla_builds(dw_rom *rom)
 {
-    uint16_t newcode = find_free_space(rom->content, 0xc422, 63);
+    uint16_t newcode = find_free_space(rom->content, 0xc422, 61);
 
     //Window Data for the new build options.
-    vpatch(rom, newcode, 63,
+    vpatch(rom, newcode, 61,
     0xa1, //Window Options.  Selection window.
     0x07, //Window Height.   7 blocks.
     0x12, //Window Width.    18 tiles.
@@ -1390,12 +1395,13 @@ static void update_enemy_hp(dw_rom *rom)
  */
 static uint8_t *center_title_text(uint8_t *pos, const char *text)
 {
-    uint8_t len, space, dw_text[34];
+    uint8_t len, space, dw_text[33];
 
-    strncpy((char*)dw_text, text, 33);
+    len = MIN(strlen(text), 32);
+    memcpy(dw_text, text, len);
+    dw_text[len] = '\0';
 
     ascii2dw_title(dw_text);
-    len = strlen(text);
     space = 32 - len;
     if (space)
         pos = pvpatch(pos, 3, 0xf7, space/2, 0x5f);
@@ -1422,9 +1428,10 @@ static uint8_t *pad_title_screen(uint8_t *pos, uint8_t *end, int reserved)
     int needed;
 
     needed = MIN(end - pos - reserved - 1, 32);
-    if (needed < 0) {
+    if (needed < 3) { /* no room for the 3 byte repeat code below */
         printf("An unexpected error occurred while updating the title "
                        "screen!\n");
+        return pos;
     }
     memset(text, 0x5f, 32);
     if (needed < 32) {
@@ -1665,14 +1672,13 @@ static void threes_company(dw_rom *rom)
     set_text(rom, 0x9f69, "`I have some great ideas to spruce up this place."
             "\xfd\xfbI was thinking of putting in some new curtains, maybe a "
             "hot tub, a disco ball over here=/ ");
-    vpatch(rom, 0x0d509,    8,
+    vpatch(rom, 0x0d509,    4,
             0xea,               /* NOP       ; Don't reset the quest byte    */
             0xea,               /* NOP       ; So we know if Gwaelin is here */
-            0x85,  0xe4,        /* STA $E4   ; Original Code                 */
-            0x20,  0xbc,  0xc4, /* JSR $C4C0 ; Jump to three's company code  */
-            0xea                /* NOP                                       */
+            0x85,  0xe4         /* STA $E4   ; Original Code                 */
     );
     add_hook(rom, JSR, 0xd50d, THREES_COMPANY_CHECK);
+    vpatch(rom, 0x0d510, 1, 0xea);
 }
 
 /**
@@ -1684,13 +1690,17 @@ static void not_sharing_the_world(dw_rom *rom)
 {
     if (THREES_COMPANY(rom))
     {
-        vpatch(rom, 0xd4e7, 16,
+        /* Lives in free space because the stat reset starts right after the dialogs. */
+        const uint16_t newcode = find_free_space(rom->content, 0xc422, 19);
+        vpatch(rom, newcode, 19,
             0xa5, 0xdf, // LDA PlayerFlags
             0x4a,       // LSR
             0xb0, 0x03, // BCS: → carry was set, so rightmost bit was set, so we're carrying Gwaelin, skip the following JMP
             0x4c, 0xbd, 0xd4, // JMP Really? Not carrying the princess so we're looping
-            0x20, 0xcb, 0xc7, 0xca, 0x20, 0xcb, 0xc7, 0xc2 // Two original dialogs
+            0x20, 0xcb, 0xc7, 0xca, 0x20, 0xcb, 0xc7, 0xc2, // Two original dialogs
+            0x4c, 0xef, 0xd4 // JMP to the original stat reset
         );
+        vpatch(rom, 0xd4e7, 3, 0x4c, newcode & 0xff, newcode >> 8);
     }
     else
         vpatch(rom, 0xd4e7, 3, 0x4c, 0xbd, 0xd4); // JMP Really?
@@ -2237,7 +2247,7 @@ static void treasure_guards(dw_rom *rom)
         if (should_be_guarded(chest[i].item)) {
             /* if it's a maybe flag, only apply about half the time */
             if (chest[i].map == TANTEGEL_THRONE_ROOM
-                || TREASURE_GUARDS(rom) == 2 && mt_rand_bool())
+                || (TREASURE_GUARDS(rom) == 2 && mt_rand_bool()))
                 continue;
             spike->map[spike_entry] = chest[i].map;
             spike->x[spike_entry] = chest[i].x;
@@ -2306,7 +2316,7 @@ static void dwr_speed_hacks(dw_rom *rom)
     vpatch(rom, 0x4d45, 1, 0x2);
     vpatch(rom, 0x4d47, 1, 0x10);
     /* speed up the level up music */
-    vpatch(rom, 0x462b, 1, 0xff),
+    vpatch(rom, 0x462b, 1, 0xff);
     /* speed up the battle win music */
     vpatch(rom, 0x4714, 1, 1);
     vpatch(rom, 0x471a, 1, 1);
@@ -2442,7 +2452,7 @@ static void dwr_token_dialogue(dw_rom *rom)
     } else {
         dx = rom->search_table->x[0] - rom->map.warps_from[WARP_TANTEGEL].x;
         dy = rom->search_table->y[0] - rom->map.warps_from[WARP_TANTEGEL].y;
-        if (ABS(dx) > 100 || ABS(dy) > 100) {
+        if (ABS(dx) >= 100 || ABS(dy) >= 100) {
             snprintf((char*)text, 72, "From Tantegel Castle travel %d leagues "
                     "to the %s and %d %s/         ",
                     ABS(dy), (dy < 0) ? "north" : "south",
@@ -2644,7 +2654,7 @@ static void begin_quest_checksum(dw_rom *rom, uint64_t crc)
     set_text(rom, newcode+7, crc_text);
 
     //Continues after the checksum and fills in the remainder of window data.
-    vpatch(rom, newcode+19, 21,
+    vpatch(rom, newcode+19, 20,
         0x88, //Horizontal border, remainder of row. (still checksum row)
         // " BEGIN A NEW QUEST"
         0x81, 0x25, 0x28, 0x2A, 0x2C, 0x31, 0x81, 0x24,
@@ -3342,7 +3352,7 @@ void zoom_and_whistle(dw_rom *rom)
     // find_zoom_tile(rom, 10, zoom_data, 6);
 
     // Hooking into return casting code
-    vpatch(rom, 0xdb04, 16,
+    vpatch(rom, 0xdb04, 6,
 		0xad, ram_i & 0xff, (ram_i >> 8) & 0xff, // LDA absolute zoom_i
         0x20, address & 0xff, (address >> 8) & 0xff // JSR new code to load zoom coords
     );
@@ -3883,7 +3893,6 @@ static void run_bank(dw_rom *rom)
     const char *names;
     size_t i;
     uint16_t c;
-    uint16_t init_target;
 
     if (!RUN_BANK(rom))
         return;
@@ -3900,7 +3909,7 @@ static void run_bank(dw_rom *rom)
         0x81, 0x25, 0x24, 0x31, 0x2e, 0xf0, 0x81, 0x2c, 0x37, 0x28, 0x30, 0x80); /* BANK nnn ITEM */
 
     /* Window code $F0: print the bank left aligned in a 3 tile field. */
-    c = find_free_space(rom->content, 0x7f0a, 43);
+    c = find_free_space_in(rom->content, 0x7f0a, BANK_1_FREE_END, 43);
     vpatch(rom, c, 43,
         0xa9, 0x03, 0x8d, 0xe2, 0x64, 0xad, LO(ram), HI(ram), 0x85, 0x1a,
         0xa9, 0x00, 0x85, 0x1b, 0x85, 0x1c,
@@ -3930,7 +3939,7 @@ static void run_bank(dw_rom *rom)
     vpatch(rom, 0x66e1, 2, LO(c), HI(c));
 
     /* Up in window 4 moves one row and wraps; other windows run the old code. */
-    c = find_free_space(rom->content, 0x7f0a, 45);
+    c = find_free_space_in(rom->content, 0x7f0a, BANK_1_FREE_END, 45);
     vpatch(rom, c, 45,
         0xad, 0xdc, 0x64, 0xc9, 0x04, 0xf0, 0x08,
         MENU_WRAP(rom) ? 0x4c : 0xa5, MENU_WRAP(rom) ? 0xa0 : 0xd9,
@@ -3944,7 +3953,7 @@ static void run_bank(dw_rom *rom)
     vpatch(rom, 0x69e0, 4, 0x4c, LO(c + 0x4000), HI(c + 0x4000), 0xea);
 
     /* Down */
-    c = find_free_space(rom->content, 0x7f0a, 41);
+    c = find_free_space_in(rom->content, 0x7f0a, BANK_1_FREE_END, 41);
     vpatch(rom, c, 41,
         0xad, 0xdc, 0x64, 0xc9, 0x04, 0xf0, 0x03, 0x4c, 0x0e, 0xaa,
         0x20, 0x30, 0xab, 0xa5, 0xd9, 0xc9, 0x02, 0xf0, 0x0a,
@@ -3955,7 +3964,7 @@ static void run_bank(dw_rom *rom)
 
     /* Selection: map column * 3 + row to a command number.
      * FIGHT 0, RUN 1, BANK 4, last spell 5, SPELL 2, ITEM 3 */
-    c = find_free_space(rom->content, 0x7f0a, 31);
+    c = find_free_space_in(rom->content, 0x7f0a, BANK_1_FREE_END, 31);
     vpatch(rom, c, 31,
         0xad, 0xdc, 0x64, 0xc9, 0x04, 0xd0, 0x11,
         0xa5, 0x20, 0x0a, 0x65, 0x20, 0x18, 0x65, 0x21, 0xaa,
@@ -3986,11 +3995,12 @@ static void run_bank(dw_rom *rom)
     vpatch(rom, 0xe5fb, 3, 0x4c, LO(c), HI(c));
 
     /* Remember spells cast in battle (replaces STA $D7 / LDA $DF). */
-    c = find_free_space(rom->content, 0xc422, 14);
-    vpatch(rom, c, 14, 0xa9, 0x00, 0x8d, LO(ram), HI(ram), 0x8d, LO(last), HI(last),
-        0x8d, LO(points), HI(points),
-        0x4c, LO(init_target), HI(init_target));
-    vpatch(rom, 0xca1a, 3, 0x20, LO(c), HI(c));
+    /* Remember the spell cast, for the last-spell command. */
+    c = find_free_space(rom->content, 0xc422, 11);
+    vpatch(rom, c, 11,
+        0x85, 0xd7, 0x18, 0x69, 0x01, 0x8d, LO(last), HI(last),
+        0xa5, 0xdf, 0x60);
+    vpatch(rom, 0xe711, 4, 0x20, LO(c), HI(c), 0xea);
 
     /* Each kill adds points by enemy tier: 96 points make one run. Points stop at the cap. */
     t = find_free_space(rom->content, 0xc422, 40);
@@ -4008,11 +4018,26 @@ static void run_bank(dw_rom *rom)
     run_bank_win_code = c;
 }
 
+/* Runs after new_flags_ram_init, which also hooks $CA1A, so this chains to its code. */
 static void run_bank_win_hook(dw_rom *rom)
 {
+    const uint16_t ram = 0x6806;
+    const uint16_t last = 0x6807;
+    const uint16_t points = 0x6808;
     uint16_t c = run_bank_win_code;
+    uint16_t init_target, init;
     if (!RUN_BANK(rom))
         return;
+
+    /* $CA1A runs for new and continued games, so only clear on 0 XP: a new game. */
+    init_target = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
+    init = find_free_space(rom->content, 0xc422, 20);
+    vpatch(rom, init, 20, 0xa5, 0xba, 0x05, 0xbb, 0xd0, 0x0b,
+        0xa9, 0x00, 0x8d, LO(ram), HI(ram), 0x8d, LO(last), HI(last),
+        0x8d, LO(points), HI(points),
+        0x4c, LO(init_target), HI(init_target));
+    vpatch(rom, 0xca1a, 3, 0x20, LO(init), HI(init));
+
     vpatch(rom, 0xe98c, 3, 0x20, LO(c), HI(c));
 }
 
@@ -4423,6 +4448,9 @@ void apply_stuff_to_rom(dw_rom *rom)
 }
 
 
+/* Where find_free_space goes when the ROM is full. */
+static jmp_buf *no_space_handler = NULL;
+
 /**
  * Randomizes a Dragon Warrior rom file
  * This does everything without the Winter theme, and does not output a file.
@@ -4433,6 +4461,8 @@ uint64_t dwr_randomizeWithoutWinterTheme(const char* input_file, uint64_t seed, 
 {
     uint64_t crc = 0;
     dw_rom rom;
+    jmp_buf on_no_space;
+    jmp_buf *outer_handler = no_space_handler;
 
     mt_init(seed);
     if (!dwr_init(&rom, input_file, flags)) {
@@ -4440,7 +4470,16 @@ uint64_t dwr_randomizeWithoutWinterTheme(const char* input_file, uint64_t seed, 
     }
     rom.seed = seed;
 
+    if (setjmp(on_no_space)) {
+        no_space_handler = outer_handler;
+        free(rom.header);
+        free(rom.expansion);
+        return 0;
+    }
+    no_space_handler = &on_no_space;
+
     apply_stuff_to_rom(&rom);
+    no_space_handler = outer_handler;
 
     crc = crc64(0, rom.content, 0x10000);
 
@@ -4467,6 +4506,7 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
     uint64_t crc = 0;
     char output_file[1025] = { 0 };
     dw_rom *rom = malloc(sizeof(dw_rom));
+    jmp_buf on_no_space;
 
     check_structs();
 
@@ -4477,9 +4517,20 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
 
     mt_init(seed);
     if (!dwr_init(rom, input_file, flags)) {
+        free(rom);
         return 0;
     }
     rom->seed = seed;
+
+    if (setjmp(on_no_space)) {
+        no_space_handler = NULL;
+        free(rom->header);
+        free(rom->expansion);
+        free(rom);
+        return 0;
+    }
+    no_space_handler = &on_no_space;
+
     winter_theme(rom);
 
     apply_stuff_to_rom(rom);
@@ -4513,7 +4564,12 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
     noir_mode(rom);
 
 
+    no_space_handler = NULL;
+
     if (!dwr_write(rom, output_file)) {
+        free(rom->header);
+        free(rom->expansion);
+        free(rom);
         return 0;
     }
     free(rom->header);
@@ -4525,10 +4581,17 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
 // Looks through the ROM for at least n bytes of free space
 uint16_t find_free_space(uint8_t *content, uint16_t start, uint8_t n)
 {
+    return find_free_space_in(content, start, 0xfffe, n);
+}
+
+// The same, for code that has to stay below end (not inclusive), such as within one bank.
+// If there is no room, randomizing stops and returns an error.
+uint16_t find_free_space_in(uint8_t *content, uint16_t start, uint16_t end, uint8_t n)
+{
     BOOL found;
     uint32_t i, j;
 
-    for(i = start; i < 0xffff - n; i++)
+    for(i = start; i + n <= end; i++)
     {
         found = TRUE;
         for(j = 0; j < n; j++)
@@ -4544,6 +4607,8 @@ uint16_t find_free_space(uint8_t *content, uint16_t start, uint8_t n)
             return i;
     }
     printf("Not enough space left for these %d bytes!\n", n);
+    if (no_space_handler)
+        longjmp(*no_space_handler, 1);
     abort();
 }
 

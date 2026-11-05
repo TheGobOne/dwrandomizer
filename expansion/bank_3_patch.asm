@@ -219,13 +219,9 @@ count_frame:
     ora $662d
     ora $662e
     beq ++
-+   ldx $662c      ; increment the timer
-    inx
-    stx $662c
++   inc $662c      ; increment the timer
     bne ++
-    ldx $662d
-    inx
-    stx $662d
+    inc $662d
     bne ++
     inc $662e
 ++  jmp $fdf4
@@ -241,11 +237,14 @@ snapshot_timer:
 modify_run_rate:
     and #$7f       ; limit the value in reg A to 0-127
     sta $3e        ; save to $3E
-    jsr cycle_rng  ; generate a new random number
+    jsr $c55b      ; run the rng cycle routine
     lda RANDOM_H   ; load the random number
     and #$3f       ; limit to 0-63
+    clc
     adc $3e        ; add to the previous number
     jmp $eec7
+
+bank_3_patch_end:
 
 .org $c4f5
 
