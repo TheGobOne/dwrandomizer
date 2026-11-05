@@ -340,7 +340,7 @@ Command line only for now: `--music pack.json5`. Packs hold FamiTracker modules 
 Scene tags: `Title`, `Castle`, `Town`, `Overworld`, `Dungeon`, `Cave`, `Battle`, `LastBattle`, `DragonlordRoom`, `Hauksness`, `OldManCave`, `Floor1` to `Floor7`.
 Floors, `DragonlordRoom` and `Hauksness` use the `Dungeon` song if they have no song of their own.
 
-Event tags: `Credits`, `Ending`, `SilverHarp`, `FairyFlute`, `RainbowBridge`, `Death`, `Inn`, `Gwaelin`, `Cursed`, `Victory`, `LevelUp`. A song with an event tag is used only for that event.
+Event tags: `Credits` (stat scroll), `Ending` (original credits), `SilverHarp`, `FairyFlute`, `RainbowBridge`, `Death`, `Inn`, `Gwaelin`, `Cursed`, `Victory`, `LevelUp`. A song with an event tag is used only for that event.
 
 
 #### Command line options ####
