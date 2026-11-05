@@ -27,6 +27,9 @@
 #include "credit_music.h"
 #include "flute_music.h"
 
+#define LO(a) ((a) & 0xff)
+#define HI(a) (((a) >> 8) & 0xff)
+
 /* The [ and ] are actually opening/closing quotes. The / is .'. = is .. */
 const char alphabet[] = "0123456789abcdefghijklmnopqrstuvwxyz"
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ[]'*>_:=_.,-_?!;)(``/'___________ \n";
@@ -3311,6 +3314,11 @@ void find_zoom_tile(dw_rom *rom, uint8_t town, uint8_t zoom_data[][3], uint8_t i
  *
  * @param rom The rom struct
  */
+/* The menu's current save slot, and three bytes each for what is kept per slot. */
+#define SAVE_SLOT 0x6039
+#define SLOT_VISITED 0x6810
+#define SLOT_RETURN 0x6813
+
 void zoom_and_whistle(dw_rom *rom)
 {
     uint8_t zoom_data[6][3]; // i is town in the below order, j is map, zoom_x, zoom_y
@@ -3320,7 +3328,13 @@ void zoom_and_whistle(dw_rom *rom)
     const uint16_t ram_j = 0x6801; // Index of town to warp-whistle to
 	const uint16_t ram_v = 0x6802; // List of visited towns (00RC GKBT)
 
-	const uint16_t newcode = find_free_space(rom->content, 0xc82b, 175); // Starting address for new code
+	/* Copies the visited towns and Return town into this save slot's own bytes. */
+	const uint16_t persist = find_free_space(rom->content, 0xc422, 16);
+	const uint16_t newcode = (vpatch(rom, persist, 16,
+        0xae, LO(SAVE_SLOT), HI(SAVE_SLOT),
+        0xad, ram_v & 0xff, (ram_v >> 8) & 0xff, 0x9d, LO(SLOT_VISITED), HI(SLOT_VISITED),
+        0xad, ram_i & 0xff, (ram_i >> 8) & 0xff, 0x9d, LO(SLOT_RETURN), HI(SLOT_RETURN),
+        0x60), find_free_space(rom->content, 0xc82b, 178)); // Starting address for new code
 	uint16_t address = newcode; // Starting address for new code
 
 	uint8_t i;
@@ -3395,7 +3409,7 @@ void zoom_and_whistle(dw_rom *rom)
     vpatch(rom, 0xd8df, 5, 0x20, address & 0xff, (address >> 8) & 0xff, 0xea, 0xea); // JSR new code
 
     // New code to update zoom index and visited towns in RAM when staying at an inn
-    code_size = 69;
+    code_size = 72;
     vpatch(rom, address, code_size,
         0xa6, 0x45,             // LDX zeropage map number
 		0xad, ram_v & 0xff, (ram_v >> 8) & 0xff, // LDA absolute zoom_v
@@ -3431,6 +3445,7 @@ void zoom_and_whistle(dw_rom *rom)
 		0x09, 0x20,														   // ORA 0x20 (Rimuldar's visited bit)
 
 		0x8d, ram_v & 0xff, (ram_v >> 8) & 0xff, // STA ram_v
+        0x20, LO(persist), HI(persist), // keep it in this save slot
 
         0xa9, 0x15, // LD8DF:  LDA #MSC_INN
         0x00,       // LD8E1:  BRK
@@ -3502,7 +3517,6 @@ void zoom_and_whistle(dw_rom *rom)
     );
     address += code_size;
 
-    // TODO: Save and load byte with visited inns in SRAM. I've attempted this but the byte is... shared between files? 🤔
 }
 
 /**
@@ -3855,8 +3869,6 @@ void random_princess_location(dw_rom *rom)
     rom->princess_map = locations[i][0];
 }
 
-#define LO(a) ((a) & 0xff)
-#define HI(a) (((a) >> 8) & 0xff)
 static uint16_t run_bank_win_code = 0;
 
 /**
@@ -3894,19 +3906,34 @@ static void run_bank(dw_rom *rom)
     size_t i;
     uint16_t c;
 
-    if (!RUN_BANK(rom))
+    if (!RUN_BANK(rom) && !QUICK_SPELL(rom))
         return;
     printf("Opening the run bank...\n");
 
     /* Window 4: one block taller than vanilla and starting one block higher, rows on lines 2, 4 and 6. */
     vpatch(rom, 0x7096, 1, 0x04);                 /* height in blocks */
     vpatch(rom, 0x7098, 1, 0x06);                 /* one block higher: closing a window restores map tiles, so it must not cover the battle scene */
-    vpatch(rom, 0x709a, 32,
-        0x21,                                     /* cursor home Y=2, X=1 */
-        0x88,
-        0x81, 0x29, 0x2c, 0x2a, 0x2b, 0x37, 0x83, 0xf8,             /* FIGHT last */
-        0x81, 0x35, 0x38, 0x31, 0x85, 0x36, 0x33, 0x28, 0x2f, 0x2f, /* RUN SPELL */
-        0x81, 0x25, 0x24, 0x31, 0x2e, 0xf0, 0x81, 0x2c, 0x37, 0x28, 0x30, 0x80); /* BANK nnn ITEM */
+    {
+        /* cursor home Y=2, X=1, then the rows */
+        static const uint8_t bank_only[] = {0x21, 0x88,
+            0x81, 0x29, 0x2c, 0x2a, 0x2b, 0x37, 0x83, 0x36, 0x33, 0x28, 0x2f, 0x2f, /* FIGHT SPELL */
+            0x81, 0x35, 0x38, 0x31, 0x85, 0x2c, 0x37, 0x28, 0x30, 0x80,             /* RUN ITEM */
+            0x81, 0x25, 0x24, 0x31, 0x2e, 0xf0, 0x80};                              /* BANK nnn */
+        static const uint8_t quick_only[] = {0x21, 0x88,
+            0x81, 0x29, 0x2c, 0x2a, 0x2b, 0x37, 0x83, 0xf8,                         /* FIGHT last */
+            0x81, 0x35, 0x38, 0x31, 0x85, 0x36, 0x33, 0x28, 0x2f, 0x2f,             /* RUN SPELL */
+            0x81, 0x2c, 0x37, 0x28, 0x30, 0x80};                                    /* ITEM */
+        static const uint8_t both[] = {0x21, 0x88,
+            0x81, 0x29, 0x2c, 0x2a, 0x2b, 0x37, 0x83, 0xf8,                         /* FIGHT last */
+            0x81, 0x35, 0x38, 0x31, 0x85, 0x36, 0x33, 0x28, 0x2f, 0x2f,             /* RUN SPELL */
+            0x81, 0x25, 0x24, 0x31, 0x2e, 0xf0, 0x81, 0x2c, 0x37, 0x28, 0x30, 0x80}; /* BANK nnn ITEM */
+        if (!QUICK_SPELL(rom))
+            patch(rom, 0x709a, sizeof(bank_only), bank_only);
+        else if (!RUN_BANK(rom))
+            patch(rom, 0x709a, sizeof(quick_only), quick_only);
+        else
+            patch(rom, 0x709a, sizeof(both), both);
+    }
 
     /* Window code $F0: print the bank left aligned in a 3 tile field. */
     c = find_free_space_in(rom->content, 0x7f0a, BANK_1_FREE_END, 43);
@@ -3918,6 +3945,18 @@ static void run_bank(dw_rom *rom)
         0xad, 0xca, 0x64, 0x8d, 0xcb, 0x64, 0xa9, 0x5f, 0x8d, 0xca, 0x64,
         0x4c, 0x2b, 0xa6);
     vpatch(rom, 0x66df, 2, LO(c + 0x4000), HI(c + 0x4000));
+    /* After a one digit bank, one dot at 32 points and two at 64: progress to the next run. */
+    {
+        const uint16_t dots = find_free_space(rom->content, 0xc422, 30);
+        vpatch(rom, dots, 30,
+            0x48,
+            0xad, 0xca, 0x64, 0xc9, 0x5f, 0xd0, 0x12,
+            0xad, LO(points), HI(points), 0xc9, 0x20, 0x90, 0x0b,
+            0xc9, 0x40, 0xa9, 0x47, 0x90, 0x02, 0xa9, 0x45,
+            0x8d, 0xca, 0x64,
+            0x68, 0x4c, 0x2b, 0xa6);
+        vpatch(rom, c + 40, 3, 0x4c, LO(dots), HI(dots));
+    }
 
     /* Window code $F8: print the last spell's short name, in the fixed bank. */
     c = find_free_space(rom->content, 0xc422, 99);
@@ -3970,15 +4009,18 @@ static void run_bank(dw_rom *rom)
         0xa5, 0x20, 0x0a, 0x65, 0x20, 0x18, 0x65, 0x21, 0xaa,
         0xbd, LO(c + 0x4000 + 25), HI(c + 0x4000 + 25),
         0x85, 0xd7, 0x68, 0x68, 0x60, 0x60,
-        0x00, 0x01, 0x04, 0x05, 0x02, 0x03);
+        /* Slots: left column top to bottom, then right. Empty slots use a command that goes back to the prompt. */
+        0x00, 0x01, RUN_BANK(rom) ? 0x04 : 0x03,
+        QUICK_SPELL(rom) ? 0x05 : 0x02, QUICK_SPELL(rom) ? 0x02 : 0x03,
+        QUICK_SPELL(rom) ? (RUN_BANK(rom) ? 0x03 : 0x04) : 0x05);
     vpatch(rom, 0x6b64, 3, 0x20, LO(c + 0x4000), HI(c + 0x4000));
 
     /* Battle: 4 spends a run, 5 recasts. An empty bank, a Dragonlord or no
      * last spell goes back to the prompt with no turn lost. */
     c = find_free_space(rom->content, 0xc422, 63);
     vpatch(rom, c, 63,
-        0xc9, 0x04, 0xf0, 0x19,          /*  0 bank -> 29 */
-        0xc9, 0x05, 0xf0, 0x03,          /*  4 last -> 11 */
+        0xc9, 0x04, 0xf0, RUN_BANK(rom) ? 0x19 : 0x38, /*  0 bank -> 29, or retry */
+        0xc9, 0x05, 0xf0, QUICK_SPELL(rom) ? 0x03 : 0x34, /*  4 last -> 11, or retry */
         0x4c, 0xb6, 0xe6,                /*  8 old dispatch */
         0xad, LO(last), HI(last), 0xf0, 0x2c, /* 11 empty -> 60 */
         0x38, 0xe9, 0x01, 0x48,          /* 16 id = last - 1, keep it */
@@ -3994,13 +4036,17 @@ static void run_bank(dw_rom *rom)
         0x4c, 0xef, 0xe5);               /* 60 retry */
     vpatch(rom, 0xe5fb, 3, 0x4c, LO(c), HI(c));
 
-    /* Remember spells cast in battle (replaces STA $D7 / LDA $DF). */
-    /* Remember the spell cast, for the last-spell command. */
-    c = find_free_space(rom->content, 0xc422, 11);
-    vpatch(rom, c, 11,
-        0x85, 0xd7, 0x18, 0x69, 0x01, 0x8d, LO(last), HI(last),
-        0xa5, 0xdf, 0x60);
-    vpatch(rom, 0xe711, 4, 0x20, LO(c), HI(c), 0xea);
+    /* Remember the spell cast, for the last-spell command (replaces STA $D7 / LDA $DF). */
+    if (QUICK_SPELL(rom)) {
+        c = find_free_space(rom->content, 0xc422, 11);
+        vpatch(rom, c, 11,
+            0x85, 0xd7, 0x18, 0x69, 0x01, 0x8d, LO(last), HI(last),
+            0xa5, 0xdf, 0x60);
+        vpatch(rom, 0xe711, 4, 0x20, LO(c), HI(c), 0xea);
+    }
+
+    if (!RUN_BANK(rom))
+        return;
 
     /* Each kill adds points by enemy tier: 96 points make one run. Points stop at the cap. */
     t = find_free_space(rom->content, 0xc422, 40);
@@ -4018,6 +4064,90 @@ static void run_bank(dw_rom *rom)
     run_bank_win_code = c;
 }
 
+/**
+ * Brings back this save slot's warp list on a continue, so a reset no longer loses it.
+ * Runs after new_flags_ram_init, because both hook $CA1A.
+ */
+static void warp_list_load(dw_rom *rom)
+{
+    const uint16_t ram_i = 0x6800;
+    const uint16_t ram_v = 0x6802;
+    uint16_t chain, c;
+
+    if (!RETURN_TO_ZOOM(rom) && !WARP_WHISTLE(rom))
+        return;
+    chain = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
+    c = find_free_space(rom->content, 0xc422, 38);
+    vpatch(rom, c, 38,
+        0x20, LO(chain), HI(chain),
+        0xae, LO(SAVE_SLOT), HI(SAVE_SLOT),
+        0xa5, 0xba, 0x05, 0xbb, 0xf0, 0x0f,       /* 0 XP: a new game */
+        0xbd, LO(SLOT_VISITED), HI(SLOT_VISITED), 0xf0, 0x09, /* never stored: keep Tantegel */
+        0x8d, LO(ram_v), HI(ram_v),
+        0xbd, LO(SLOT_RETURN), HI(SLOT_RETURN),
+        0x8d, LO(ram_i), HI(ram_i),
+        0x60,
+        0xa9, 0x01, 0x9d, LO(SLOT_VISITED), HI(SLOT_VISITED),
+        0xa9, 0x00, 0x9d, LO(SLOT_RETURN), HI(SLOT_RETURN),
+        0x60);
+    vpatch(rom, 0xca1a, 3, 0x20, LO(c), HI(c));
+}
+
+/**
+ * Danger meter: instead of a fresh roll each step, every step adds points by
+ * terrain, and a fight check happens when the meter reaches a hidden random target.
+ * Runs after new_flags_ram_init, because both hook $CA1A. It changes gameplay, so it runs before the checksum.
+ */
+static void danger_meter(dw_rom *rom)
+{
+    static const uint8_t low[4] = {0, 48, 32, 16};
+    static const uint8_t high[4] = {0, 128, 96, 64};
+    const uint16_t meter = 0x6809;
+    const uint16_t target = 0x680a;
+    const int rate = ENCOUNTER_RATE(rom);
+    uint16_t c, init, start_target;
+    uint8_t span;
+
+    if (!rate)
+        return;
+    printf("Installing the danger meter...\n");
+    span = high[rate] - low[rate] + 1;
+
+    /* All tiles reach $CDFD with a mask in A: $07 hills and desert, $0F most tiles, $1F grass. */
+    c = find_free_space(rom->content, 0xc422, 52);
+    vpatch(rom, c, 52,
+        0xa2, 0x04, 0xc9, 0x1f, 0xf0, 0x08,       /* ldx #4, grass */
+        0xa2, 0x05, 0xc9, 0x0f, 0xf0, 0x02,       /* ldx #5, most tiles */
+        0xa2, 0x08,                               /* ldx #8, hills and desert */
+        0x8a, 0x18, 0x6d, LO(meter), HI(meter), 0x8d, LO(meter), HI(meter),
+        0xcd, LO(target), HI(target), 0x90, 0x18, /* below target: done */
+        /* Reached: empty the meter and pick the next target. Towns and Repel
+         * stop the fight in the code at $CE7C, and the meter still starts over. */
+        0xa9, 0x00, 0x8d, LO(meter), HI(meter),
+        0xa5, 0x95,
+        0xc9, span, 0x90, 0x04, 0xe9, span, 0xb0, 0xf8,
+        0x18, 0x69, low[rate], 0x8d, LO(target), HI(target),
+        0x4c, 0x7c, 0xce,
+        0x60);
+    vpatch(rom, 0xcdfd, 3, 0x4c, LO(c), HI(c));
+
+    /* Grass no longer alternates, and zone 0 no longer cancels half its fights. */
+    vpatch(rom, 0xce63, 4, 0xa9, 0x1f, 0xd0, 0x96);
+    vpatch(rom, 0xcebf, 3, 0x4c, 0x04, 0xcf);
+
+    /* New and continued games start halfway to a fight. */
+    start_target = (low[rate] + high[rate]) / 2;
+    {
+        uint16_t chain = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
+        init = find_free_space(rom->content, 0xc422, 13);
+        vpatch(rom, init, 13,
+            0xa9, 0x00, 0x8d, LO(meter), HI(meter),
+            0xa9, (uint8_t)start_target, 0x8d, LO(target), HI(target),
+            0x4c, LO(chain), HI(chain));
+        vpatch(rom, 0xca1a, 3, 0x20, LO(init), HI(init));
+    }
+}
+
 /* Runs after new_flags_ram_init, which also hooks $CA1A, so this chains to its code. */
 static void run_bank_win_hook(dw_rom *rom)
 {
@@ -4026,7 +4156,7 @@ static void run_bank_win_hook(dw_rom *rom)
     const uint16_t points = 0x6808;
     uint16_t c = run_bank_win_code;
     uint16_t init_target, init;
-    if (!RUN_BANK(rom))
+    if (!RUN_BANK(rom) && !QUICK_SPELL(rom))
         return;
 
     /* $CA1A runs for new and continued games, so only clear on 0 XP: a new game. */
@@ -4038,7 +4168,8 @@ static void run_bank_win_hook(dw_rom *rom)
         0x4c, LO(init_target), HI(init_target));
     vpatch(rom, 0xca1a, 3, 0x20, LO(init), HI(init));
 
-    vpatch(rom, 0xe98c, 3, 0x20, LO(c), HI(c));
+    if (RUN_BANK(rom))
+        vpatch(rom, 0xe98c, 3, 0x20, LO(c), HI(c));
 }
 
 /**
@@ -4433,6 +4564,8 @@ void apply_stuff_to_rom(dw_rom *rom)
     return_escapes(rom);
     zoom_and_whistle(rom);
     new_flags_ram_init(rom);
+    warp_list_load(rom);
+    danger_meter(rom);
     hurtmore_doors(rom);
     levelup_refill(rom);
     max_herbs(rom);
@@ -4447,6 +4580,70 @@ void apply_stuff_to_rom(dw_rom *rom)
     not_sharing_the_world(rom);
 }
 
+
+static BOOL write_spoiler = FALSE;
+
+void dwr_set_spoiler(BOOL enabled)
+{
+    write_spoiler = enabled;
+}
+
+/**
+ * Writes where everything is, for players who ask for it.
+ *
+ * @param rom The rom struct
+ * @param path The name of the ROM file, which the spoiler file is named after
+ */
+static void spoiler_log(dw_rom *rom, const char *path)
+{
+    static const char *const maps[] = {"", "Overworld", "Charlock", "Hauksness", "Tantegel",
+        "Throne Room", "Dragonlord's Throne", "Kol", "Brecconary", "Garinham", "Cantlin",
+        "Rimuldar", "Tantegel Basement", "Northern Shrine", "Southern Shrine", "Charlock Cave 1",
+        "Charlock Cave 2", "Charlock Cave 3", "Charlock Cave 4", "Charlock Cave 5", "Charlock Cave 6",
+        "Swamp Cave", "Mountain Cave", "Mountain Cave 2", "Garin's Grave 1", "Garin's Grave 2",
+        "Garin's Grave 3", "Garin's Grave 4", "Erdrick's Cave", "Erdrick's Cave 2"};
+    static const char *const items[] = {"Nothing", "Erdrick's Armor", "Herb", "Key", "Torch",
+        "Fairy Water", "Wings", "Dragon's Scale", "Fairy Flute", "Fighter's Ring", "Erdrick's Token",
+        "Gwaelin's Love", "Cursed Belt", "Silver Harp", "Death Necklace", "Stones of Sunlight",
+        "Staff of Rain", "Erdrick's Sword", "Gold"};
+    static const struct { int warp; const char *name; } places[] = {
+        {WARP_TANTEGEL, "Tantegel"}, {WARP_BRECCONARY, "Brecconary"}, {WARP_GARINHAM, "Garinham"},
+        {WARP_KOL, "Kol"}, {WARP_RIMULDAR, "Rimuldar"}, {WARP_CANTLIN, "Cantlin"},
+        {WARP_HAUKSNESS, "Hauksness"}, {WARP_CHARLOCK, "Charlock"}, {WARP_SWAMP_NORTH, "Swamp Cave north"},
+        {WARP_SWAMP_SOUTH, "Swamp Cave south"}, {WARP_MOUNTAIN_CAVE, "Mountain Cave"},
+        {WARP_GARINS_GRAVE, "Garin's Grave"}, {WARP_ERDRICKS_CAVE, "Erdrick's Cave"},
+        {WARP_STAFF_SHRINE, "Staff Shrine"}, {WARP_JERK_CAVE, "Jerk Cave"}};
+    char name[1100];
+    FILE *out;
+    size_t i;
+
+    if (!write_spoiler)
+        return;
+    snprintf(name, sizeof(name), "%s.spoiler.txt", path);
+    out = fopen(name, "w");
+    if (!out) {
+        fprintf(stderr, "Unable to open file '%s' for writing\n", name);
+        return;
+    }
+    fprintf(out, "Seed %"PRIu64"\nFlags %s\n\nPlaces (x, y on the overworld)\n", rom->seed, rom->flags_encoded);
+    for (i = 0; i < sizeof(places) / sizeof(places[0]); i++)
+        fprintf(out, "  %-18s %3d, %3d\n", places[i].name,
+                rom->map.warps_from[places[i].warp].x, rom->map.warps_from[places[i].warp].y);
+    fprintf(out, "\nChests\n");
+    for (i = 0; i < CHEST_COUNT; i++) {
+        dw_chest *c = &rom->chests[i];
+        fprintf(out, "  %-20s %3d, %3d  %s\n", c->map < sizeof(maps) / sizeof(maps[0]) ? maps[c->map] : "?",
+                c->x, c->y, c->item < sizeof(items) / sizeof(items[0]) ? items[c->item] : "Gold");
+    }
+    fprintf(out, "\nSearch spots\n");
+    for (i = 0; i < 3; i++) {
+        uint8_t m = rom->search_table->map[i], it = rom->search_table->item[i];
+        fprintf(out, "  %-20s %3d, %3d  %s\n", m < sizeof(maps) / sizeof(maps[0]) ? maps[m] : "?",
+                rom->search_table->x[i], rom->search_table->y[i],
+                it < sizeof(items) / sizeof(items[0]) ? items[it] : "Gold");
+    }
+    fclose(out);
+}
 
 /* Where find_free_space goes when the ROM is full. */
 static jmp_buf *no_space_handler = NULL;
@@ -4566,6 +4763,7 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
 
     no_space_handler = NULL;
 
+    spoiler_log(rom, output_file);
     if (!dwr_write(rom, output_file)) {
         free(rom->header);
         free(rom->expansion);

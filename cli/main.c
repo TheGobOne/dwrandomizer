@@ -44,7 +44,8 @@ int main(int argc, char **argv)
     char default_flags[] = DEFAULT_FLAGS;
     char *input_file, *output_dir;
     static const char *const bank_levels[4] = {"normal", "easy", "strict", "verystrict"};
-    int bank_cap = 0, bank_level = 0;
+    int bank_cap = 0, bank_level = 0, encounters = 0, quick_spell = 0;
+    static const char *const encounter_rates[4] = {"default", "low", "medium", "high"};
     char encoded[64] = {0};
 
     printf("DWRandomizer version %s\n", VERSION);
@@ -52,6 +53,14 @@ int main(int argc, char **argv)
         if (!strcmp(argv[1], "--music")) {
             if (!custom_music_load(argv[2]))
                 exit(1);
+        } else if (!strcmp(argv[1], "--encounters")) {
+            for (encounters = 3; encounters > 0; encounters--)
+                if (!strcmp(argv[2], encounter_rates[encounters]))
+                    break;
+        } else if (!strcmp(argv[1], "--spoiler")) {
+            dwr_set_spoiler(!strcmp(argv[2], "on"));
+        } else if (!strcmp(argv[1], "--quick-spell")) {
+            quick_spell = !strcmp(argv[2], "on");
         } else if (!strcmp(argv[1], "--bank-cap")) {
             bank_cap = atoi(argv[2]);
             if (bank_cap < 1 || bank_cap > 99) {
@@ -96,12 +105,18 @@ int main(int argc, char **argv)
         sprite = "Random";
     }
 
-    if (bank_cap || bank_level) {
+    if (bank_cap || bank_level || encounters || quick_spell) {
         uint8_t raw[25] = {0};
         strncpy(encoded, flags, 40);
         base32_decode((uint8_t *)encoded, raw);
-        raw[12] = (uint8_t)(bank_cap | ((bank_level & 2) << 6));
-        raw[14] = (uint8_t)((raw[14] & 0xfe) | (bank_level & 1));
+        if (bank_cap || bank_level) {
+            raw[12] = (uint8_t)(bank_cap | ((bank_level & 2) << 6));
+            raw[14] = (uint8_t)((raw[14] & 0xfe) | (bank_level & 1));
+        }
+        raw[3] = (uint8_t)((raw[3] & 0xfe) | ((encounters >> 1) & 1));
+        raw[6] = (uint8_t)((raw[6] & 0xfe) | (encounters & 1));
+        if (quick_spell)
+            raw[11] |= 0x01;
         base32_encode(raw, 25, (uint8_t *)encoded);
         encoded[40] = '\0';
         flags = encoded;

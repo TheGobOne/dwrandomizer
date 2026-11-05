@@ -29,6 +29,9 @@
 #define STAIR_SHUFFLE(x)          (x->flags[ 2] & 0x0c)
 
 #define RUN_BANK(x)               (x->flags[11] & 0x0c)
+#define QUICK_SPELL(x)            (x->flags[11] & 0x01)
+/* 0 default, 1 low, 2 medium, 3 high. These bits sit alone in their pairs, so they are never maybe flags. */
+#define ENCOUNTER_RATE(x)         (((x->flags[3] & 0x01) << 1) | (x->flags[6] & 0x01))
 /* 0 means the default cap of 9 */
 #define RUN_BANK_CAP(x)           (x->flags[12] & 0x7f)
 /* 0 normal, 1 easy, 2 strict, 3 very strict */
@@ -158,6 +161,8 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
 uint16_t set_text(dw_rom *rom, const size_t address, char *text);
 /* Bank 1's free space ends here (not inclusive): see notes/free_space.txt. */
 #define BANK_1_FREE_END 0x7fd8
+/* Ask dwr_randomize to write a .spoiler.txt next to the ROM. */
+void dwr_set_spoiler(BOOL enabled);
 uint16_t find_free_space(uint8_t *content, uint16_t start, uint8_t n);
 uint16_t find_free_space_in(uint8_t *content, uint16_t start, uint16_t end, uint8_t n);
 void check_free_space(uint8_t *content, uint16_t start);
