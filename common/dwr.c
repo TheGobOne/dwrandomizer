@@ -67,7 +67,8 @@ static void update_flags(dw_rom *rom)
     uint8_t tmp;
 
     /* mcgrew's last 2 bytes do not contain maybe flags. */
-    for (i=0; i < 13; i++) {
+    /* flags[12] holds the Run Bank cap, not maybe flags. */
+    for (i=0; i < 12; i++) {
         rom->flags[i] |= (rom->flags[i] >> 1) & 0x55 & mt_rand(0, 0xff);
         rom->flags[i] &= 0x55;
     }
@@ -3859,6 +3860,24 @@ static void run_bank(dw_rom *rom)
 {
     const uint16_t ram = 0x6806;
     const uint16_t last = 0x6807;
+    const uint16_t points = 0x6808;
+    /* Tier of each enemy by id, based on default XP. 0 earns nothing. */
+    static const uint8_t enemy_tier[40] = {
+        1, 1, 1, 1, 1, 1, 2, 2, 2, 2,   /* Slime to Droll */
+        3, 3, 3, 3, 3, 3, 5, 3, 3, 3,   /* Drakeema to Druinlord, Metal Slime is 5 */
+        4, 4, 4, 4, 7, 3, 5, 5, 5, 5,   /* Drollmagi to Werewolf, Golem 7, Goldman 3 */
+        6, 6, 6, 6, 6, 7, 7, 7, 0, 0    /* Green Dragon to Dragonlord */
+    };
+    /* Points per kill for tiers 1-7, 96 / kills per run */
+    static const uint8_t tier_points[4][8] = {
+        {0,  6,  8, 12, 16, 24, 32, 48},  /* normal: 16 12 8 6 4 3 2 */
+        {0,  8, 12, 16, 24, 32, 48, 96},  /* easy: 12 8 6 4 3 2 1 */
+        {0,  4,  6,  8, 12, 16, 24, 32},  /* strict: 24 16 12 8 6 4 3 */
+        {0,  3,  4,  6,  8, 12, 16, 24},  /* very strict: 32 24 16 12 8 6 4 */
+    };
+    const int level = RUN_BANK_LEVEL(rom);
+    const uint8_t cap = RUN_BANK_CAP(rom) ? MIN(RUN_BANK_CAP(rom), 99) : 9;
+    uint16_t t;
     static const char vanilla_names[] = "HEAL HURT SLEEPRADNTSTOP OUTSDRETRNREPELHEALMHURTM";
     static const char modern_names[]  = "HEAL SIZZ SNOOZGLOW FIZZLEVAC ZOOM PROTEMIDHLKASIZ";
     const char *names;
@@ -3967,24 +3986,25 @@ static void run_bank(dw_rom *rom)
     vpatch(rom, 0xe5fb, 3, 0x4c, LO(c), HI(c));
 
     /* Remember spells cast in battle (replaces STA $D7 / LDA $DF). */
-    c = find_free_space(rom->content, 0xc422, 11);
-    vpatch(rom, c, 11,
-        0x85, 0xd7, 0x18, 0x69, 0x01, 0x8d, LO(last), HI(last),
-        0xa5, 0xdf, 0x60);
-    vpatch(rom, 0xe711, 4, 0x20, LO(c), HI(c), 0xea);
-
-    /* New game: empty bank. */
-    init_target = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
-    c = find_free_space(rom->content, 0xc422, 11);
-    vpatch(rom, c, 11, 0xa9, 0x00, 0x8d, LO(ram), HI(ram), 0x8d, LO(last), HI(last),
+    c = find_free_space(rom->content, 0xc422, 14);
+    vpatch(rom, c, 14, 0xa9, 0x00, 0x8d, LO(ram), HI(ram), 0x8d, LO(last), HI(last),
+        0x8d, LO(points), HI(points),
         0x4c, LO(init_target), HI(init_target));
     vpatch(rom, 0xca1a, 3, 0x20, LO(c), HI(c));
 
-    /* Wins bank one run; setup_expansion's stats hook is called from here. */
-    c = find_free_space(rom->content, 0xc422, 14);
-    vpatch(rom, c, 14, 0x20, LO(COUNT_WIN), HI(COUNT_WIN),
-        0xad, LO(ram), HI(ram), 0xc9, 0x63, 0xb0, 0x03,
-        0xee, LO(ram), HI(ram), 0x60);
+    /* Each kill adds points by enemy tier: 96 points make one run. Points stop at the cap. */
+    t = find_free_space(rom->content, 0xc422, 40);
+    for (i = 0; i < 40; i++)
+        rom->content[t + i] = tier_points[level][enemy_tier[i]];
+    c = find_free_space(rom->content, 0xc422, 32);
+    vpatch(rom, c, 32, 0x20, LO(COUNT_WIN), HI(COUNT_WIN),
+        0xa6, 0xe0,                               /* ldx enemy id */
+        0xad, LO(ram), HI(ram), 0xc9, cap, 0xb0, 0x13,
+        0xbd, LO(t), HI(t), 0x18, 0x6d, LO(points), HI(points),
+        0xc9, 0x60, 0x90, 0x05, 0xe9, 0x60,
+        0xee, LO(ram), HI(ram),
+        0x8d, LO(points), HI(points),
+        0x60);
     run_bank_win_code = c;
 }
 

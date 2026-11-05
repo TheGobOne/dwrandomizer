@@ -29,6 +29,11 @@
 #define STAIR_SHUFFLE(x)          (x->flags[ 2] & 0x0c)
 
 #define RUN_BANK(x)               (x->flags[11] & 0x0c)
+/* 0 means the default cap of 9 */
+#define RUN_BANK_CAP(x)           (x->flags[12] & 0x7f)
+/* 0 normal, 1 easy, 2 strict, 3 very strict */
+#define RUN_BANK_LEVEL(x)         (((x->flags[12] & 0x80) >> 6) | (x->flags[14] & 0x01))
+
 #define MENU_WRAP(x)              (x->flags[ 3] & 0xc0)
 #define DEATH_NECKLACE(x)         (x->flags[ 3] & 0x30)
 #define TORCH_IN_BATTLE(x)        (x->flags[ 3] & 0x0c)

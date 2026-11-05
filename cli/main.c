@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "base32.h"
 #include "custom_music.h"
 #include "dwr.h"
 #include "dwr_types.h"
@@ -42,11 +43,33 @@ int main(int argc, char **argv)
     char *flags;
     char default_flags[] = DEFAULT_FLAGS;
     char *input_file, *output_dir;
+    static const char *const bank_levels[4] = {"normal", "easy", "strict", "verystrict"};
+    int bank_cap = 0, bank_level = 0;
+    char encoded[64] = {0};
 
     printf("DWRandomizer version %s\n", VERSION);
-    if (argc >= 3 && !strcmp(argv[1], "--music")) {
-        if (!custom_music_load(argv[2]))
+    while (argc >= 3 && !strncmp(argv[1], "--", 2)) {
+        if (!strcmp(argv[1], "--music")) {
+            if (!custom_music_load(argv[2]))
+                exit(1);
+        } else if (!strcmp(argv[1], "--bank-cap")) {
+            bank_cap = atoi(argv[2]);
+            if (bank_cap < 1 || bank_cap > 99) {
+                fprintf(stderr, "--bank-cap must be from 1 to 99\n");
+                exit(1);
+            }
+        } else if (!strcmp(argv[1], "--bank-level")) {
+            for (bank_level = 0; bank_level < 4; bank_level++)
+                if (!strcmp(argv[2], bank_levels[bank_level]))
+                    break;
+            if (bank_level == 4) {
+                fprintf(stderr, "--bank-level must be normal, easy, strict or verystrict\n");
+                exit(1);
+            }
+        } else {
+            fprintf(stderr, "Unknown option %s\n", argv[1]);
             exit(1);
+        }
         argv[2] = argv[0];
         argv += 2;
         argc -= 2;
@@ -71,6 +94,17 @@ int main(int argc, char **argv)
         sprite = argv[4];
     } else {
         sprite = "Random";
+    }
+
+    if (bank_cap || bank_level) {
+        uint8_t raw[25] = {0};
+        strncpy(encoded, flags, 40);
+        base32_decode((uint8_t *)encoded, raw);
+        raw[12] = (uint8_t)(bank_cap | ((bank_level & 2) << 6));
+        raw[14] = (uint8_t)((raw[14] & 0xfe) | (bank_level & 1));
+        base32_encode(raw, 25, (uint8_t *)encoded);
+        encoded[40] = '\0';
+        flags = encoded;
     }
 
     printf("Randomizing using seed: %"PRIu64" with flags %s\n", seed, flags);
