@@ -9,10 +9,10 @@
 #include "build.h"
 #include "dwr_types.h"
 
-#define DWR_VERSION "UNOFFICIAL - JUEF v3.0.3.20"
+#define DWR_VERSION "TheGobOne Remix v1.0"
 #define VERSION DWR_VERSION
-#define DWR_EDITION "THEGOBONE EDITION"
-#define DWR_BASED_ON "BASED ON JUEF V3.0.3.20"
+/* The title screen font has no lower case. */
+#define DWR_EDITION "THEGOBONE REMIX V1.0"
 
 #define DEFAULT_FLAGS "IVIAAVCEKACAAAAAAAAAAEAUAAQBAAAAABYCAAAA"
 #define CHEST_COUNT 31
@@ -29,6 +29,7 @@
 #define STAIR_SHUFFLE(x)          (x->flags[ 2] & 0x0c)
 
 #define RUN_BANK(x)               (x->flags[11] & 0x0c)
+#define KEY_HERB_COUNTER(x)       (x->flags[ 8] & 0x10)
 #define QUICK_SPELL(x)            (x->flags[11] & 0x01)
 /* 0 default, 1 low, 2 medium, 3 high. These bits sit alone in their pairs, so they are never maybe flags. */
 #define ENCOUNTER_RATE(x)         (((x->flags[3] & 0x01) << 1) | (x->flags[6] & 0x01))

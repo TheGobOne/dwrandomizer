@@ -69,7 +69,7 @@ if (EMSCRIPTEN)
     target_link_libraries(dwrandomizer m)
     target_link_options(dwrandomizer PRIVATE
         "SHELL:
-        -s EXPORTED_FUNCTIONS='_dwr_randomize,_sprite_name,_version'
+        -s EXPORTED_FUNCTIONS='_dwr_randomize,_sprite_name,_version,_custom_music_load,_custom_music_clear'
         -s EXPORTED_RUNTIME_METHODS='ccall,cwrap'
         -s WASM_BIGINT")
     file(REMOVE_RECURSE                                        ${CMAKE_BINARY_DIR}/release/)

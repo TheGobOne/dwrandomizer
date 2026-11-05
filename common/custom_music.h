@@ -11,6 +11,9 @@
  */
 BOOL custom_music_load(const char *path);
 
+/** Forget any loaded packs. */
+void custom_music_clear(void);
+
 /**
  * Picks songs from the loaded pack and installs the driver. Does nothing if
  * no pack is loaded. Call after setup_expansion().

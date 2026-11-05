@@ -46,7 +46,8 @@ static int compare_enemies(const void *a, const void *b)
         return 1;
     if (enemy_a->rank < enemy_b->rank)
         return -1;
-    return 0;
+    /* Break ties: qsort's order for ties differs between platforms. */
+    return memcmp(enemy_a, enemy_b, sizeof(dw_enemy));
 }
 
 /**

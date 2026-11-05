@@ -70,7 +70,6 @@ void set_dungeon_tile(dw_rom *rom, dw_map_index town, uint8_t x,
         uint8_t y, uint8_t tile)
 {
     BOOL roof_data;
-    uint8_t oldval;
     size_t offset = (size_t)y * (rom->map.meta[town].width+1) + x;
     size_t data_addr = ((*(uint16_t*)(&rom->map.meta[town].pointer)) & 0x7fff) +
         offset/2;
@@ -91,7 +90,6 @@ void set_dungeon_tile(dw_rom *rom, dw_map_index town, uint8_t x,
         printf("This is a bug.\n");
         tile &= 7;
     }
-    oldval = rom->content[data_addr];
     if (offset % 2) {
         if (roof_data) {
             rom->content[data_addr] &= 0xf8;
@@ -331,7 +329,6 @@ static void rotate_mirror_map(dw_rom *rom, dw_map_index map_index)
     if (!(rotatemirror & 0x3)) {
         rotatedbuf = mirroredhbuf;
     } else {
-        size_t newx, newy, newi;
         rotatedbuf = calloc(bufsize, 1);
         if (ROTATE_90(rotatemirror)) { // rotate 90 degrees clockwise
             for (i = 0; i < bufsize; i++) {

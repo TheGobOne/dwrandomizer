@@ -143,7 +143,7 @@ torch_in_battle:
     clc
     adc #$06            ; add 6
     jmp $e694           ; jump to damage routine
-+++ cmp #$05            ; c9 04      ; Fairy Water
++++ cmp #$05            ; Fairy Water
     bne +
     lda #$02
     jsr $e04b           ; remove the item from inventory

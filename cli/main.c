@@ -44,7 +44,7 @@ int main(int argc, char **argv)
     char default_flags[] = DEFAULT_FLAGS;
     char *input_file, *output_dir;
     static const char *const bank_levels[4] = {"normal", "easy", "strict", "verystrict"};
-    int bank_cap = 0, bank_level = 0, encounters = 0, quick_spell = 0;
+    int bank_cap = 0, bank_level = 0, encounters = 0, quick_spell = 0, key_herb = 0;
     static const char *const encounter_rates[4] = {"default", "low", "medium", "high"};
     char encoded[64] = {0};
 
@@ -59,6 +59,8 @@ int main(int argc, char **argv)
                     break;
         } else if (!strcmp(argv[1], "--spoiler")) {
             dwr_set_spoiler(!strcmp(argv[2], "on"));
+        } else if (!strcmp(argv[1], "--key-herb")) {
+            key_herb = !strcmp(argv[2], "on");
         } else if (!strcmp(argv[1], "--quick-spell")) {
             quick_spell = !strcmp(argv[2], "on");
         } else if (!strcmp(argv[1], "--bank-cap")) {
@@ -105,7 +107,7 @@ int main(int argc, char **argv)
         sprite = "Random";
     }
 
-    if (bank_cap || bank_level || encounters || quick_spell) {
+    if (bank_cap || bank_level || encounters || quick_spell || key_herb) {
         uint8_t raw[25] = {0};
         strncpy(encoded, flags, 40);
         base32_decode((uint8_t *)encoded, raw);
@@ -115,6 +117,8 @@ int main(int argc, char **argv)
         }
         raw[3] = (uint8_t)((raw[3] & 0xfe) | ((encounters >> 1) & 1));
         raw[6] = (uint8_t)((raw[6] & 0xfe) | (encounters & 1));
+        if (key_herb)
+            raw[8] |= 0x10;
         if (quick_spell)
             raw[11] |= 0x01;
         base32_encode(raw, 25, (uint8_t *)encoded);

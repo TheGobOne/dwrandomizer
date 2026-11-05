@@ -68,7 +68,6 @@ static int compare(const void *a, const void *b)
 static void update_flags(dw_rom *rom)
 {
     size_t i;
-    uint8_t tmp;
 
     /* mcgrew's last 2 bytes do not contain maybe flags. */
     /* flags[12] holds the Run Bank cap, not maybe flags. */
@@ -398,7 +397,6 @@ static void torch_in_battle(dw_rom *rom) {
 void dwx_run_mechanics(dw_rom *rom)
 {
 	const uint16_t ram_n = 0x6803; // Number of run attempts minus one. This just requires 2 bits so we could use a byte from the warp whistle if we really wanted to save a byte
-	const uint16_t ram_blocks = 0x663c;
     const uint16_t battle_start_hook = 0xe4f0;
     const uint16_t battle_start_newcode = find_free_space(rom->content, 0xc422, 8);
     const uint16_t costs_xp_newcode = find_free_space(rom->content, 0xc422, 17);
@@ -827,7 +825,7 @@ static BOOL shop_contains(uint8_t *shop_start, uint8_t *shop_end,
 static void randomize_shops(dw_rom *rom)
 {
     uint8_t *shop_start, *shop_item;
-    int i, j, six_item_shop;
+    int i, j;
     dw_shop_item items[] = {
             BAMBOO_POLE, CLUB, COPPER_SWORD, HAND_AXE, BROAD_SWORD, FLAME_SWORD,
             CLOTHES, LEATHER_ARMOR, CHAIN_MAIL, HALF_PLATE, FULL_PLATE,
@@ -1466,7 +1464,8 @@ static void update_title_screen(dw_rom *rom)
     pos = pvpatch(pos, 4, 0xf7, 32, 0x5f, 0xfc); /* blank line */
     pos = center_title_text(pos, DWR_EDITION);
     pos = pvpatch(pos, 4, 0xf7, 32, 0x5f, 0xfc); /* blank line */
-    pos = center_title_text(pos, DWR_BASED_ON);
+    /* A blank line spelled out: the screen data has to fill its space, or leftover bytes corrupt the colors. */
+    pos = center_title_text(pos, "                    ");
     pos = pvpatch(pos, 4, 0xf7, 64, 0x5f, 0xfc); /* 2 blank lines */
 
     //pos = center_title_text(pos, (const char *)rom->flags_encoded); /* flags */
@@ -1536,8 +1535,8 @@ static void dwr_death_necklace(dw_rom *rom)
 
     vpatch(rom, 0xff54, 31,
             /* ff54: */
-            0x24, 0xcf,  /* AND #$80  ; check bit 8 (death necklace)       */
-            0x10, 0x18,  /* BPL $FF71                                      */
+            0x24, 0xcf,  /* BIT $CF   ; check bit 8 (death necklace)       */
+            0x10, 0x18,  /* BPL $FF70                                      */
             0xa5, 0xca,  /* LDA $00CA ; load max HP                        */
             0x46, 0xca,  /* LSR $00CA ; divide max HP by 4                 */
             0x46, 0xca,  /* LSR $00CA                                      */
@@ -1823,6 +1822,46 @@ static void death_counter(dw_rom *rom)
 }
 
 /**
+ * Adds a row under the deaths in the pop-up stats window: keys, then herbs.
+ * Runs after death_counter. The window moves to the fixed bank, where there is room.
+ *
+ * @param rom The rom struct
+ */
+static void key_herb_counter(dw_rom *rom)
+{
+    /* LV to E rows of the original window, which stay where they are. */
+    const size_t rows = 0x6fc7 - 0x6fb4;
+    const uint16_t window = find_free_space(rom->content, 0xc422, 4 + rows + 2 + 5);
+    const uint16_t chain = rom->content[0x6379] | (rom->content[0x637a] << 8);
+    uint16_t c, w = window;
+
+    if (!KEY_HERB_COUNTER(rom))
+        return;
+
+    /* With deaths too, the window starts a block higher to clear the battle text. */
+    vpatch(rom, w, 4, 0x01, DEATH_COUNTER(rom) ? 0x08 : 0x07, 0x08, DEATH_COUNTER(rom) ? 0x11 : 0x21);
+    w += 4;
+    patch(rom, w, rows, &rom->content[0x6fb4]);
+    w += rows;
+    if (DEATH_COUNTER(rom)) {
+        vpatch(rom, w, 2, 0x27, 0x99);            /* D nnnnn */
+        w += 2;
+    }
+    vpatch(rom, w, 5, 0x2e, 0x9a, 0x82, 0x2b, 0x9b); /* K n  H n, with n under the other numbers */
+    vpatch(rom, 0x6f6c, 2, LO(window), HI(window));
+
+    /* Codes $9A and $9B share the gold code's slot, so they arrive at its hook. */
+    c = find_free_space(rom->content, 0xc422, 22);
+    vpatch(rom, c, 22,
+        0xad, 0xdf, 0x64, 0xc9, 0x02, 0xb0, 0x03, /* gold or deaths: the old code */
+        0x4c, LO(chain), HI(chain),
+        0xaa, 0xa9, 0x01, 0x8d, 0xe2, 0x64,       /* one digit */
+        0xb5, 0xbd, 0x8d, 0xca, 0x64,             /* $BF keys, $C0 herbs */
+        0x60);
+    vpatch(rom, 0x6378, 3, 0x20, LO(c), HI(c));
+}
+
+/**
  * Modifies the level up routine to display the spells learned rather than
  * just indicating that you have learned a spell
  *
@@ -2046,7 +2085,7 @@ static void dwr_menu_wrap(dw_rom *rom)
         0x68,              /* PLA       ; pull A from stack */
         0xc5, 0xd9,        /* CMP $00D9 ; compare to map number */
         0xf0, 0xf3,        /* BEQ $7EF8 ; if equal, jump to $7EF8 (return) */
-        0x4c, 0x27, 0xaa   /* JMP $A9E4 ; jump to $A9E4 */
+        0x4c, 0x27, 0xaa   /* JMP $AA27 ; jump to $AA27 */
     );
 }
 
@@ -2446,7 +2485,7 @@ static void modern_spell_names(dw_rom *rom)
 static void dwr_token_dialogue(dw_rom *rom)
 {
     char text[73] = { 0 };
-    int dx, dy, copied;
+    int dx, dy;
 
     if (!rom->search_table->item[0]) {
         set_text(rom, 0xa228, "Thou must go fight!'   ");
@@ -2498,10 +2537,7 @@ static void noir_mode(dw_rom *rom)
     if (!NOIR_MODE(rom))
         return;
 
-    uint8_t *pal_start, *pal_end;
 
-    pal_start = &rom->content[0x1a2e];
-    pal_end   = &rom->content[0x1c8e];
 
 //     noir_replace(&rom->content[0x1a2e], &rom->content[0x1c8e]);
     noir_replace(&rom->content[0x1a2e], &rom->content[0x1c83]); // omit DL
@@ -2639,7 +2675,6 @@ static void begin_quest_checksum(dw_rom *rom, uint64_t crc)
     snprintf(crc_text+6, 7, "%016"PRIX64, crc);
 
     //replaces the "begin new quest" window data address
-    //the old address was 0x72a8. the new address is 0xc7ec.
     vpatch(rom, 0x6f8e, 2, newcode & 0xff, (newcode >> 8) & 0xff);
 
     //our brand new "begin new quest" window
@@ -2872,7 +2907,9 @@ static void shuffle_key_prices(dw_rom *rom)
 
 static int compareLocation(const void *a, const void *b)
 {
-    return *(uint8_t*)(a+4) - *(uint8_t*)(b+4);
+    /* Break ties on the original index: qsort's order for ties differs between platforms. */
+    const uint8_t *x = a, *y = b;
+    return (x[4] != y[4]) ? x[4] - y[4] : x[5] - y[5];
 }
 
 static void discardable_flute(dw_rom *rom)
@@ -4185,7 +4222,6 @@ void new_flags_ram_init(dw_rom *rom)
     const uint16_t ram_i = address; // Return index
     const uint16_t ram_j = address + 1; // Whistle index
     const uint16_t ram_v = address + 2; // List of visited towns
-    const uint16_t ram_n = address + 3; // Number of run blocks for current battle, set at start of battle)
     const uint16_t ram_s = address + 4; // Number of steps
     //             ram_s = address + 5; // Number of steps (2nd byte)
 
@@ -4561,6 +4597,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     invisible_npcs(rom);
     damage_bonks(rom);
     death_counter(rom);
+    key_herb_counter(rom);
     return_escapes(rom);
     zoom_and_whistle(rom);
     new_flags_ram_init(rom);

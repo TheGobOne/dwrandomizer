@@ -56,10 +56,6 @@ credit_start:
 
     ; clear Zero page and RAM famistudio uses
     lda #0
-    ldx #$f
--   sta FAMISTUDIO_ASM6_ZP_ENUM,x
-    dex
-    bpl -
     tax
 -   sta FAMISTUDIO_ASM6_BSS_ENUM,x
     sta $00,x
@@ -337,7 +333,6 @@ handle_instruction:
     lda (STATS_ADDR),y
     sta TMP_ADDR + 1
     jsr addr_to_bcd         ; convert the value at the address to BCD
-    ldx #4
     jsr print_bcd           ; print the last 4 digits of the BCD to the screen
     lda #2
     jsr add_stats_addr      ; Add 2 to the script pointer

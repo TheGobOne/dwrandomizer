@@ -41,11 +41,11 @@ enum subroutine {
   TORCH_IN_BATTLE = 0xC331,
 };
 
-#define CREDITS_MUSIC_START 0xA054
-#define CREDITS_MUSIC_UPDATE 0xAA6D
-#define CREDITS_FAMISTUDIO_INIT 0xAA7F
-#define CREDITS_FAMISTUDIO_PLAY 0xAB42
-#define CREDITS_FAMISTUDIO_UPDATE 0xAC1B
+#define CREDITS_MUSIC_START 0xA04D
+#define CREDITS_MUSIC_UPDATE 0xAA64
+#define CREDITS_FAMISTUDIO_INIT 0xAA76
+#define CREDITS_FAMISTUDIO_PLAY 0xAB39
+#define CREDITS_FAMISTUDIO_UPDATE 0xAC12
 
 void add_hook(dw_rom *rom, enum hooktype type, uint16_t address,
         enum subroutine to_addr);

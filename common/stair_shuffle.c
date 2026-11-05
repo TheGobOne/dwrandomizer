@@ -159,7 +159,6 @@ static void follow_warp(dungeon_map *map, uint8_t x, uint8_t y, BOOL have_keys)
 {
     size_t i;
     dw_warp *from, *to;
-    dungeon_map *to_map = NULL;
 
     for (i=0; warps_to[i].map; i++) {
         from = &warps_from[i];
@@ -428,7 +427,7 @@ static void stair_shuffle_init(dw_rom *rom)
  */
 static BOOL all_chests_accessible()
 {
-    size_t i, x, y, width, height;
+    size_t i, x, y;
     dungeon_map *map;
 
     for (i=0; indexes[i]; i++) {

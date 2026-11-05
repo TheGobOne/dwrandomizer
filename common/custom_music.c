@@ -457,6 +457,14 @@ static void skip_value(reader *r)
     skip_value_at(r, 0);
 }
 
+void custom_music_clear(void)
+{
+    int i;
+    for (i = 0; i < song_count; i++)
+        free(songs[i].data);
+    song_count = 0;
+}
+
 BOOL custom_music_load(const char *path)
 {
     FILE *f = fopen(path, "rb");

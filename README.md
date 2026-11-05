@@ -110,7 +110,7 @@ The Fairy Flute will work as a warp whistle outside of battle, cycling between p
 - Cantlin
 - Rimuldar
 
-Beware that resetting or turning off the game will remove all warp points!
+The list is kept for each save slot, so resetting or turning off the game no longer loses it.
 
 #### Levelup Refill ####
 
@@ -294,10 +294,72 @@ Text boxes will now display the player's name instantly, rather than character b
 * While the name prints instantly regardless of its length, having a long name might require more lines for some texts to be displayed, and that does take a little more time. To some extent, that is even true with mcgrew's official DWR when the `Fast Text` flag is on. But there really isn't anything to be done about that I think.
 
 
+#### Run Bank ####
+
+Each win earns points toward a guaranteed escape, and the `BANK` battle command spends one. It can't be used on the Dragonlord. A dot after a one digit bank means a third of the way to the next run, and two dots mean two thirds.
+
+Stronger monsters earn more. Kills per run, from the weakest tier of monster to the strongest:
+
+| Earn level | Kills per run |
+|---|---|
+| Easy | 12, 8, 6, 4, 3, 2, 1 |
+| Normal | 16, 12, 8, 6, 4, 3, 2 |
+| Strict | 24, 16, 12, 8, 6, 4, 3 |
+| Very Strict | 32, 24, 16, 12, 8, 6, 4 |
+
+The bank holds 9 runs unless a cap of 1 to 99 is chosen.
+
+
+#### Quick Spell ####
+
+Adds a battle command that casts your last spell again, without opening the spell menu.
+
+
+#### Encounter Rate ####
+
+`Default` keeps the original random roll on every step. `Low`, `Medium` and `High` use a danger meter: each step adds points by terrain, and a fight check happens when the meter reaches a hidden random target. Streaks and long droughts go away, and Repel still works.
+
+| Rate | Steps on grass | Forest, swamp, brick, barrier | Hills, desert |
+|---|---|---|---|
+| Low | 12-32 | 10-26 | 6-16 |
+| Medium | 8-24 | 7-20 | 4-12 |
+| High | 4-16 | 4-13 | 2-8 |
+
+The meter also removes the original game's hidden checkerboard on grass, where neighbouring tiles have different odds.
+
+
+#### Disable Screen Shake ####
+
+Keeps the screen still when you take damage.
+
+
+#### Custom Music Packs ####
+
+Command line only for now: `--music pack.json5`. Packs hold FamiTracker modules and play through the Dn-FamiTracker driver. Up to 24 songs and about 18 KB fit, and songs that don't fit are skipped. A scene with no tagged song keeps its default music. Sound effects can't be replaced.
+
+Scene tags: `Title`, `Castle`, `Town`, `Overworld`, `Dungeon`, `Cave`, `Battle`, `LastBattle`, `DragonlordRoom`, `Hauksness`, `OldManCave`, `Floor1` to `Floor7`.
+Floors, `DragonlordRoom` and `Hauksness` use the `Dungeon` song if they have no song of their own.
+
+Event tags: `Credits`, `Ending`, `SilverHarp`, `FairyFlute`, `RainbowBridge`, `Death`, `Inn`, `Gwaelin`, `Cursed`, `Victory`, `LevelUp`. A song with an event tag is used only for that event.
+
+
+#### Command line options ####
+
+| Option | Values |
+|---|---|
+| `--music` | Path to a JSON5 pack |
+| `--bank-cap` | 1 to 99 |
+| `--bank-level` | `normal`, `easy`, `strict`, `verystrict` |
+| `--encounters` | `default`, `low`, `medium`, `high` |
+| `--quick-spell` | `on` |
+| `--key-herb` | `on`: adds a keys and herbs row to the stats window |
+| `--spoiler` | `on`: writes a `.spoiler.txt` next to the ROM, without changing the checksum |
+
+
 ## Known Issues ##
 - In mcgrew's official DWR version, when a vendor is missing in Rimuldar (e.g. key vendor), the very top left tile of the town is an invisible wall. It doesn't matter then because there is no point in going there if there is no vendor. But since vendors can now be shuffled, it can be a valid check, and notably, coupling this with Damage Bonks could ruin a player's day. The block has been replaced with a water tile to avoid player frustration. Something similar happens with Cantlin.
 - `NPC Guillotine` can also trigger the above problem, but if that happens, the block won't be replaced with a water tile. That's the penalty for murder.
 - With the `Disguised Dragonlord` flag, there will likely be some graphical glitches in both Dragonlord fights, depending on his location. They are purely cosmetic and do not affect the ability to run away or to complete the game.
 - The village music plays after spending the night at the `Inn In Charlock`, but it fixes itself as the music changes to something else (e.g. enemy encounter, death necklace use, …).
-- The list of visited inns for the `Warp Whistle` flag is not saved in SRAM, meaning that turning off or resetting the game will reset your warpable location list to Tantegel only.
+- Copying a save does not copy its `Warp Whistle` list. Continuing a game at 0 XP is treated as a new game and clears the list and the `Run Bank`.
 - If too many flags that require ROM space are active at the same time, it might not be possible to generate a seed. Biggest offenders are `Build Options`, `Hurtmore Doors` and `Warp Whistle`, so turn one of those off if you run into that problem.
