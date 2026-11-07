@@ -696,6 +696,317 @@ static const event_t events[EVENT_COUNT] = {
     {"Floor 7",     0x0c, {"Floor7"}},
 };
 
+/* ------------------------------------------------------------ choosing like the site */
+
+/* The command line picks songs exactly the way the site does with every slot on Random and one track for
+ * all dungeon floors, so the same seed and pack give the same music. This mirrors chosenPack in
+ * site/index.html: change the two together. */
+#define PICK_ROOM (0xc000 - FT_SONGS)
+
+static BOOL choose_like_site = FALSE;
+static song_t pack[MAX_SONGS];
+static int pack_count = 0;
+
+void custom_music_choose_like_site(void)
+{
+    choose_like_site = TRUE;
+}
+
+typedef struct {
+    const char *tags[4];
+    BOOL location;
+} pick_slot_t;
+
+static const pick_slot_t pick_slots[] = {
+    {{"Title"}, TRUE}, {{"Overworld"}, TRUE}, {{"Town"}, TRUE}, {{"Castle"}, TRUE},
+    {{"Hauksness"}, TRUE}, {{"OldManCave"}, TRUE},
+    {{"Floor1", "Dungeon", "Cave"}, TRUE},
+    {{"DragonlordRoom"}, TRUE}, {{"Battle"}, TRUE}, {{"LastBattle"}, TRUE},
+    {{"Ending"}, FALSE}, {{"Credits", "Ending"}, FALSE},
+};
+#define PICK_SLOTS ((int)(sizeof(pick_slots) / sizeof(pick_slots[0])))
+#define FLOOR_SLOT 6
+
+static const char *const pick_place_order[] = {"Credits", "Overworld", "Battle", "Dungeon", "Town", "Castle",
+    "LastBattle", "Title", "Ending", "DragonlordRoom", "Hauksness", "OldManCave"};
+static const char *const pick_fill_order[] = {"Title", "Overworld", "Town", "Floor1", "Battle", "Castle",
+    "LastBattle", "Credits", "Ending", "DragonlordRoom", "Hauksness", "OldManCave"};
+
+static int order_of(const char *const *list, int n, const char *tag)
+{
+    int i;
+    for (i = 0; i < n; i++)
+        if (!strcmp(list[i], tag))
+            return i;
+    return -1;
+}
+
+static BOOL pack_has(const song_t *s, const char *const *tags)
+{
+    int i, j;
+    for (i = 0; i < s->use_count; i++)
+        for (j = 0; j < 4 && tags[j]; j++)
+            if (same_tag(s->uses[i], tags[j]))
+                return TRUE;
+    return FALSE;
+}
+
+/* TRUE if a module has a halt command, so it stops instead of looping. */
+static BOOL song_stops(const song_t *s)
+{
+    const uint8_t *d = s->data;
+    size_t head = (size_t)d[0] | (size_t)d[1] << 8, frames, i;
+    int count, rows, f, c;
+
+    head = (size_t)d[head] | (size_t)d[head + 1] << 8;
+    frames = (size_t)d[head] | (size_t)d[head + 1] << 8;
+    count = d[head + 2];
+    rows = d[head + 3];
+    for (f = 0; f < count; f++) {
+        size_t fp = (size_t)d[frames + 2 * (size_t)f] | (size_t)d[frames + 2 * (size_t)f + 1] << 8;
+        for (c = 0; c < 5; c++) {
+            int row = 0, dur = -1;
+            i = (size_t)d[fp + 2 * (size_t)c] | (size_t)d[fp + 2 * (size_t)c + 1] << 8;
+            if (!i)
+                continue;
+            while (row < rows) {
+                uint8_t b;
+                if (i >= s->size)
+                    return TRUE;
+                b = d[i++];
+                if (b >= 0xe0)
+                    continue;
+                if (b >= 0x80) {
+                    if (b == 0x88 || b > 0xa6)
+                        return TRUE;
+                    if (b == 0x82)
+                        dur = i < s->size ? d[i] : 0;
+                    if (b == 0x83)
+                        dur = -1;
+                    if (b != 0x81 && b != 0x83 && b != 0x8a && b != 0x92)
+                        i++;
+                    continue;
+                }
+                if (dur < 0) {
+                    if (i >= s->size)
+                        break;
+                    row += d[i++] + 1;
+                } else {
+                    row += dur + 1;
+                }
+            }
+        }
+    }
+    return FALSE;
+}
+
+typedef struct {
+    const char *tag;
+    size_t size;
+} pick_entry_t;
+
+static uint32_t pick_rng;
+static pick_entry_t pick_placed[MAX_PLACED + 1];
+static int pick_placed_count;
+static BOOL pick_skip_credits;
+static char *pick_used, *pick_stops;
+
+static int pick_rank(const char *tag, BOOL ending_first)
+{
+    if (ending_first && !strcmp(tag, "Ending"))
+        return -1;
+    return order_of(pick_place_order, 12, tag);
+}
+
+static BOOL pick_fits(const char *tag, size_t size)
+{
+    pick_entry_t a[MAX_PLACED + 1];
+    int n = pick_placed_count, i, j;
+    size_t b[2] = {0, 0};
+    BOOL ending_first = pick_skip_credits;
+
+    if (n + 1 > MAX_PLACED)
+        return FALSE;
+    memcpy(a, pick_placed, (size_t)n * sizeof(a[0]));
+    a[n].tag = tag;
+    a[n++].size = size;
+    for (i = 0; i < n; i++)
+        if (!strcmp(a[i].tag, "Credits"))
+            ending_first = FALSE;
+    for (i = 1; i < n; i++) { /* stable, like the site's sort */
+        pick_entry_t e = a[i];
+        for (j = i; j > 0 && pick_rank(a[j - 1].tag, ending_first) > pick_rank(e.tag, ending_first); j--)
+            a[j] = a[j - 1];
+        a[j] = e;
+    }
+    for (i = 0; i < n; i++) {
+        if (b[0] + a[i].size <= PICK_ROOM)
+            b[0] += a[i].size;
+        else if (b[1] + a[i].size <= PICK_ROOM)
+            b[1] += a[i].size;
+        else
+            return FALSE;
+    }
+    return TRUE;
+}
+
+static BOOL pick_loops(int i)
+{
+    if (pick_stops[i] < 0)
+        pick_stops[i] = song_stops(&pack[i]) ? 1 : 0;
+    return !pick_stops[i];
+}
+
+static BOOL is_dungeon_song(const song_t *s)
+{
+    static const char *const a[4] = {"Floor1", "Floor2", "Floor3", "Floor4"};
+    static const char *const b[4] = {"Floor5", "Floor6", "Floor7", "Dungeon"};
+    static const char *const c[4] = {"Cave"};
+    return pack_has(s, a) || pack_has(s, b) || pack_has(s, c);
+}
+
+/* list is NULL for every song. A negative left also limits it to dungeon songs. */
+static int pick_choose(const char *const *list, const char *tag, int left, BOOL location)
+{
+    static int fit[MAX_SONGS], base[MAX_SONGS], on[MAX_SONGS], fresh[MAX_SONGS];
+    int nfit = 0, nbase = 0, non = 0, nfresh = 0, i, n, c;
+    int *a, *p;
+    size_t used = 0;
+    double share;
+    BOOL dungeon_only = left < 0;
+
+    if (left < 0)
+        left = -left;
+    for (i = 0; i < pack_count; i++) {
+        if (list && !pack_has(&pack[i], list))
+            continue;
+        if (dungeon_only && !is_dungeon_song(&pack[i]))
+            continue;
+        if (pack[i].size >= 256 && pick_fits(tag, pack[i].size) && (!location || pick_loops(i)))
+            fit[nfit++] = i;
+    }
+    if (!nfit)
+        return -1;
+    for (i = 0; i < pick_placed_count; i++)
+        used += pick_placed[i].size;
+    share = 1.5 * (double)(2 * PICK_ROOM - (long)used) / left;
+    for (i = 0; i < nfit; i++)
+        if ((double)pack[fit[i]].size <= share)
+            base[nbase++] = fit[i];
+    if (!nbase) {
+        memcpy(base, fit, (size_t)nfit * sizeof(int));
+        nbase = nfit;
+    }
+    for (i = 0; i < nbase; i++)
+        if (pack[base[i]].enabled)
+            on[non++] = base[i];
+    a = non ? on : base;
+    n = non ? non : nbase;
+    for (i = 0; i < n; i++)
+        if (!pick_used[a[i]])
+            fresh[nfresh++] = a[i];
+    p = nfresh ? fresh : a;
+    n = nfresh ? nfresh : n;
+    pick_rng = pick_rng * 1664525u + 1013904223u;
+    c = p[(int)(((uint64_t)pick_rng * (uint64_t)n) >> 32)];
+    pick_used[c] = 1;
+    pick_placed[pick_placed_count].tag = tag;
+    pick_placed[pick_placed_count++].size = pack[c].size;
+    return c;
+}
+
+/* Fills songs with one copy per slot, tagged for that slot only. */
+static void pick_like_site(dw_rom *rom)
+{
+    int chosen[PICK_SLOTS], order[PICK_SLOTS], random_slots = 0, i, j, k, pass, left;
+
+    if (!pack_count) {
+        pack_count = song_count;
+        memcpy(pack, songs, (size_t)song_count * sizeof(song_t));
+        /* The site lists loose songs first, then groups. */
+        k = 0;
+        for (pass = 0; pass < 2; pass++)
+            for (i = 0; i < song_count; i++)
+                if ((songs[i].title[0] == ':') == (pass == 0))
+                    pack[k++] = songs[i];
+    }
+    pick_used = calloc((size_t)pack_count, 1);
+    pick_stops = malloc((size_t)pack_count);
+    memset(pick_stops, -1, (size_t)pack_count);
+    pick_rng = (uint32_t)(rom->seed & 0xffffffffu) ^ 0x6d757369u;
+    pick_placed_count = 0;
+    pick_skip_credits = SKIP_VANILLA_CREDITS(rom) ? TRUE : FALSE;
+
+    for (i = 0; i < PICK_SLOTS; i++) {
+        chosen[i] = -1;
+        for (j = 0; j < pack_count; j++) {
+            if (pack_has(&pack[j], pick_slots[i].tags)) {
+                order[random_slots++] = i;
+                break;
+            }
+        }
+    }
+    for (i = 1; i < random_slots; i++) {
+        int s = order[i];
+        int r = order_of(pick_fill_order, 12, pick_slots[s].tags[0]);
+        for (j = i; j > 0 && order_of(pick_fill_order, 12, pick_slots[order[j - 1]].tags[0]) > r; j--)
+            order[j] = order[j - 1];
+        order[j] = s;
+    }
+    left = random_slots;
+    for (i = 0; i < random_slots; i++) {
+        int s = order[i], c = -1;
+        const pick_slot_t *slot = &pick_slots[s];
+        if (s == FLOOR_SLOT) {
+            static const char *const floor1[4] = {"Floor1"};
+            BOOL own = FALSE;
+            for (j = 0; j < pack_count; j++)
+                own = own || pack_has(&pack[j], floor1);
+            if (own)
+                c = pick_choose(floor1, "Dungeon", left, TRUE);
+            if (c < 0)
+                c = pick_choose(NULL, "Dungeon", -left, TRUE);
+        } else {
+            BOOL own = FALSE;
+            for (j = 0; j < pack_count; j++)
+                own = own || pack_has(&pack[j], slot->tags);
+            if (own)
+                c = pick_choose(slot->tags, slot->tags[0], left, slot->location);
+            if (c < 0 && slot->location)
+                c = pick_choose(NULL, slot->tags[0], left, TRUE);
+        }
+        chosen[s] = c;
+        left--;
+    }
+    free(pick_used);
+    free(pick_stops);
+
+    /* The copies: loose songs first, then groups, in slot order. */
+    song_count = 0;
+    {
+        int slot_order[PICK_SLOTS];
+        k = 0;
+        slot_order[k++] = FLOOR_SLOT;
+        for (i = 0; i < PICK_SLOTS; i++)
+            if (i != FLOOR_SLOT)
+                slot_order[k++] = i;
+        for (pass = 0; pass < 2; pass++) {
+            for (k = 0; k < PICK_SLOTS; k++) {
+                int s = slot_order[k];
+                song_t *copy;
+                if (chosen[s] < 0 || (pack[chosen[s]].title[0] == ':') != (pass == 0))
+                    continue;
+                copy = &songs[song_count++];
+                *copy = pack[chosen[s]];
+                snprintf(copy->uses[0], 24, "%s", s == FLOOR_SLOT ? "Dungeon" : pick_slots[s].tags[0]);
+                copy->use_count = 1;
+                copy->enabled = strcmp(copy->uses[0], "Ending") != 0;
+                copy->bank = -1;
+            }
+        }
+    }
+}
+
 void custom_music_apply(dw_rom *rom)
 {
     static const int banks[2] = {6, 3};
@@ -707,8 +1018,10 @@ void custom_music_apply(dw_rom *rom)
     uint16_t ys, rq, frame;
     uint8_t map[32], lo[MAX_PLACED], hi[MAX_PLACED];
 
-    if (!song_count)
+    if (!song_count && !pack_count)
         return;
+    if (choose_like_site)
+        pick_like_site(rom);
     for (i = 0; i < song_count; i++)
         songs[i].bank = -1;
     printf("Adding custom music...\n");

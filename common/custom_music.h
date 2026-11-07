@@ -22,4 +22,7 @@ void custom_music_clear(void);
  */
 void custom_music_apply(dw_rom *rom);
 
+/** Pick songs the way the site does with every slot on Random, for the command line. */
+void custom_music_choose_like_site(void);
+
 #endif

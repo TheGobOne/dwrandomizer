@@ -75,6 +75,7 @@ int main(int argc, char **argv)
         if (!strcmp(argv[1], "--music")) {
             if (!custom_music_load(argv[2]))
                 exit(1);
+            custom_music_choose_like_site();
         } else if (!strcmp(argv[1], "--encounters")) {
             for (encounters = 0; encounters < 4; encounters++)
                 if (!strcmp(argv[2], encounter_rates[encounters]))
