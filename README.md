@@ -16,7 +16,7 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 | **Encounter Rate** | Low, Medium or High use a danger meter instead of a roll on every step. |
 | **Run Bank** | Wins earn banked escapes; spend one with the `BANK` battle command. |
 | **Quick Spell** | A battle command that casts your last spell again. |
-| **Show Key & Herb Counter** | Keys and herbs shown in the stats window. |
+| **Show Key & Herb Counter** | Keys and herbs shown in the stats window, under the deaths row if Show Death Counter is on. |
 | **Disable Screen Shake** | Keeps the screen still when you take damage. |
 | **Website** | A single-page generator with the options grouped into tabs. |
 
