@@ -3991,7 +3991,7 @@ static void auto_return(dw_rom *rom)
 static void free_charlock(dw_rom *rom)
 {
     const uint16_t latch = 0x680b;
-    const uint8_t x = 16, y = 25; /* just below the Dragonlord at 16,24 */
+    const uint8_t x = 17, y = 24; /* just right of the Dragonlord at 16,24, where the walk in ends */
     /* With Short Charlock the entrance already leads to the throne room, and walking off it still works. */
     const uint8_t entry_map = SHORT_CHARLOCK(rom) ? CHARLOCK_THRONE_ROOM : CHARLOCK;
     const size_t walk_size = SHORT_CHARLOCK(rom) ? 0 : 18;
