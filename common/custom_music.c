@@ -246,11 +246,12 @@ static uint8_t *decode_module(const char *text, size_t *size)
 
 #define W16(o) ((size_t)d[o] | (size_t)d[(o) + 1] << 8)
 
-/* FALSE if the module's song list, header, frame list or a frame pointer is out of bounds. */
+/* FALSE if the module's song list, 8-byte song header, frame list, a frame's 5 channel pointers
+ * or a pattern pointer is out of bounds, or the song has no frames. */
 static BOOL module_ok(const uint8_t *d, size_t size)
 {
     size_t list, header, frames;
-    int count, i;
+    int count, i, c;
 
     if (size < 15)
         return FALSE;
@@ -258,15 +259,20 @@ static BOOL module_ok(const uint8_t *d, size_t size)
     if (list + 2 > size)
         return FALSE;
     header = W16(list);
-    if (header + 4 > size)
+    if (header + 8 > size)
         return FALSE;
     frames = W16(header);
     count = d[header + 2];
-    if (frames + 2 * (size_t)count > size)
+    if (!count || frames + 2 * (size_t)count > size)
         return FALSE;
     for (i = 0; i < count; i++) {
-        if (W16(frames + 2 * (size_t)i) + 4 > size)
+        size_t frame = W16(frames + 2 * (size_t)i);
+        if (frame + 10 > size)
             return FALSE;
+        for (c = 0; c < 5; c++) {
+            if (W16(frame + 2 * (size_t)c) >= size)
+                return FALSE;
+        }
     }
     return TRUE;
 }
@@ -699,7 +705,7 @@ void custom_music_apply(dw_rom *rom)
     int chosen[SCENE_COUNT];
     int i, b, id;
     uint16_t ys, rq, frame;
-    uint8_t map[32], lo[MAX_PLACED], hi[MAX_PLACED], bank_of[MAX_PLACED];
+    uint8_t map[32], lo[MAX_PLACED], hi[MAX_PLACED];
 
     if (!song_count)
         return;
@@ -766,11 +772,10 @@ void custom_music_apply(dw_rom *rom)
             map[events[i].request] = (uint8_t)event_song[i];
     memset(lo, 0, sizeof(lo));
     memset(hi, 0, sizeof(hi));
-    memset(bank_of, 0, sizeof(bank_of));
     for (i = 0; i < placed; i++) {
         lo[i] = LO8(songs[order[i]].address);
-        hi[i] = HI8(songs[order[i]].address);
-        bank_of[i] = (uint8_t)songs[order[i]].bank;
+        /* Songs sit at $80xx-$BFxx, so bit 6 is free to say which bank holds the song. */
+        hi[i] = (uint8_t)(HI8(songs[order[i]].address) | (songs[order[i]].bank ? 0x40 : 0));
     }
 
     for (b = 0; b < 2; b++) {
@@ -810,7 +815,6 @@ void custom_music_apply(dw_rom *rom)
         memcpy(base + (FT_MAP - 0x8000), map, sizeof(map));
         memcpy(base + (FT_LO - 0x8000), lo, sizeof(lo));
         memcpy(base + (FT_HI - 0x8000), hi, sizeof(hi));
-        memcpy(base + (FT_BANKS - 0x8000), bank_of, sizeof(bank_of));
     }
     for (i = 0; i < placed; i++) {
         song_t *s = &songs[order[i]];

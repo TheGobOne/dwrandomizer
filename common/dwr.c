@@ -86,10 +86,11 @@ static void update_flags(dw_rom *rom)
     rom->flags[8] |= safe_start;
     rom->flags[11] |= free_charlock_flag;
     rom->flags[3] |= auto_return_flag;
-    /* Free Charlock cannot go with these: Easy Charlock (exclusive), and Three's Company, Cursed Princess,
+    /* Free Charlock cannot go with these: Short Charlock, Easy Charlock (exclusive), and Three's Company, Cursed Princess,
      * Radish Finish and Disguised Dragonlord, which depend on the Dragonlord and the ending he gives.
      * Open Charlock is fine beside it. */
     if (free_charlock_flag) {
+        rom->flags[7] &= (uint8_t)~0x03;   /* Short Charlock */
         rom->flags[8] &= (uint8_t)~0x0f;
         rom->flags[10] &= (uint8_t)~0xc0;
         rom->flags[16] &= (uint8_t)~0x0c;
@@ -3991,21 +3992,45 @@ static void free_charlock(dw_rom *rom)
 {
     const uint16_t latch = 0x680b;
     const uint8_t x = 16, y = 25; /* just below the Dragonlord at 16,24 */
+    /* With Short Charlock the entrance already leads to the throne room, and walking off it still works. */
+    const uint8_t entry_map = SHORT_CHARLOCK(rom) ? CHARLOCK_THRONE_ROOM : CHARLOCK;
+    const size_t walk_size = SHORT_CHARLOCK(rom) ? 0 : 18;
     size_t i;
-    int found = -1, c;
+    int found = -1, c, w = 0;
 
     if (!FREE_CHARLOCK(rom))
         return;
     for (i = 0; i < 51; i++) {
-        if (rom->map.warps_from[i].map == OVERWORLD && rom->map.warps_to[i].map == CHARLOCK)
+        if (rom->map.warps_from[i].map == OVERWORLD && rom->map.warps_to[i].map == entry_map)
             found = (int)i;
     }
+    if (found < 0) {
+        printf("Charlock's entrance was not found, leaving Free Charlock out.\n");
+        return;
+    }
+    /* Both pieces go in, or neither does. */
     c = dwr_try_free_space(rom->content, 0xc422, 57);
-    if (found < 0 || c < 0) {
+    if (c >= 0 && walk_size) {
+        memset(&rom->content[c], 0x00, 57); /* held while the other is looked up */
+        w = dwr_try_free_space(rom->content, 0xc422, walk_size);
+        memset(&rom->content[c], 0xff, 57);
+    }
+    if (c < 0 || w < 0) {
         printf("No room for Free Charlock, leaving it out.\n");
         return;
     }
     printf("Freeing Charlock...\n");
+    if (walk_size) {
+        /* Walking off a map looks for the warp leading to it, and the entrance no longer leads here.
+         * Replaces ldx #0 : lda $45 at the start of that search. */
+        vpatch(rom, (uint16_t)w, walk_size,
+            0xa2, 0x00, 0xa5, 0x45,                       /* the code this replaced */
+            0xc9, CHARLOCK, 0xd0, 0x07,                   /* not Charlock: the normal search */
+            0xa2, (uint8_t)(found * 3), 0xa9, 0x02,       /* leave by the entrance's warp */
+            0x4c, 0xe2, 0xd9,
+            0x4c, 0x2c, 0xb2);
+        vpatch(rom, 0x3228, 4, 0x4c, LO(w), HI(w), 0xea);
+    }
     rom->map.warps_to[found].map = CHARLOCK_THRONE_ROOM;
     rom->map.warps_to[found].x = x;
     rom->map.warps_to[found].y = y;

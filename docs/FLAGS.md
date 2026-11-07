@@ -63,12 +63,12 @@ The meter also removes the original game's hidden checkerboard on grass, where n
 
 #### Auto Return ####
 
-When the Dragonlord's second form dies, Return is cast for you and you arrive in front of Tantegel, instead of standing at Charlock. Command line: `--auto-return on`.
+When the Dragonlord's second form dies, Return is cast for you and you arrive in front of Tantegel, or at your Return to Town point if that flag is on, instead of standing at Charlock. Command line: `--auto-return on`.
 
 
 #### Free Charlock ####
 
-Entering Charlock from the overworld puts you beside the Dragonlord and starts the fight, with no dialogue. Run away and you stay in his room; the fight starts by itself again only after you leave and come back. Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. Very full ROMs leave this out. Command line: `--free-charlock on`.
+Entering Charlock from the overworld puts you beside the Dragonlord and starts the fight, with no dialogue. Run away and you stay in his room; the fight starts by itself again only after you leave and come back. Short Charlock, Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. Very full ROMs leave this out. Command line: `--free-charlock on`.
 
 
 #### Show Key & Herb Counter ####
