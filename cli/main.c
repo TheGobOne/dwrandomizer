@@ -12,6 +12,16 @@
 #include "sprites.h"
 
 
+/* Reads on or off, and stops on anything else. */
+static int on_off(const char *option, const char *value)
+{
+    if (strcmp(value, "on") && strcmp(value, "off")) {
+        fprintf(stderr, "%s must be on or off\n", option);
+        exit(1);
+    }
+    return !strcmp(value, "on");
+}
+
 static void print_usage(const char *command, char *default_flags)
 {
     size_t i;
@@ -24,6 +34,17 @@ static void print_usage(const char *command, char *default_flags)
     printf("If flags are not specified, the flags \"%s\" will be used\n",
             default_flags);
     printf("If the seed is not specified, a random seed will be chosen\n");
+    printf("\n");
+    printf("Options, before the rom file:\n");
+    printf("  --music <pack.json5>\n");
+    printf("  --encounters default|low|medium|high\n");
+    printf("  --free-charlock on|off\n");
+    printf("  --auto-return on|off\n");
+    printf("  --spoiler on|off\n");
+    printf("  --key-herb on|off\n");
+    printf("  --quick-spell on|off\n");
+    printf("  --bank-cap 1-99\n");
+    printf("  --bank-level normal|easy|strict|verystrict\n");
     printf("\n");
     printf("Sprite should be one of: ");
     for(i=0; i < sprite_count(); i++) {
@@ -44,7 +65,8 @@ int main(int argc, char **argv)
     char default_flags[] = DEFAULT_FLAGS;
     char *input_file, *output_dir;
     static const char *const bank_levels[4] = {"normal", "easy", "strict", "verystrict"};
-    int bank_cap = 0, bank_level = 0, encounters = 0, quick_spell = 0, key_herb = 0;
+    /* -1 and 0 for the cap: not given, so the flags decide. */
+    int bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, key_herb = -1, free_charlock = -1, auto_return = -1;
     static const char *const encounter_rates[4] = {"default", "low", "medium", "high"};
     char encoded[64] = {0};
 
@@ -54,15 +76,23 @@ int main(int argc, char **argv)
             if (!custom_music_load(argv[2]))
                 exit(1);
         } else if (!strcmp(argv[1], "--encounters")) {
-            for (encounters = 3; encounters > 0; encounters--)
+            for (encounters = 0; encounters < 4; encounters++)
                 if (!strcmp(argv[2], encounter_rates[encounters]))
                     break;
+            if (encounters == 4) {
+                fprintf(stderr, "--encounters must be default, low, medium or high\n");
+                exit(1);
+            }
         } else if (!strcmp(argv[1], "--spoiler")) {
-            dwr_set_spoiler(!strcmp(argv[2], "on"));
+            dwr_set_spoiler(on_off(argv[1], argv[2]));
         } else if (!strcmp(argv[1], "--key-herb")) {
-            key_herb = !strcmp(argv[2], "on");
+            key_herb = on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--auto-return")) {
+            auto_return = on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--free-charlock")) {
+            free_charlock = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--quick-spell")) {
-            quick_spell = !strcmp(argv[2], "on");
+            quick_spell = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--bank-cap")) {
             bank_cap = atoi(argv[2]);
             if (bank_cap < 1 || bank_cap > 99) {
@@ -107,20 +137,28 @@ int main(int argc, char **argv)
         sprite = "Random";
     }
 
-    if (bank_cap || bank_level || encounters || quick_spell || key_herb) {
+    if (bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0) {
         uint8_t raw[25] = {0};
         strncpy(encoded, flags, 40);
         base32_decode((uint8_t *)encoded, raw);
-        if (bank_cap || bank_level) {
-            raw[12] = (uint8_t)(bank_cap | ((bank_level & 2) << 6));
+        if (bank_cap)
+            raw[12] = (uint8_t)((raw[12] & 0x80) | bank_cap);
+        if (bank_level >= 0) {
+            raw[12] = (uint8_t)((raw[12] & 0x7f) | ((bank_level & 2) << 6));
             raw[14] = (uint8_t)((raw[14] & 0xfe) | (bank_level & 1));
         }
-        raw[3] = (uint8_t)((raw[3] & 0xfe) | ((encounters >> 1) & 1));
-        raw[6] = (uint8_t)((raw[6] & 0xfe) | (encounters & 1));
-        if (key_herb)
-            raw[8] |= 0x10;
-        if (quick_spell)
-            raw[11] |= 0x01;
+        if (encounters >= 0) {
+            raw[3] = (uint8_t)((raw[3] & 0xfe) | ((encounters >> 1) & 1));
+            raw[6] = (uint8_t)((raw[6] & 0xfe) | (encounters & 1));
+        }
+        if (key_herb >= 0)
+            raw[8] = (uint8_t)((raw[8] & 0xef) | (key_herb ? 0x10 : 0));
+        if (auto_return >= 0)
+            raw[3] = (uint8_t)((raw[3] & 0xfd) | (auto_return ? 0x02 : 0));
+        if (free_charlock >= 0)
+            raw[11] = (uint8_t)((raw[11] & 0xfd) | (free_charlock ? 0x02 : 0));
+        if (quick_spell >= 0)
+            raw[11] = (uint8_t)((raw[11] & 0xfe) | (quick_spell ? 0x01 : 0));
         base32_encode(raw, 25, (uint8_t *)encoded);
         encoded[40] = '\0';
         flags = encoded;

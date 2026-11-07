@@ -45,7 +45,7 @@ input[type=text]{background:var(--field,transparent);border:var(--field-bd,2px s
 .count{display:inline-block;min-width:1.4em;text-align:center;font-size:.75em;padding:0 .3em;margin-left:.35em;border:1px solid currentColor}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
-:root{--blue:#00008a;--line:#5a6bd0;--soft:#b9c4ff;--bg:#000;--fg:#fff;--accent:#fff;--muted:var(--soft);--font:"Courier New",ui-monospace,monospace;--tog-bd:0;--tog-on:#fff;--tog-on-fg:var(--blue);--tog-rnd:var(--soft);--field:var(--blue);--field-bd:2px solid #fff;--btn-bg:var(--blue);--btn-fg:#fff;--btn-bd:3px double #fff;--sub-bd:2px solid var(--soft);--focus:#ffff55}
+:root{--blue:#00008a;--line:#5a6bd0;--soft:#b9c4ff;--bg:#000;--fg:#fff;--accent:#fff;--muted:var(--soft);--font:"Courier New",ui-monospace,monospace;--tog-bd:1px solid var(--soft);--tog-on:#fff;--tog-on-fg:var(--blue);--tog-rnd:var(--soft);--field:var(--blue);--field-bd:2px solid #fff;--btn-bg:var(--blue);--btn-fg:#fff;--btn-bd:3px double #fff;--sub-bd:2px solid var(--soft);--focus:#ffff55}
 body{font-weight:700;letter-spacing:.02em}
 .screen{max-width:1000px;margin:0 auto;padding:.5rem 1rem 2rem;display:grid;gap:1.4rem}
 .win{background:var(--blue);border:4px double #fff;border-radius:6px;padding:1rem 1rem .8rem;box-shadow:0 0 0 3px #000,0 0 0 5px #fff4;position:relative}
@@ -79,8 +79,8 @@ body{font-weight:700;letter-spacing:.02em}
 @font-face{font-family:"DWR Mockup";src:url(data:font/woff;base64,d09GRgABAAAAAAtYAAoAAAAALzAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAABPUy8yAAABZAAAADAAAABgZDhqeGNtYXAAAAHYAAAAjQAAAK4q6SzJZ2x5ZgAAAxwAAAaSAAAnkijMfOJoZWFkAAAA9AAAADYAAAA2L/dddWhoZWEAAAEsAAAAIAAAACQFegN6aG10eAAAAZQAAABEAAABZPmcAABsb2NhAAACaAAAALQAAAC0xFjOym1heHAAAAFMAAAAGAAAACAAawBGbmFtZQAACbAAAABaAAAAacbT5Pxwb3N0AAAKDAAAAUsAAALeUQNRegABAAAAAQAAHmshLl8PPPUAAQMgAAAAAOcShMUAAAAA5xOWQAAA/5wCvAK8AAAAAwACAAAAAAAAeJxjYGRgYNrzfw4DA7MCAwNDCtMeBqAICogEAGEBA/p4nGNgZGBgiGRwYRBkAAEmBjQAABHvALJ4nGNgZlZgnMDAysDCQBgwMjAowDn2QACkFFT3MO35P4eBgWkPQwqaeqBiAOERBnp4nGP8wsDACMRMe4A4goGBWYEyDDMDZB7jBAQbRsPYcPV7MOXR1dASM+qgYmS7wWKw8ImA0MjuhMnhCgdYWAAA4+obfHicXYw/DgFxFIS/RaFUKLYSifxq29L4v4uEZBGEiLiGU2g0rqBXOcWW2zvBivaZiChMMjPJ+14GyAF5uaz0Pl3govYp6VKkRp0GLTZs2bHn6G7ubqaPKo6AJp0vOfwIlsgPe1pmL7um5/SkbZ+KUMC/PELGLJgxp82IIWsm9OjTJdZ6xJIpKwZv0ZIh7wAAAAAAAAAAAABNAH0AtwD+AT4BagGjAdICGQJUAooCyAL7AzsDcAOpA+sENQRgBJgE3AUKBXEFtwX4BjYGdgaoBt8HFwdeB6MICghECIAIswj/CUUJiwnXCgEKKgpxCsIK8QsqC3sLqQwCDGIMrwztDUENjA3HDfUORw6YDvIPPA97D7gP0w/uD/4QGRAmEFoQhhCqENIQ/BEwEVoReBGeEbER2hIEEi4ScRLAEwwTGBNDE20TyXicvVpdbhs3EOaqgZ00ag3DEPLQh2CxCIqiBgpjUeghD31oD+ED8AA+ig6QA/QQPgAPoKPoNUo5MyR3SA5/VgpqaM3VH+f/mx9KbZVWavO6eVU/qFv1Xt2pB/VB/aI+qkn9qn5Xfyj1MO7Gad5Nn+w1tlb7WTMczi/a2MWY80tjPcKHN686/VOWG+DsOeOM+LHXbK8ndk1I+/F81MgA3PFLD6fzNlBS6p1SRclFmScnH6xADzcEOU9Wji2tGkUCasZsXr/+E0mmLJUyTdC2TNe+JulZoo/yn4/xi+eXSPTAzo9VbtTgaAM/+4Kt4R7siNq2exqQX9tn3NSgCLhLOLA0ZfrqHiwKWnaaHt09UNw8f/3XUjGwosRWTLhfa1m/91NFs0SlqUyl3hYpBlk+OZqTu7x8oBxnO/jTtLD9L/SasfCa5DUkk/hi7jWr42ZMLChzgPY8oD1rGn7ONfzg9i9LbOEAPfLoKUcIhN7z3B8XDzXv4XRBGKBYgL7YbR3thpxcPu9BJcsS+aDPFRIOzFpF5LfvOXuJao3Ve7mUnhbwM5e8Z0txqjNT1r11KMiH2cXpYHh0cE4etKzGI1GMa6Dbb19E2ch7GjodC9aUoyW3LUq9bSCGzer33IPG3W+b3VhL7M6dHim/YE6VGHOrlNBvxHyO+oBIumUZPWTyPJunWbyCvIPbbefz57KCtMOBVwfkr8ndMQei9416KaBD5r8CWhBC+Gh59OVQjhk5Ct8qYyU8ydXRU+EyaU3Er0Wp98Xo9N4zq736rP5Sf5O8Xqb9hfc+ul6wgMDbbf9t4v2pprzFStKQxkoRmVqsgufJmrOlAu5egg2tHJ5hhIAMgE66hU61nOYRo6oHei/TQA/tFjICbVNNN/AmeEVOvpZ1oErjMqY5FoMkpLOFZkqnO7MRBpWNSjUL/A/VfJ7GG7WY451nM7FGwbQZY5HcmnXEUmccOdorWkQhmr4bN5PDoCoX0NUg5gisrELM+yuQMuDQJUDps0wDMK1XlfWa69R518S82+4ynLQOCHF0EwHNJgMxEytpJqhQ86YACBIgAiaU6EZYOLEr+C+Gjcb21z+GA4idlaEd9VgL/dLoNbwsfcnq4dBV1kqydmd5L+WDwmtSShD6Z6ntubzLLeFaIUP2tbhd9fOKqoFpx4dFMXPD+yJXNBPrnJjwe/KFpV+J5lKX7Dn7qQXrgQzb8TpLjrW0GFkySY8Fv/qpacuZMLk38paWSLZiHnuVGGxaIJ1y+v4IqUh1fGrf5rxmZnaV57knP07omd/+PxqPm6YYea7UeKl7KjdOkb5/7pB+z+SHytP137R46aWZaygPsR6ldpXfO9+jQqXL/SzLd10cf0545mvKcdpxp5wvJa5nj3G8hPXSj5e5/w7ZdUX+qHRaEl435mzVHMIQV8qi8eQrH673RWFTLwkahx64phtmQOOOQ8QhBvF5ba4V3mvrq1kZrZpyz74OrXgQPqe5b9Ft1meCkN/bU53rULmi/c4oaUXL9ZmjsE5tHkMmodVEmotYXIvuybr3HhuhfgaSPJgcMOIhWgH16/DeUeXnuWh2ZcY0yhwy8jT+D8NZ3cFZGxkrtowmmqIds2hIwbEa3QFtmAqCKpyWXJ49kNT5v6USTGqjN0rDEJ1RDnMa7KJnNxWmz9OX7beGR5z2Ll1qOKPZzX5C5Uo07KwNfGsDva39psFvqb37JB0x2g+8gXkccNPFC3gi7DrYXa1F8VuIhNgH23drs/jaqc6ulFOwtswPWMooOTAPmdzu/qyVTqmh5MDjhIOf3rHG5Yb0lZ1QJJqOdJPailBcF2bz7ttPyeV309pvGPF1C9YvyjvH58mzu/DXCHrZUeuoR3sLfij8uuJjPm1J7ZachRlyDRjewxqHGpxTfPti6aTzlfgUlZ2P4IRXaxfDBwI6IBIGKtZvlbJ0htPitz4/zq6fgchb0EjTPArkvhHnPSGavPcsp3/Gt7nLcZ9jBOPLBD7Qx3c+HujnCdqf1JR+x5J6gteIYQ6Kc1nWZNV3FP0r3zHfsxZTwvXkfSx5sDjozzvM07JJW54aDzFJ6vtoEHfZLIejU4T0s1wB89mbWTD/EOpf/yOcVv3bx52Am7N0L8cnNYVaeuI+ITE2EF/Wwy3K/+kynsc2yfdSP5nZlVqMHtEMqvRbr2QnTiHfMdr0rnoOz7ragemOz9t9rTbx58nnEPnc0QDebzH3GnjV/ySKnm7Zh44MzdK//wBoZVgiAAB4nC2IsQqAIAAFTwuihiDoA1z6hb7A1cXFWUQaChTB/0+jGx53Dxg5EXQEy7cdydRqQIxze3a23yUrh3ZWmRTumm286uMLGodFYUgEbiq5deRq9uApL6yCDXQAAHicfZHnUhRBAAZpggiKIAIKiBIEFQGP2QkklTuCgEQDyIPw/kLPf6/quqaurnu+2u3q7vr/5/b+20M3PfTSxyP6ecwAgzzhKUM8Y5gRnjPKC8YYZ4KXvGKSKaZ5zQxveMssc8yzwDsWWeI9H/jIMp9YYZU1PtNinUBDJJEpbLDJFtvs8IWvfGOXNh322OeAQ75zxDEn/OCUM8654JIrfvKL3/zhmhv+9t21Wk1LrssgGxllklkWuSE3H5i1slbWylpZK2tlrayVq9WWHbkn9+WBPHxgcVWxX+wX+8V+sV/sF/vFfrFf7EfdqBt1o27UjbpRN+pG3Vhdt0W3RbdFt0W3Jbcl+8l+sp/sJ/vJfrKf7Cf7yX6oT7KeLQfvCt7VeEuob8QlQTfYCfc3htTJslr+p9FNnpPnUDvuCe4Jdae/N7pNvb39Dwnlf7MA) format("woff");font-weight:100 900;font-display:block}
 :root{--font:"DWR Mockup","Courier New",monospace}
 body{font-synthesis:none;-webkit-font-smoothing:none;font-smooth:never;letter-spacing:0;font-size:16px;line-height:1.5}
-body *{font-size:16px!important;letter-spacing:0!important}
-.title h1{font-size:32px!important}
+body *{letter-spacing:0!important}
+.title h1{font-size:2rem!important}
 .screen{max-width:1200px}
 .idrow{display:flex;flex-wrap:wrap;gap:.8rem 1.6rem;align-items:start}
 .idfields{flex:0 1 auto;min-width:0;max-width:100%}
@@ -107,8 +107,10 @@ input[type=file]::file-selector-button{font:inherit}
 .feelwin .meter{margin-top:.4rem}
 .idfields{flex-basis:calc(40ch + 8rem)}
 @media (max-width:720px){.idfields{flex-basis:100%}}
-body *{font-size:12px!important}
-.title h1{font-size:24px!important;margin:0}
+/* One text size everywhere, in rem so the browser's own font size setting still counts. */
+body{font-size:.75rem}
+body *{font-size:inherit!important}
+.title h1{font-size:1.5rem!important;margin:0}
 .title p{display:none}
 .backlink{padding:.1rem .5rem}
 .win{padding:.7rem .7rem .5rem}
@@ -163,7 +165,7 @@ body *{font-size:12px!important}
 .heropic{width:96px;height:96px;margin:.3rem auto .5rem;background:#000;border:2px solid #fff;display:grid;place-items:center;box-sizing:content-box}
 .heropic img{width:96px;height:96px;image-rendering:pixelated;display:block}
 .heropic img[hidden],.heroq[hidden]{display:none}
-.heroq{font-size:32px!important}
+.heroq{font-size:2rem!important}
 .herosel{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.3rem;align-items:stretch}
 .herosel select{min-width:0;width:100%;background:var(--blue);color:#fff;border:2px solid #fff}
 .herosel .mini{padding:.2rem .4rem;min-height:2rem}
@@ -176,8 +178,9 @@ body *{font-size:12px!important}
 .trackrow select{width:100%;min-width:0;min-height:1.7rem;background:var(--blue);color:#fff;border:2px solid #fff}
 .trackrow select:disabled{opacity:.55}
 .tagn{color:var(--muted);text-align:right}
-.trackrow{grid-template-columns:11rem minmax(0,1fr) 2rem}
-.trackcols{grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr))}
+.trackrow{grid-template-columns:9rem minmax(0,1fr) 2rem}
+.trackcols{grid-template-columns:repeat(auto-fit,minmax(min(100%,30rem),1fr))}
+.trackcol .sublab .tagn{float:right;text-transform:none;letter-spacing:0;font-weight:400}
 .savedpreset{display:inline-flex;gap:2px}
 .presetdel{padding-inline:.5rem}
 .idpresets{display:flex;flex-direction:column;align-self:stretch}
@@ -250,7 +253,7 @@ body *{font-size:12px!important}
 .row input#checksum{width:calc(16ch + 1.8rem)}
 /* Flags, Seed and Checksum make one block with matching edges and heights. */
 @media (min-width:721px){
- .idfields{flex:0 0 auto!important;width:calc(6.2rem + .6rem + 40ch + 1.2rem)}
+ .idfields{flex:0 0 auto!important;width:calc(6.2rem + .6rem + 40em + 1.5rem)}
  .idfields .row{flex-wrap:nowrap;align-items:stretch;gap:.6rem}
  .idfields .row label{flex:0 0 6.2rem;min-width:0;align-self:center}
  .idfields .row input#flags{flex:1 1 0;width:auto;min-width:0}
@@ -274,7 +277,8 @@ body *{font-size:12px!important}
  .leftcol{grid-template-rows:minmax(0,max-content) auto auto!important;align-content:start}
  .leftcol>:first-child{overflow:visible}
 }
-.opt.needsoff{opacity:.55}
+.opt.needsoff{opacity:.7}
+.needtag{margin-left:.5rem;padding:0 .3rem;border:1px solid currentColor;font-weight:400}
 .spaceline{margin:.1rem .3rem .3rem;color:var(--muted);flex:none}
 .spaceline:empty{display:none}
 /* Options shrink to their column, so long labels can't push the panel sideways. */
@@ -288,8 +292,8 @@ input[type=file]{min-width:0;max-width:100%}
 @media (min-width:1000px) and (min-height:500px){
  .leftcol{display:flex;flex-direction:column;overflow:hidden auto;padding-top:.7rem;margin-top:-.7rem;height:calc(100% + .7rem)!important}
  .leftcol>*{flex:none}
- .leftcol>.herostack{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
- .herostack>.herowin{flex:1 1 auto}
+ .leftcol>.herostack{flex:none;display:flex;flex-direction:column;min-height:0}
+ .herostack>.herowin{flex:none}
  .herostack>.colorwin{flex:none}
  .leftcol>nav.cmd{overflow:visible}
  nav.cmd>.cmd{flex:none;overflow:visible}
@@ -299,15 +303,58 @@ input[type=file]{min-width:0;max-width:100%}
 @media (min-width:1000px) and (max-height:700px){.cmd .tab{min-height:1.15rem}.herowin .animrow{display:none}.leftcol{gap:.15rem}.herowin,.colorwin,.searchwin{padding-top:.4rem;padding-bottom:.15rem}}
 .skipopts{position:absolute;left:-9999px}
 .skipopts:focus{position:static;display:block;width:100%;margin-top:.2rem}
-.romstat.romalert{color:#ffd23f}
+.romstat.romneed{color:#ffd23f}
+.packstatus{color:#ffd23f}
+dialog.resultwin{width:min(36rem,calc(100vw - 4rem));max-height:80vh;overflow:auto;background:var(--blue);color:#fff;margin:auto}
+dialog.resultwin::backdrop{background:rgba(0,0,0,.65)}
+.resultname{overflow-wrap:anywhere;color:#ffd23f}
+.resultlist{margin:.2rem 0 .6rem;padding-left:1.2rem}
+.resultbtns{display:flex;gap:.6rem;margin-top:.6rem}
+.trackrow select.trackbad{outline:3px solid #ff4040;outline-offset:1px}
+.romstat.romalert{color:#ffd23f;outline:2px solid #ffd23f;outline-offset:2px}
+.sumtabs{list-style:none;padding-left:0}
+.sumfull{list-style:disc;padding-left:1.1rem}
+.sumfull .sumhead{list-style:none;margin:.45rem 0 .1rem -1.1rem;display:flex;justify-content:space-between;gap:.5rem;text-transform:uppercase;letter-spacing:.04em;font-weight:700;color:#ffd23f}
+.sumfull .sumhead:first-child{margin-top:0}
+.sumcompact{margin:.2rem 0 .4rem}
+.sumtabs summary{display:flex;justify-content:space-between;gap:.5rem;cursor:pointer;padding:.15rem 0}
+.sumtabs summary::before{content:"\25B8";margin-right:.1rem}
+.sumtabs details[open] summary::before{content:"\25BE"}
+.sumtabs summary span:first-of-type{flex:1}
+.sumtabs .sumlist{padding-left:1.1rem;margin:0 0 .3rem}
+.packall{display:flex;gap:.4rem}
+.presetsaved{display:flex;flex-direction:column;gap:.2rem}
+.presetsaved[hidden]{display:none}
+/* Built-in presets stack on the left, saved ones and the name box on the right. */
+.presetarea{display:grid!important;grid-template-columns:max-content minmax(0,1fr);grid-template-rows:auto 1fr;gap:.4rem 1rem;align-items:start}
+.presetleft{display:flex;flex-direction:column;gap:.2rem;grid-column:1;grid-row:1/3}
+.presetleft .presetgrid{flex-direction:column;flex-wrap:nowrap;align-items:stretch;margin-top:0}
+.presetarea .presetsaved{grid-column:2;grid-row:1}
+.presetarea .presetsave{grid-column:2;grid-row:2;align-self:end;justify-self:end;justify-content:flex-end;margin-top:0;max-width:100%}
+.presetarea .presetsaved .presetgrid{margin-top:0}
+.presetarea .presetsaved .savedpreset{max-width:100%}
+.presetarea .presetsaved .savedpreset .preset{overflow:hidden;text-overflow:ellipsis}
+.presetarea .presetsave{flex-wrap:nowrap}
+.presetarea .presetsave .presetname{flex:0 1 auto;min-width:0;width:calc(20em + 1.5rem)}
+.presetarea .presetmsg{order:-1}
+.presetarea .presetmsg:empty{display:none}
+@media (max-width:1279px){.presetarea .presetsave{flex-wrap:wrap}}
+input[type=file]{color:transparent}
+input[type=file]::file-selector-button{color:buttontext}
 .herostack{display:grid;gap:.65rem;min-width:0}
 .searchwin{padding:.5rem .7rem .5rem}
 .searchwin input{width:100%;box-sizing:border-box;min-height:1.75rem;background:var(--blue);color:#fff;border:2px solid #fff;padding:.1rem .4rem}
 .searchwin input::placeholder{color:var(--muted)}
 .searchwin input[type=checkbox]{width:auto;min-height:0;flex:none}
+.searchrow{flex-wrap:wrap}
 .searchwin{position:relative}
 .searchnote:empty{display:none}
-.searchwin .animrow{position:absolute;top:-.55rem;right:.5rem;margin:0;padding:0 .25rem;background:var(--blue);white-space:nowrap}
+.searchrow{display:flex;gap:1rem;margin-top:.25rem}
+.onlyrow{display:flex;flex-wrap:wrap;gap:0 2rem}
+.searchwin .animrow{margin:0;white-space:nowrap}
+body.compact .opt .desc,body.compact .opt .secnote{display:none}
+body.compact .opt{padding-top:.2rem;padding-bottom:.2rem}
+body.compact .opt .tog{min-height:1.5rem}
 .searchnote{margin:.2rem 0 0;color:var(--muted);min-height:1em}
 </style>
 </head>
@@ -323,7 +370,7 @@ var Module={onRuntimeInitialized(){ wasmReady=true; if(window.State) State.emit(
 window.MARKS=["[ ]","[x]","[?]"];
 /* Option list, state and controls. */
 const T = 't', C = 'c', S = 's';
-const TABS = [{"id":"world","label":"World","long":"World","blurb":"The land, the caves, and how you get across them.","sections":[{"title":"Land","note":"","ids":["map","mapsize","biome","safestart","swamp","masked","townentr","princessloc","encounters","bonk"]},{"title":"Dungeons","note":"","ids":["stairs","rotate","permtorch"]},{"title":"Travel","note":"","ids":["permrepel","repeldun","returntown","warp"]}],"items":[["map","Random Map","The overworld map will be randomly generated.","t"],["mapsize","Random Map Size","Size of a generated overworld. Needs Random Map.","s",["Normal","Small","Very Small","Random"]],["biome","Biome","The shape of a generated overworld. Needs Random Map. Caldera puts Charlock inside a mountain ring, Wasteland is mostly desert and swamp, and Riverlands cuts the land up with rivers and bridges.","s",["Continent (Original)","Caldera","Wasteland","Riverlands","Random"]],["safestart","Safe Start","Swamp within 3 tiles of Tantegel becomes grass, so your first steps are safe.","c"],["swamp","Big Swamp","Approximately 60% of the overworld will be poisonous swamp.","t"],["masked","Masked Overworld Locations","Is it a cave, or is it a town? Enter to find out!","t"],["townentr","Random Town Entrances","The player's location upon entering a town will be changed.","t"],["princessloc","Random Princess Location","The princess may be locked in a different cave.","t"],["encounters","Encounter Rate","Default keeps the original random rolls. Low, Medium and High use a danger meter: steps add points by terrain until a hidden target starts a fight.","s",["Default","Low","Medium","High"]],["bonk","Bonk Damage","Damage taken when walking into walls.","s",["None","1 HP","2 HP","20 HP","Instakill","Random (0-80)","Current HP / 2","One of the above"]],["stairs","Stair Shuffle","Where stairs take you inside dungeons will be randomized.","t"],["rotate","Randomly Rotate/Mirror Dungeons","All dungeons will be rotated at random angles and/or mirrored.","t"],["permtorch","Permanent Torch","At least a 3x3 area will always be lit in dungeons.","t"],["permrepel","Permanent Repel","Repel will always be active.","t"],["repeldun","Repel in Dungeons","Enables Repel to work in dungeons.","t"],["returntown","Return to Town","Wings and Return send you to the last place you saved or used an inn at.","t"],["warp","Warp Whistle","The Fairy Flute works as a warp whistle outside of battle, cycling between places you saved or used an inn at.","t"]]},{"id":"treasure","label":"Treasure","long":"Treasure & Keys","blurb":"What is in the chests, and what opens the doors.","sections":[{"title":"Chests","note":"","ids":["chests","chestloc","guards","unguarded","goldchest","noarmor","discardflute"]},{"title":"Keys & Doors","note":"","ids":["nokeys","unbreakable","keycarry","hurtdoors"]}],"items":[["chests","Shuffle Chests & Searches","The items in chests and search locations will be randomized.","t"],["chestloc","Random Chest Locations","Chests will be at a random set of predetermined locations.","t"],["guards","Treasure Guards","Important items will have a mid-level monster guarding them.","t"],["unguarded","Unguarded Overworld Search Spot","With Treasure Guards on, the overworld search spot is not guarded.","c"],["goldchest","Gold Chest Contents","Gold found in gold chests.","s",["5-20 G","120 G","500-755 G","560-815 G","Random (1-2000 G)","One of the above"]],["noarmor","No Armor in Charlock","Prevent Erdrick's Armor from being in a chest in Charlock Castle.","t"],["nokeys","Don't Require Magic Keys","All of the doors are unlocked. Just open them.","t"],["unbreakable","Unbreakable Keys","Using a key outside of the throne room will not remove it from your inventory.","t"],["keycarry","Random Key Carry","The maximum number of keys you can carry is random, between 2 and 9. Some flags make 4 the minimum.","t"],["hurtdoors","Hurtmore Doors","Blast doors open with a cast of Hurtmore.","t"],["discardflute","Discardable Flute","Make it possible to drop the flute on finding a new item with a full inventory.","t"]]},{"id":"hero","label":"Hero & Magic","long":"Hero & Magic","blurb":"How the hero grows, what he carries, and what he casts.","sections":[{"title":"Growth","note":"","ids":["build","growth","xp","levelspeed","lvlrefill"]},{"title":"Body & Bag","note":"","ids":["necklace","herbcarry","magicherbs","ascetic","invhero"]},{"title":"Spells","note":"Most of these need Random Spell Learning.","ids":["spells","healbefore","nohurtmore","onlyhealmore","l1radiant","l1repel","spellcost"]}],"items":[["build","Build Options","Which towns or castles get built.","s",["Unchanged","Vanilla","No builds","All builds","One of the above"]],["growth","Random Growth","Player statistical growth at each level will be randomized.","t"],["xp","Random XP Requirements","Experience requirements for each level will be randomized.","t"],["levelspeed","Leveling Speed","How fast the hero levels.","s",["Normal","Fast","Very Fast"]],["lvlrefill","Level-Up Refill","Have HP and MP refilled after leveling up.","t"],["necklace","Enable Death Necklace","Equipping the death necklace will cause +10 AP and -25% HP.","t"],["herbcarry","Random Herb Carry","The maximum number of herbs you can carry is random, between 0 and 9.","t"],["magicherbs","Magic Herbs","Make herbs refill MP rather than HP.","t"],["ascetic","Ascetic King","King Lorik will let the player keep their hard-earned gold upon dying.","t"],["invhero","Invisible Hero","Your sprite will be invisible.","t"],["spells","Random Spell Learning","The order and level you learn spells will be random.","t"],["healbefore","Heal/Hurt Before \"More\"","Heal must come before Healmore; Hurt before Hurtmore.","t"],["nohurtmore","No Hurtmore","You will never learn Hurtmore. Monsters can still have it.","t"],["onlyhealmore","Only Healmore","Never learn any spell other than this. Needs Random Spell Learning.","t"],["l1radiant","Level 1 Radiant","If spells are randomized, the hero always knows Radiant.","c"],["l1repel","Level 1 Repel","If spells are randomized, the hero always knows Repel.","c"],["spellcost","Random Spell Costs","All spells have a random MP cost between 1 and 8.","t"]]},{"id":"monsters","label":"Monsters","long":"Monsters","blurb":"Who you fight and what they are worth.","sections":[{"title":"","note":"","ids":["mabil","mzones","mstats","mxp","consistent","normxp","scared","scaledms"]}],"items":[["mabil","Random Monster Abilities","Monster spells and abilities will be randomized.","t"],["mzones","Random Monster Zones","Monster encounters in each zone will be randomized.","t"],["mstats","Random Monster Stats","Monster strength, agility, and HP will be randomized.","t"],["mxp","Random Monster XP & Gold","The XP and Gold gained from monsters will be randomized.","t"],["consistent","Make Random Stats Consistent","Keeps random stats, XP, and Gold consistent with one another.","t"],["normxp","Normalized Monster XP/Gold","XP and Gold gained from monsters will be randomized, but within pre-set limits.","t"],["scared","Scared Metal Slimes","Metal Slimes will always have a chance to run.","t"],["scaledms","Scaled Metal Slime XP","Metal Slime XP will depend on your current level.","t"]]},{"id":"battle","label":"Battle","long":"Battle","blurb":"What happens once the fight starts.","sections":[{"title":"Hits","note":"","ids":["crit","dl1crit","dl2crit"]},{"title":"Escapes","note":"Run Mechanics overrides Alternate Running Algorithm and Easy Charlock.","ids":["runmech","altrun","easycharlock","returnesc","bank"]},{"title":"Commands","note":"","ids":["quickspell","torches","flutefor"]}],"items":[["crit","Crit Chance","Chance of an excellent move.","s",["Never (0%)","Vanilla (1/32)","Double (1/16)","Always (100%)","Random (1-32)/32","AG/256","One of the above"]],["dl1crit","DL1 Crits","Allow excellent moves against the Dragonlord's 1st form.","t"],["dl2crit","DL2 Crits","Allow excellent moves against the Dragonlord's 2nd form.","t"],["runmech","Run Mechanics","How escaping from battle is decided.","s",["Vanilla","Safer Vanilla - 100% on 4th run","DW2 - Always flat 2/3 chance","DW4 - 50% first 2, 75% 3rd, 100% 4th","Costs XP","Random"]],["altrun","Alternate Running Algorithm","The run-blocking multiplier will depend on where you are.","t"],["easycharlock","Easy Charlock","Make it slightly easier to run from high-level monsters.","t"],["returnesc","Return Escapes","Return can be used in battle for a guaranteed escape.","t"],["bank","Run Bank","Kills earn banked escapes, faster for tougher monsters. Spend one with the BANK battle command. Not usable on the Dragonlord.","t","bank"],["quickspell","Quick Spell","Adds a battle command that casts your last spell again.","c"],["torches","Enable Torches in Battle","Torches and Fairy Water can be thrown at monsters.","t"],["flutefor","Flute Is For","Which enemies the Fairy Flute works on.","s",["Golem","All but DL2","All","One of the above"]]]},{"id":"shops","label":"Shops & Inns","long":"Shops & Inns","blurb":"Who sells what, and for how much.","sections":[{"title":"","note":"","ids":["wshops","wprices","vendor","sale","sumsalechance","innprice","keyprice","charlockinn"]}],"items":[["wshops","Random Weapon Shops","The weapons available in each shop will be randomized.","t"],["wprices","Random Weapon Prices","Pretty self-explanatory.","t"],["vendor","Vendor Shuffle","Weapon, fairy water, item, radish and key vendors are shuffled.","t"],["sale","Summer Sale","All weapons and armor 35-65% off!","t"],["sumsalechance","Summer Sale Tristate Chance","Chance the sale applies when set to random.","s",["12.5%","25%","50%","75%"]],["innprice","Inn Prices","How inn prices are set.","s",["Vanilla","Shuffled","Random (1-255 G)","One of the above"]],["keyprice","Key Prices","How key prices are set.","s",["Vanilla","Shuffled","Random (1-255 G)","One of the above"]],["charlockinn","Charlock Inn","Make the final dive easier by having a comfy bed and breakfast at the Dragonlord's.","t"]]},{"id":"quest","label":"Quest","long":"Quest","blurb":"The route to the end, how you win, and who helps you find it.","sections":[{"title":"Route","note":"","ids":["opencharlock","shortcharlock"]},{"title":"How You Win","note":"","ids":["disguised","cursed","three","radish"]},{"title":"People","note":"","ids":["hints","invnpc","guillotine"]}],"items":[["opencharlock","Open Charlock","No need to create a bridge to enter Charlock Castle.","t"],["shortcharlock","Short Charlock","Charlock Dungeon will be much shorter.","t"],["disguised","Disguised Dragonlord","The Dragonlord roams Alefgard as a random NPC. The original location hints at where he is.","t"],["cursed","Cursed Princess","Get Gwaelin to take a Cursed Belt when you return her to win.","t"],["three","Three's Company","Bring Gwaelin to the Dragonlord and accept his offer to win.","t"],["radish","Radish Finish","Feed the princess some fresh and cheap radishes to win.","t"],["hints","Hints","Whether NPC hints are corrected.","s",["Unchanged","Corrected"]],["invnpc","Invisible NPCs","All NPCs will be invisible.","t"],["guillotine","NPC Guillotine","Getting blocked by NPCs? Talk to them and they're sure to let you pass!","c"]]},{"id":"speed","label":"Speed & Help","long":"Speed & Help","blurb":"Pace, menus and on-screen numbers.","sections":[{"title":"Pace","note":"","ids":["fasttext","speed","wrap","skipcredits"]},{"title":"Numbers","note":"","ids":["deathctr","keyherb","nonumbers"]}],"items":[["fasttext","Fast Text","All text will progress much faster.","t"],["speed","Speed Hacks","Various aspects of the game will be much faster.","t"],["wrap","Enable Menu Wrapping","This enables cursor wrapping in menus.","t"],["skipcredits","Skip Original Credits","Skip the original credits and go straight to the stat scroll.","c"],["deathctr","Show Death Counter","The stats window will also have a death counter.","c"],["keyherb","Show Key & Herb Counter","The stats window will also show your keys and herbs.","c"],["nonumbers","No Numbers","No numbers will be visible until the Dragonlord fight.","t"]]},{"id":"visual","label":"Visual","long":"Visual","blurb":"How the game looks, and how much it flashes and shakes.","sections":[{"title":"Comfort","note":"Turn these on if flashing or shaking bothers you.","ids":["noflash","nored","noshake"]},{"title":"Look","note":"","ids":["customspell","modernspells","noir","winter"]}],"items":[["noflash","Disable Spell Flashing","Prevents the screen from flashing when you cast spells.","c"],["nored","Disable Red Flashes","Prevents the screen from flashing when walking on damage tiles.","c"],["noshake","Disable Screen Shake","Keeps the screen still when you take damage.","c"],["sprite","Player Sprite","Pick a hero sprite, or leave on Random.","s",["Random","Arkista's Ring Christine","Barry Sanders","Blaster Master Jason","Blinky","Bo Jackson","Bomberman","Clyde","DW2 Prince of Cannock","DW2 Prince of Midenhall","DW2 Princess of Moonbrooke","DW3 Female Fighter","DW3 Female Goof-off","DW3 Female Merchant","DW3 Female Pilgrim","DW3 Female Sage","DW3 Female Soldier","DW3 Female Wizard","DW3 Ghost","DW3 Hero","DW3 Male Fighter","DW3 Male Goof-off","DW3 Male Merchant","DW3 Male Pilgrim","DW3 Male Sage","DW3 Male Soldier","DW3 Male Wizard","DW4 Alena","DW4 Brey","DW4 Celia","DW4 Cristo","DW4 Doran","DW4 Healie","DW4 Hero","DW4 Heroine","DW4 Mara","DW4 Nara","DW4 Ragnar","DW4 Taloon","DW4 Tov (The Dog)","DW4 Yeti","DoaE Guan Yu","DoaE Huang Zhong","DoaE Jiang Wei","DoaE Lu Bu","DoaE Ma Chao","DoaE Zhang Fei","DoaE Zhao Yun","DoaE Zhuge Liang","Dragonlord","FF Black Belt","FF Black Mage","FF Black Wizard","FF Fighter","FF Knight","FF Master","FF Ninja","FF Red Mage","FF Red Wizard","FF Thief","FF White Mage","FF White Wizard","FF4 DK Cecil","FF4 Edge","Gwaelin","Inky","Jerry Rice","Kirby","Lala","Link","Lolo","Loto","Luigi","Mario","Metal Slime","Mina the Hollower","Ms. Pac-Man","Pac-Man","Pinky","Plumplim","Red Slime","Slime","StarTropics Mike","Sue","Waluigi","Wario","Yoshi"]],["customspell","Allow Custom Spell Names","Allow spell names to be changed based on the chosen sprite.","c"],["modernspells","Modern Spell Names","Use spell names from more recent DQ releases.","t"],["noir","Noir Mode","It's all black and white, baby!","t"],["winter","Winter Theme","Sometimes, saving Alefgard cannot wait until summer.","c"]]},{"id":"sound","label":"Sound","long":"Sound","blurb":"Music and custom music packs.","sections":[{"title":"","note":"","ids":["shufflemusic","nomusic","jingles","flutemusic","flutenorm","pack"]}],"items":[["shufflemusic","Shuffle Music","Music in each area will be randomized.","c"],["nomusic","Disable Music","This disables the game music in most situations.","c"],["jingles","Don't Mute Jingles","The Harp, Flute and Gwaelin jingles can be heard even if the Disable Music flag is on.","c"],["flutemusic","Randomize Flute Music","Change the Fairy Flute sound to a new random tune.","c"],["flutenorm","Normal Flute Speed","If Speed Hacks is on, the Fairy Flute music will not be sped up.","c"],["pack","Custom Music Pack","Load a JSON5 music pack (FamiTracker modules). Songs play via the Dn-FamiTracker driver; tagged scenes use their own song.","pack"]]}];
+const TABS = [{"id":"world","label":"World","long":"World","blurb":"The land, the caves, and how you get across them.","sections":[{"title":"Land","note":"","ids":["map","mapsize","biome","safestart","swamp","masked","townentr","princessloc","encounters","bonk"]},{"title":"Dungeons","note":"","ids":["stairs","rotate","permtorch"]},{"title":"Travel","note":"","ids":["permrepel","repeldun","returntown","warp"]}],"items":[["map","Random Map","The overworld map will be randomly generated.","t"],["mapsize","Random Map Size","Size of a generated overworld. Needs Random Map.","s",["Normal","Small","Very Small","Random"]],["biome","Biome","The shape of a generated overworld. Needs Random Map. Caldera puts Charlock inside a mountain ring, Wasteland is mostly desert and swamp, and Riverlands cuts the land up with rivers and bridges.","s",["Continent (Original)","Caldera","Wasteland","Riverlands","Random"]],["safestart","Safe Start","Swamp within 3 tiles of Tantegel becomes grass, so your first steps are safe.","c"],["swamp","Big Swamp","Approximately 60% of the overworld will be poisonous swamp.","t"],["masked","Masked Overworld Locations","Is it a cave, or is it a town? Enter to find out!","t"],["townentr","Random Town Entrances","The player's location upon entering a town will be changed.","t"],["princessloc","Random Princess Location","The princess may be locked in a different cave.","t"],["encounters","Encounter Rate","Default keeps the original random rolls. Low, Medium and High use a danger meter: steps add points by terrain until a hidden target starts a fight.","s",["Default","Low","Medium","High"]],["bonk","Bonk Damage","Damage taken when walking into walls.","s",["None","1 HP","2 HP","20 HP","Instakill","Random (0-80)","Current HP / 2","One of the above"]],["stairs","Stair Shuffle","Where stairs take you inside dungeons will be randomized.","t"],["rotate","Randomly Rotate/Mirror Dungeons","All dungeons will be rotated at random angles and/or mirrored.","t"],["permtorch","Permanent Torch","At least a 3x3 area will always be lit in dungeons.","t"],["permrepel","Permanent Repel","Repel will always be active.","t"],["repeldun","Repel in Dungeons","Enables Repel to work in dungeons.","t"],["returntown","Return to Town","Wings and Return send you to the last place you saved or used an inn at.","t"],["warp","Warp Whistle","The Fairy Flute works as a warp whistle outside of battle, cycling between places you saved or used an inn at.","t"]]},{"id":"treasure","label":"Treasure","long":"Treasure & Keys","blurb":"What is in the chests, and what opens the doors.","sections":[{"title":"Chests","note":"","ids":["chests","chestloc","guards","unguarded","goldchest","noarmor","discardflute"]},{"title":"Keys & Doors","note":"","ids":["nokeys","unbreakable","keycarry","hurtdoors"]}],"items":[["chests","Shuffle Chests & Searches","The items in chests and search locations will be randomized.","t"],["chestloc","Random Chest Locations","Chests will be at a random set of predetermined locations.","t"],["guards","Treasure Guards","Important items will have a mid-level monster guarding them.","t"],["unguarded","Unguarded Overworld Search Spot","With Treasure Guards on, the overworld search spot is not guarded.","c"],["goldchest","Gold Chest Contents","Gold found in gold chests.","s",["5-20 G","120 G","500-755 G","560-815 G","Random (1-2000 G)","One of the above"]],["noarmor","No Armor in Charlock","Prevent Erdrick's Armor from being in a chest in Charlock Castle.","t"],["nokeys","Don't Require Magic Keys","All of the doors are unlocked. Just open them.","t"],["unbreakable","Unbreakable Keys","Using a key outside of the throne room will not remove it from your inventory.","t"],["keycarry","Random Key Carry","The maximum number of keys you can carry is random, between 2 and 9. Some flags make 4 the minimum.","t"],["hurtdoors","Hurtmore Doors","Blast doors open with a cast of Hurtmore.","t"],["discardflute","Discardable Flute","Make it possible to drop the flute on finding a new item with a full inventory.","t"]]},{"id":"hero","label":"Hero & Magic","long":"Hero & Magic","blurb":"How the hero grows, what he carries, and what he casts.","sections":[{"title":"Growth","note":"","ids":["build","growth","xp","levelspeed","lvlrefill"]},{"title":"Body & Bag","note":"","ids":["necklace","herbcarry","magicherbs","ascetic","invhero"]},{"title":"Spells","note":"Most of these need Random Spell Learning.","ids":["spells","healbefore","nohurtmore","onlyhealmore","l1radiant","l1repel","spellcost"]}],"items":[["build","Build Options","Which towns or castles get built.","s",["Unchanged","Vanilla","No builds","All builds","One of the above"]],["growth","Random Growth","Player statistical growth at each level will be randomized.","t"],["xp","Random XP Requirements","Experience requirements for each level will be randomized.","t"],["levelspeed","Leveling Speed","How fast the hero levels.","s",["Normal","Fast","Very Fast"]],["lvlrefill","Level-Up Refill","Have HP and MP refilled after leveling up.","t"],["necklace","Enable Death Necklace","Equipping the death necklace will cause +10 AP and -25% HP.","t"],["herbcarry","Random Herb Carry","The maximum number of herbs you can carry is random, between 0 and 9.","t"],["magicherbs","Magic Herbs","Make herbs refill MP rather than HP.","t"],["ascetic","Ascetic King","King Lorik will let the player keep their hard-earned gold upon dying.","t"],["invhero","Invisible Hero","Your sprite will be invisible.","t"],["spells","Random Spell Learning","The order and level you learn spells will be random.","t"],["healbefore","Heal/Hurt Before \"More\"","Heal must come before Healmore; Hurt before Hurtmore.","t"],["nohurtmore","No Hurtmore","You will never learn Hurtmore. Monsters can still have it.","t"],["onlyhealmore","Only Healmore","Never learn any spell other than this. Needs Random Spell Learning.","t"],["l1radiant","Level 1 Radiant","If spells are randomized, the hero always knows Radiant.","c"],["l1repel","Level 1 Repel","If spells are randomized, the hero always knows Repel.","c"],["spellcost","Random Spell Costs","All spells have a random MP cost between 1 and 8.","t"]]},{"id":"monsters","label":"Monsters","long":"Monsters","blurb":"Who you fight and what they are worth.","sections":[{"title":"","note":"","ids":["mabil","mzones","mstats","mxp","consistent","normxp","scared","scaledms"]}],"items":[["mabil","Random Monster Abilities","Monster spells and abilities will be randomized.","t"],["mzones","Random Monster Zones","Monster encounters in each zone will be randomized.","t"],["mstats","Random Monster Stats","Monster strength, agility, and HP will be randomized.","t"],["mxp","Random Monster XP & Gold","The XP and Gold gained from monsters will be randomized.","t"],["consistent","Make Random Stats Consistent","Keeps random stats, XP, and Gold consistent with one another.","t"],["normxp","Normalized Monster XP/Gold","XP and Gold gained from monsters will be randomized, but within pre-set limits.","t"],["scared","Scared Metal Slimes","Metal Slimes will always have a chance to run.","t"],["scaledms","Scaled Metal Slime XP","Metal Slime XP will depend on your current level.","t"]]},{"id":"battle","label":"Battle","long":"Battle","blurb":"What happens once the fight starts.","sections":[{"title":"Hits","note":"","ids":["crit","dl1crit","dl2crit"]},{"title":"Escapes","note":"Run Mechanics overrides Alternate Running Algorithm and Easy Charlock.","ids":["runmech","altrun","easycharlock","returnesc","bank"]},{"title":"Commands","note":"","ids":["quickspell","torches","flutefor"]}],"items":[["crit","Crit Chance","Chance of an excellent move.","s",["Never (0%)","Vanilla (1/32)","Double (1/16)","Always (100%)","Random (1-32)/32","AG/256","One of the above"]],["dl1crit","DL1 Crits","Allow excellent moves against the Dragonlord's 1st form.","t"],["dl2crit","DL2 Crits","Allow excellent moves against the Dragonlord's 2nd form.","t"],["runmech","Run Mechanics","How escaping from battle is decided.","s",["Vanilla","Safer Vanilla - 100% on 4th run","DW2 - Always flat 2/3 chance","DW4 - 50% first 2, 75% 3rd, 100% 4th","Costs XP","Random"]],["altrun","Alternate Running Algorithm","The run-blocking multiplier will depend on where you are.","t"],["easycharlock","Easy Charlock","Make it slightly easier to run from high-level monsters.","t"],["returnesc","Return Escapes","Return can be used in battle for a guaranteed escape.","t"],["bank","Run Bank","Kills earn banked escapes, faster for tougher monsters. Spend one with the BANK battle command. Not usable on the Dragonlord.","t","bank"],["quickspell","Quick Spell","Adds a battle command that casts your last spell again.","c"],["torches","Enable Torches in Battle","Torches and Fairy Water can be thrown at monsters.","t"],["flutefor","Flute Is For","Which enemies the Fairy Flute works on.","s",["Golem","All but DL2","All","One of the above"]]]},{"id":"shops","label":"Shops & Inns","long":"Shops & Inns","blurb":"Who sells what, and for how much.","sections":[{"title":"","note":"","ids":["wshops","wprices","vendor","sale","sumsalechance","innprice","keyprice","charlockinn"]}],"items":[["wshops","Random Weapon Shops","The weapons available in each shop will be randomized.","t"],["wprices","Random Weapon Prices","Pretty self-explanatory.","t"],["vendor","Vendor Shuffle","Weapon, fairy water, item, radish and key vendors are shuffled.","t"],["sale","Summer Sale","All weapons and armor 35-65% off!","t"],["sumsalechance","Summer Sale Tristate Chance","Chance the sale applies when set to random.","s",["12.5%","25%","50%","75%"]],["innprice","Inn Prices","How inn prices are set.","s",["Vanilla","Shuffled","Random (1-255 G)","One of the above"]],["keyprice","Key Prices","How key prices are set.","s",["Vanilla","Shuffled","Random (1-255 G)","One of the above"]],["charlockinn","Charlock Inn","Make the final dive easier by having a comfy bed and breakfast at the Dragonlord's.","t"]]},{"id":"quest","label":"Quest","long":"Quest","blurb":"The route to the end, how you win, and who helps you find it.","sections":[{"title":"Route","note":"","ids":["opencharlock","shortcharlock","freecharlock","autoreturn"]},{"title":"How You Win","note":"","ids":["disguised","cursed","three","radish"]},{"title":"People","note":"","ids":["hints","invnpc","guillotine"]}],"items":[["opencharlock","Open Charlock","No need to create a bridge to enter Charlock Castle.","t"],["shortcharlock","Short Charlock","Charlock Dungeon will be much shorter.","t"],["freecharlock","Free Charlock","Entering Charlock puts you beside the Dragonlord and starts the fight.","c"],["autoreturn","Auto Return","When the Dragonlord's second form falls, Return is cast for you, and you arrive in front of Tantegel, or at your Return to Town point.","c"],["disguised","Disguised Dragonlord","The Dragonlord roams Alefgard as a random NPC. The original location hints at where he is.","t"],["cursed","Cursed Princess","Get Gwaelin to take a Cursed Belt when you return her to win.","t"],["three","Three's Company","Bring Gwaelin to the Dragonlord and accept his offer to win.","t"],["radish","Radish Finish","Feed the princess some fresh and cheap radishes to win.","t"],["hints","Hints","Whether NPC hints are corrected.","s",["Unchanged","Corrected"]],["invnpc","Invisible NPCs","All NPCs will be invisible.","t"],["guillotine","NPC Guillotine","Getting blocked by NPCs? Talk to them and they're sure to let you pass!","c"]]},{"id":"speed","label":"Speed & Info","long":"Speed & Info","blurb":"Pace, menus and on-screen numbers.","sections":[{"title":"Pace","note":"","ids":["fasttext","speed","wrap","skipcredits"]},{"title":"Numbers","note":"","ids":["deathctr","keyherb","nonumbers"]}],"items":[["fasttext","Fast Text","All text will progress much faster.","t"],["speed","Speed Hacks","Various aspects of the game will be much faster.","t"],["wrap","Enable Menu Wrapping","This enables cursor wrapping in menus.","t"],["skipcredits","Skip Original Credits","Skip the original credits and go straight to the stat scroll.","c"],["deathctr","Show Death Counter","The stats window will also have a death counter.","c"],["keyherb","Show Key & Herb Counter","The stats window will also show your keys and herbs.","c"],["nonumbers","No Numbers","No numbers will be visible until the Dragonlord fight.","t"]]},{"id":"visual","label":"Visual","long":"Visual","blurb":"How the game looks, and how much it flashes and shakes.","sections":[{"title":"Comfort","note":"Turn these on if flashing or shaking bothers you.","ids":["noflash","nored","noshake"]},{"title":"Look","note":"","ids":["customspell","modernspells","noir","winter"]}],"items":[["noflash","Disable Spell Flashing","Prevents the screen from flashing when you cast spells.","c"],["nored","Disable Red Flashes","Prevents the screen from flashing when walking on damage tiles.","c"],["noshake","Disable Screen Shake","Keeps the screen still when you take damage.","c"],["sprite","Player Sprite","Pick a hero sprite, or leave on Random.","s",["Random","Arkista's Ring Christine","Barry Sanders","Blaster Master Jason","Blinky","Bo Jackson","Bomberman","Clyde","DW2 Prince of Cannock","DW2 Prince of Midenhall","DW2 Princess of Moonbrooke","DW3 Female Fighter","DW3 Female Goof-off","DW3 Female Merchant","DW3 Female Pilgrim","DW3 Female Sage","DW3 Female Soldier","DW3 Female Wizard","DW3 Ghost","DW3 Hero","DW3 Male Fighter","DW3 Male Goof-off","DW3 Male Merchant","DW3 Male Pilgrim","DW3 Male Sage","DW3 Male Soldier","DW3 Male Wizard","DW4 Alena","DW4 Brey","DW4 Celia","DW4 Cristo","DW4 Doran","DW4 Healie","DW4 Hero","DW4 Heroine","DW4 Mara","DW4 Nara","DW4 Ragnar","DW4 Taloon","DW4 Tov (The Dog)","DW4 Yeti","DoaE Guan Yu","DoaE Huang Zhong","DoaE Jiang Wei","DoaE Lu Bu","DoaE Ma Chao","DoaE Zhang Fei","DoaE Zhao Yun","DoaE Zhuge Liang","Dragonlord","FF Black Belt","FF Black Mage","FF Black Wizard","FF Fighter","FF Knight","FF Master","FF Ninja","FF Red Mage","FF Red Wizard","FF Thief","FF White Mage","FF White Wizard","FF4 DK Cecil","FF4 Edge","Gwaelin","Inky","Jerry Rice","Kirby","Lala","Link","Lolo","Loto","Luigi","Mario","Metal Slime","Mina the Hollower","Ms. Pac-Man","Pac-Man","Pinky","Plumplim","Red Slime","Slime","StarTropics Mike","Sue","Waluigi","Wario","Yoshi"]],["customspell","Allow Custom Spell Names","Allow spell names to be changed based on the chosen sprite.","c"],["modernspells","Modern Spell Names","Use spell names from more recent DQ releases.","t"],["noir","Noir Mode","It's all black and white, baby!","t"],["winter","Winter Theme","Sometimes, saving Alefgard cannot wait until summer.","c"]]},{"id":"sound","label":"Sound","long":"Sound","blurb":"Music and custom music packs.","sections":[{"title":"","note":"","ids":["shufflemusic","nomusic","jingles","flutemusic","flutenorm","pack"]}],"items":[["shufflemusic","Shuffle Music","Music in each area will be randomized.","c"],["nomusic","Disable Music","This disables the default game music in most situations.","c"],["jingles","Don't Mute Jingles","The Harp, Flute and Gwaelin jingles can be heard even if the Disable Music flag is on.","c"],["flutemusic","Randomize Flute Music","Change the Fairy Flute sound to a new random tune.","c"],["flutenorm","Normal Flute Speed","If Speed Hacks is on, the Fairy Flute music will not be sped up.","c"],["pack","Custom Music Pack","Load a JSON5 music pack (FamiTracker modules). Songs play via the Dn-FamiTracker driver; tagged scenes use their own song.","pack"]]}];
 const BANK_LEVELS = [
  {v:'normal',name:'Normal',tiers:[16,12,8,6,4,3,2],note:'Balanced. Slimes need 16 kills per escape, big monsters 2.'},
  {v:'easy',name:'Easy',tiers:[12,8,6,4,3,2,1],note:'Escapes come fastest. A big monster is worth a full escape.'},
@@ -363,7 +410,7 @@ const PRESETS = [
 const PERSONAL = ['nomusic','noflash','nored','noshake','customspell','skipcredits','winter','jingles'];
 const FLAG_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 /* From webui/index.js: where each option lives in the flag bytes. */
-const FLAG_MAP = {"Safe Start": {"byte": 8, "shift": 5, "mask": 1}, "Biome": {"byte": 2, "shift": 0, "mask": 51, "values": {"Continent (Original)": 0, "Caldera": 1, "Wasteland": 16, "Riverlands": 17, "Random": 34}}, "Show Key & Herb Counter": {"byte": 8, "shift": 4, "mask": 1}, "Shuffle Chests & Searches": {"byte": 0, "shift": 6, "mask": 3}, "Random Chest Locations": {"byte": 0, "shift": 4, "mask": 3}, "Random Growth": {"byte": 0, "shift": 2, "mask": 3}, "Random Map": {"byte": 0, "shift": 0, "mask": 3}, "Random Spell Learning": {"byte": 1, "shift": 6, "mask": 3}, "Random Weapon Shops": {"byte": 1, "shift": 4, "mask": 3}, "Random Weapon Prices": {"byte": 1, "shift": 2, "mask": 3}, "Random XP Requirements": {"byte": 1, "shift": 0, "mask": 3}, "Heal/Hurt Before \"More\"": {"byte": 2, "shift": 6, "mask": 3}, "Stair Shuffle": {"byte": 2, "shift": 2, "mask": 3}, "Enable Menu Wrapping": {"byte": 3, "shift": 6, "mask": 3}, "Enable Death Necklace": {"byte": 3, "shift": 4, "mask": 3}, "Enable Torches in Battle": {"byte": 3, "shift": 2, "mask": 3}, "Repel in Dungeons": {"byte": 4, "shift": 6, "mask": 3}, "Permanent Repel": {"byte": 4, "shift": 4, "mask": 3}, "Permanent Torch": {"byte": 4, "shift": 2, "mask": 3}, "Alternate Running Algorithm": {"byte": 4, "shift": 0, "mask": 3}, "Random Monster Abilities": {"byte": 5, "shift": 6, "mask": 3}, "Random Monster Zones": {"byte": 5, "shift": 4, "mask": 3}, "Random Monster Stats": {"byte": 5, "shift": 2, "mask": 3}, "Random Monster XP & Gold": {"byte": 5, "shift": 0, "mask": 3}, "Make Random Stats Consistent": {"byte": 6, "shift": 6, "mask": 3}, "Scared Metal Slimes": {"byte": 6, "shift": 4, "mask": 3}, "Scaled Metal Slime XP": {"byte": 6, "shift": 2, "mask": 3}, "Fast Text": {"byte": 7, "shift": 6, "mask": 3}, "Speed Hacks": {"byte": 7, "shift": 4, "mask": 3}, "Open Charlock": {"byte": 7, "shift": 2, "mask": 3}, "Short Charlock": {"byte": 7, "shift": 0, "mask": 3}, "Don't Require Magic Keys": {"byte": 8, "shift": 6, "mask": 3}, "Summer Sale": {"byte": 13, "shift": 2, "mask": 3}, "Cursed Princess": {"byte": 8, "shift": 2, "mask": 3}, "Three's Company": {"byte": 8, "shift": 0, "mask": 3}, "Leveling Speed": {"byte": 13, "shift": 4, "mask": 3, "values": {"Normal": 0, "Fast": 1, "Very Fast": 2}}, "Random Map Size": {"byte": 13, "shift": 6, "mask": 3, "values": {"Normal": 0, "Small": 1, "Very Small": 2, "Random": 3}}, "No Hurtmore": {"byte": 9, "shift": 6, "mask": 3}, "No Numbers": {"byte": 9, "shift": 4, "mask": 3}, "Invisible Hero": {"byte": 9, "shift": 2, "mask": 3}, "Invisible NPCs": {"byte": 9, "shift": 0, "mask": 3}, "Treasure Guards": {"byte": 13, "shift": 0, "mask": 3}, "Big Swamp": {"byte": 10, "shift": 0, "mask": 3}, "Randomly Rotate/Mirror Dungeons": {"byte": 10, "shift": 2, "mask": 3}, "No Armor in Charlock": {"byte": 10, "shift": 4, "mask": 3}, "Easy Charlock": {"byte": 10, "shift": 6, "mask": 3}, "Modern Spell Names": {"byte": 11, "shift": 6, "mask": 3}, "Noir Mode": {"byte": 11, "shift": 4, "mask": 3}, "Shuffle Music": {"byte": 14, "shift": 7, "mask": 1}, "Disable Music": {"byte": 14, "shift": 6, "mask": 1}, "Disable Spell Flashing": {"byte": 14, "shift": 5, "mask": 1}, "Show Death Counter": {"byte": 14, "shift": 4, "mask": 1}, "Allow Custom Spell Names": {"byte": 14, "shift": 3, "mask": 1}, "Disable Screen Shake": {"byte": 14, "shift": 1, "mask": 1}, "Skip Original Credits": {"byte": 14, "shift": 2, "mask": 1}, "Vendor Shuffle": {"byte": 16, "shift": 6, "mask": 3}, "Disguised Dragonlord": {"byte": 16, "shift": 2, "mask": 3}, "Radish Finish": {"byte": 20, "shift": 6, "mask": 3}, "Return Escapes": {"byte": 19, "shift": 6, "mask": 3}, "Return to Town": {"byte": 23, "shift": 6, "mask": 3}, "Warp Whistle": {"byte": 19, "shift": 4, "mask": 3}, "Hurtmore Doors": {"byte": 23, "shift": 4, "mask": 3}, "Unbreakable Keys": {"byte": 20, "shift": 2, "mask": 3}, "Ascetic King": {"byte": 20, "shift": 0, "mask": 3}, "Level-Up Refill": {"byte": 19, "shift": 2, "mask": 3}, "Run Mechanics": {"byte": 21, "shift": 5, "mask": 7, "values": {"Vanilla": 0, "Safer Vanilla - 100% on 4th run": 3, "DW2 - Always flat 2/3 chance": 1, "DW4 - 50% first 2, 75% 3rd, 100% 4th": 2, "Costs XP": 4, "Random": 7}}, "Bonk Damage": {"byte": 18, "shift": 5, "mask": 7, "values": {"None": 0, "1 HP": 1, "2 HP": 2, "20 HP": 3, "Instakill": 4, "Random (0-80)": 5, "Current HP / 2": 6, "One of the above": 7}}, "Run Bank": {"byte": 11, "shift": 2, "mask": 3}, "Charlock Inn": {"byte": 15, "shift": 6, "mask": 3}, "Random Key Carry": {"byte": 19, "shift": 0, "mask": 3}, "Random Herb Carry": {"byte": 23, "shift": 2, "mask": 3}, "Crit Chance": {"byte": 17, "shift": 4, "mask": 7, "values": {"Never (0%)": 0, "Vanilla (1/32)": 1, "Double (1/16)": 2, "Always (100%)": 3, "Random (1-32)/32": 4, "AG/256": 5, "One of the above": 6}}, "DL1 Crits": {"byte": 17, "shift": 2, "mask": 3}, "DL2 Crits": {"byte": 17, "shift": 0, "mask": 3}, "Inn Prices": {"byte": 15, "shift": 2, "mask": 3, "values": {"Vanilla": 0, "Shuffled": 1, "Random (1-255 G)": 2, "One of the above": 3}}, "Key Prices": {"byte": 15, "shift": 0, "mask": 3, "values": {"Vanilla": 0, "Shuffled": 1, "Random (1-255 G)": 2, "One of the above": 3}}, "Magic Herbs": {"byte": 16, "shift": 0, "mask": 3}, "Flute Is For": {"byte": 18, "shift": 1, "mask": 3, "values": {"Golem": 0, "All but DL2": 1, "All": 2, "One of the above": 3}}, "Random Princess Location": {"byte": 21, "shift": 0, "mask": 3}, "Gold Chest Contents": {"byte": 21, "shift": 2, "mask": 7, "values": {"5-20 G": 1, "120 G": 2, "500-755 G": 0, "560-815 G": 4, "Random (1-2000 G)": 3, "One of the above": 5}}, "Winter Theme": {"byte": 22, "shift": 0, "mask": 1}, "Normal Flute Speed": {"byte": 22, "shift": 5, "mask": 1}, "Randomize Flute Music": {"byte": 16, "shift": 5, "mask": 1}, "Discardable Flute": {"byte": 18, "shift": 3, "mask": 3}, "Hints": {"byte": 22, "shift": 3, "mask": 1, "values": {"Unchanged": 0, "Corrected": 1}}, "Summer Sale Tristate Chance": {"byte": 20, "shift": 4, "mask": 3, "values": {"12.5%": 1, "25%": 2, "50%": 0, "75%": 3}}, "Disable Red Flashes": {"byte": 17, "shift": 7, "mask": 1}, "Only Healmore": {"byte": 15, "shift": 4, "mask": 3}, "Level 1 Radiant": {"byte": 18, "shift": 0, "mask": 1}, "Level 1 Repel": {"byte": 22, "shift": 6, "mask": 1}, "Unguarded Overworld Search Spot": {"byte": 22, "shift": 7, "mask": 1}, "Normalized Monster XP/Gold": {"byte": 22, "shift": 1, "mask": 3}, "Don't Mute Jingles": {"byte": 16, "shift": 4, "mask": 1}, "NPC Guillotine": {"byte": 24, "shift": 7, "mask": 1}, "Masked Overworld Locations": {"byte": 24, "shift": 5, "mask": 3}, "Build Options": {"byte": 24, "shift": 2, "mask": 7, "values": {"Unchanged": 0, "Vanilla": 1, "No builds": 2, "All builds": 3, "One of the above": 4}}, "Random Spell Costs": {"byte": 23, "shift": 0, "mask": 3}, "Random Town Entrances": {"byte": 24, "shift": 0, "mask": 3}, "Quick Spell": {"byte": 11, "shift": 0, "mask": 1}};
+const FLAG_MAP = {"Safe Start": {"byte": 8, "shift": 5, "mask": 1}, "Biome": {"byte": 2, "shift": 0, "mask": 51, "values": {"Continent (Original)": 0, "Caldera": 1, "Wasteland": 16, "Riverlands": 17, "Random": 34}}, "Show Key & Herb Counter": {"byte": 8, "shift": 4, "mask": 1}, "Shuffle Chests & Searches": {"byte": 0, "shift": 6, "mask": 3}, "Random Chest Locations": {"byte": 0, "shift": 4, "mask": 3}, "Random Growth": {"byte": 0, "shift": 2, "mask": 3}, "Random Map": {"byte": 0, "shift": 0, "mask": 3}, "Random Spell Learning": {"byte": 1, "shift": 6, "mask": 3}, "Random Weapon Shops": {"byte": 1, "shift": 4, "mask": 3}, "Random Weapon Prices": {"byte": 1, "shift": 2, "mask": 3}, "Random XP Requirements": {"byte": 1, "shift": 0, "mask": 3}, "Heal/Hurt Before \"More\"": {"byte": 2, "shift": 6, "mask": 3}, "Stair Shuffle": {"byte": 2, "shift": 2, "mask": 3}, "Enable Menu Wrapping": {"byte": 3, "shift": 6, "mask": 3}, "Enable Death Necklace": {"byte": 3, "shift": 4, "mask": 3}, "Enable Torches in Battle": {"byte": 3, "shift": 2, "mask": 3}, "Repel in Dungeons": {"byte": 4, "shift": 6, "mask": 3}, "Permanent Repel": {"byte": 4, "shift": 4, "mask": 3}, "Permanent Torch": {"byte": 4, "shift": 2, "mask": 3}, "Alternate Running Algorithm": {"byte": 4, "shift": 0, "mask": 3}, "Random Monster Abilities": {"byte": 5, "shift": 6, "mask": 3}, "Random Monster Zones": {"byte": 5, "shift": 4, "mask": 3}, "Random Monster Stats": {"byte": 5, "shift": 2, "mask": 3}, "Random Monster XP & Gold": {"byte": 5, "shift": 0, "mask": 3}, "Make Random Stats Consistent": {"byte": 6, "shift": 6, "mask": 3}, "Scared Metal Slimes": {"byte": 6, "shift": 4, "mask": 3}, "Scaled Metal Slime XP": {"byte": 6, "shift": 2, "mask": 3}, "Fast Text": {"byte": 7, "shift": 6, "mask": 3}, "Speed Hacks": {"byte": 7, "shift": 4, "mask": 3}, "Open Charlock": {"byte": 7, "shift": 2, "mask": 3}, "Short Charlock": {"byte": 7, "shift": 0, "mask": 3}, "Don't Require Magic Keys": {"byte": 8, "shift": 6, "mask": 3}, "Summer Sale": {"byte": 13, "shift": 2, "mask": 3}, "Cursed Princess": {"byte": 8, "shift": 2, "mask": 3}, "Three's Company": {"byte": 8, "shift": 0, "mask": 3}, "Leveling Speed": {"byte": 13, "shift": 4, "mask": 3, "values": {"Normal": 0, "Fast": 1, "Very Fast": 2}}, "Random Map Size": {"byte": 13, "shift": 6, "mask": 3, "values": {"Normal": 0, "Small": 1, "Very Small": 2, "Random": 3}}, "No Hurtmore": {"byte": 9, "shift": 6, "mask": 3}, "No Numbers": {"byte": 9, "shift": 4, "mask": 3}, "Invisible Hero": {"byte": 9, "shift": 2, "mask": 3}, "Invisible NPCs": {"byte": 9, "shift": 0, "mask": 3}, "Treasure Guards": {"byte": 13, "shift": 0, "mask": 3}, "Big Swamp": {"byte": 10, "shift": 0, "mask": 3}, "Randomly Rotate/Mirror Dungeons": {"byte": 10, "shift": 2, "mask": 3}, "No Armor in Charlock": {"byte": 10, "shift": 4, "mask": 3}, "Easy Charlock": {"byte": 10, "shift": 6, "mask": 3}, "Modern Spell Names": {"byte": 11, "shift": 6, "mask": 3}, "Noir Mode": {"byte": 11, "shift": 4, "mask": 3}, "Shuffle Music": {"byte": 14, "shift": 7, "mask": 1}, "Disable Music": {"byte": 14, "shift": 6, "mask": 1}, "Disable Spell Flashing": {"byte": 14, "shift": 5, "mask": 1}, "Show Death Counter": {"byte": 14, "shift": 4, "mask": 1}, "Allow Custom Spell Names": {"byte": 14, "shift": 3, "mask": 1}, "Disable Screen Shake": {"byte": 14, "shift": 1, "mask": 1}, "Skip Original Credits": {"byte": 14, "shift": 2, "mask": 1}, "Vendor Shuffle": {"byte": 16, "shift": 6, "mask": 3}, "Disguised Dragonlord": {"byte": 16, "shift": 2, "mask": 3}, "Radish Finish": {"byte": 20, "shift": 6, "mask": 3}, "Return Escapes": {"byte": 19, "shift": 6, "mask": 3}, "Return to Town": {"byte": 23, "shift": 6, "mask": 3}, "Warp Whistle": {"byte": 19, "shift": 4, "mask": 3}, "Hurtmore Doors": {"byte": 23, "shift": 4, "mask": 3}, "Unbreakable Keys": {"byte": 20, "shift": 2, "mask": 3}, "Ascetic King": {"byte": 20, "shift": 0, "mask": 3}, "Level-Up Refill": {"byte": 19, "shift": 2, "mask": 3}, "Run Mechanics": {"byte": 21, "shift": 5, "mask": 7, "values": {"Vanilla": 0, "Safer Vanilla - 100% on 4th run": 3, "DW2 - Always flat 2/3 chance": 1, "DW4 - 50% first 2, 75% 3rd, 100% 4th": 2, "Costs XP": 4, "Random": 7}}, "Bonk Damage": {"byte": 18, "shift": 5, "mask": 7, "values": {"None": 0, "1 HP": 1, "2 HP": 2, "20 HP": 3, "Instakill": 4, "Random (0-80)": 5, "Current HP / 2": 6, "One of the above": 7}}, "Run Bank": {"byte": 11, "shift": 2, "mask": 3}, "Charlock Inn": {"byte": 15, "shift": 6, "mask": 3}, "Random Key Carry": {"byte": 19, "shift": 0, "mask": 3}, "Random Herb Carry": {"byte": 23, "shift": 2, "mask": 3}, "Crit Chance": {"byte": 17, "shift": 4, "mask": 7, "values": {"Never (0%)": 0, "Vanilla (1/32)": 1, "Double (1/16)": 2, "Always (100%)": 3, "Random (1-32)/32": 4, "AG/256": 5, "One of the above": 6}}, "DL1 Crits": {"byte": 17, "shift": 2, "mask": 3}, "DL2 Crits": {"byte": 17, "shift": 0, "mask": 3}, "Inn Prices": {"byte": 15, "shift": 2, "mask": 3, "values": {"Vanilla": 0, "Shuffled": 1, "Random (1-255 G)": 2, "One of the above": 3}}, "Key Prices": {"byte": 15, "shift": 0, "mask": 3, "values": {"Vanilla": 0, "Shuffled": 1, "Random (1-255 G)": 2, "One of the above": 3}}, "Magic Herbs": {"byte": 16, "shift": 0, "mask": 3}, "Flute Is For": {"byte": 18, "shift": 1, "mask": 3, "values": {"Golem": 0, "All but DL2": 1, "All": 2, "One of the above": 3}}, "Random Princess Location": {"byte": 21, "shift": 0, "mask": 3}, "Gold Chest Contents": {"byte": 21, "shift": 2, "mask": 7, "values": {"5-20 G": 1, "120 G": 2, "500-755 G": 0, "560-815 G": 4, "Random (1-2000 G)": 3, "One of the above": 5}}, "Winter Theme": {"byte": 22, "shift": 0, "mask": 1}, "Normal Flute Speed": {"byte": 22, "shift": 5, "mask": 1}, "Randomize Flute Music": {"byte": 16, "shift": 5, "mask": 1}, "Discardable Flute": {"byte": 18, "shift": 3, "mask": 3}, "Hints": {"byte": 22, "shift": 3, "mask": 1, "values": {"Unchanged": 0, "Corrected": 1}}, "Summer Sale Tristate Chance": {"byte": 20, "shift": 4, "mask": 3, "values": {"12.5%": 1, "25%": 2, "50%": 0, "75%": 3}}, "Disable Red Flashes": {"byte": 17, "shift": 7, "mask": 1}, "Only Healmore": {"byte": 15, "shift": 4, "mask": 3}, "Level 1 Radiant": {"byte": 18, "shift": 0, "mask": 1}, "Level 1 Repel": {"byte": 22, "shift": 6, "mask": 1}, "Unguarded Overworld Search Spot": {"byte": 22, "shift": 7, "mask": 1}, "Normalized Monster XP/Gold": {"byte": 22, "shift": 1, "mask": 3}, "Don't Mute Jingles": {"byte": 16, "shift": 4, "mask": 1}, "NPC Guillotine": {"byte": 24, "shift": 7, "mask": 1}, "Masked Overworld Locations": {"byte": 24, "shift": 5, "mask": 3}, "Build Options": {"byte": 24, "shift": 2, "mask": 7, "values": {"Unchanged": 0, "Vanilla": 1, "No builds": 2, "All builds": 3, "One of the above": 4}}, "Random Spell Costs": {"byte": 23, "shift": 0, "mask": 3}, "Random Town Entrances": {"byte": 24, "shift": 0, "mask": 3}, "Quick Spell": {"byte": 11, "shift": 0, "mask": 1}, "Free Charlock": {"byte": 11, "shift": 1, "mask": 1}, "Auto Return": {"byte": 3, "shift": 1, "mask": 1}};
 const State = {
   v:{}, bankLevel:0, bankCap:9, pack:null, rom:null, seed:'', listeners:[],
   init(){ TABS.forEach(t=>t.items.forEach(it=>{ this.v[it[0]] = 0; }));
@@ -477,7 +524,9 @@ const MUSIC_SLOTS={
     ['Dungeon Floor 7',['Floor7','Dungeon','Cave']],['Dragonlord Room',['DragonlordRoom']],['Battle',['Battle']],['Last Battle',['LastBattle']]],
   'Jingles':[
     ['Silver Harp',['SilverHarp']],['Fairy Flute',['FairyFlute']],['Rainbow Bridge',['RainbowBridge']],['Death',['Death','Dying','PlayerDeath']],
-    ['Inn',['Inn']],['Gwaelin',['Gwaelin']],['Cursed',['Cursed']],['Victory',['Victory']],['Level Up',['LevelUp']],['Original Credits',['Ending']],['Stat Scroll',['Credits','Ending']]]
+    ['Inn',['Inn']],['Gwaelin',['Gwaelin']],['Cursed',['Cursed']],['Victory',['Victory']],['Level Up',['LevelUp']]],
+  'Credits':[
+    ['Original Credits',['Ending']],['Stat Scroll',['Credits','Ending']]]
 };
 /* JSON5 reader: comments, unquoted keys, single quotes, trailing commas */
 function parseJSON5(t){ let i=0;
@@ -506,32 +555,95 @@ function songsFromPack(text){
 /* The randomizer takes a scene's song from its tag, so each choice goes to it as a copy of
    the song with only that slot's tag. A slot with no copy keeps the game's music.
    The same seed makes the same random choices. */
+/* Room per music bank, from gen_driver.py's output (FT_SONGS), and the randomizer's song limit. */
+const BANK_ROOM=8927, MAX_MUSIC_SONGS=24;
+/* The order custom_music_apply places songs in, which decides what fits. */
+const PLACE_ORDER=['Credits','Overworld','Battle','Dungeon','Town','Castle','LastBattle','Title','Ending','DragonlordRoom','Hauksness','OldManCave','SilverHarp','FairyFlute','RainbowBridge','Death','Inn','Gwaelin','Cursed','Victory','LevelUp','Floor1','Floor2','Floor3','Floor4','Floor5','Floor6','Floor7'];
+/* Who gets first claim on the space when slots are on Random. */
+const FILL_ORDER=['Title','Overworld','Town','Floor1','Floor2','Floor3','Floor4','Floor5','Floor6','Floor7','Battle','Castle','LastBattle','Credits','Ending','DragonlordRoom','Hauksness','OldManCave','SilverHarp','FairyFlute','RainbowBridge','Death','Inn','Gwaelin','Cursed','Victory','LevelUp'];
+/* Decoded size of a module, counted the way decode_module reads it. */
+function moduleSize(d){ if(d.startsWith('deflate:')) return Infinity;
+  if(d.startsWith('hex:')) return Math.floor(d.slice(4).replace(/\s/g,'').length/2);
+  return Math.floor(d.replace(/[^A-Za-z0-9+/]/g,'').length*6/8); }
+/* TRUE if a module has a halt command (Cxx), so it stops instead of looping. Walks every pattern the way
+   ft_read_pattern reads it. A module it cannot walk counts as stopping. */
+function moduleStops(data){
+  let d;
+  try{
+    if(data.startsWith('hex:')) d=Uint8Array.from(data.slice(4).replace(/\s/g,'').match(/../g).map(h=>parseInt(h,16)));
+    else { const bin=atob(data.replace(/[^A-Za-z0-9+/]/g,'').replace(/=+$/,'')); d=Uint8Array.from(bin,c=>c.charCodeAt(0)); }
+  }catch(e){ return true; }
+  const w=o=>d[o]|d[o+1]<<8;
+  if(d.length<15) return true;
+  const head=w(w(0)), frames=w(head), count=d[head+2], rows=d[head+3], seen=new Set();
+  for(let f=0;f<count;f++){ const fp=w(frames+2*f); for(let c=0;c<5;c++) seen.add(w(fp+2*c)); }
+  for(const start of seen){ if(!start) continue;
+    let i=start, row=0, dur=-1;
+    while(row<rows){ if(i>=d.length) return true;
+      const b=d[i++];
+      if(b>=0xe0) continue;
+      if(b>=0x80){ if(b===0x88) return true; if(b>0xa6) return true;
+        if(b===0x82) dur=d[i]; if(b===0x83) dur=-1;
+        if(b!==0x81&&b!==0x83&&b!==0x8a&&b!==0x92) i++;
+        continue; }
+      if(dur<0){ row+=d[i++]+1; } else row+=dur+1; } }
+  return false;
+}
+/* Any dungeon floor or dungeon song, for a floor with nothing of its own. */
+const DUNGEON_TAGS=['Floor1','Floor2','Floor3','Floor4','Floor5','Floor6','Floor7','Dungeon','Cave'];
 function chosenPack(seed){
   const j=parseJSON5(State.pack.text), items=packItems(j), songs=State.pack.songs, assign=State.assign||{};
   let r=(Number(BigInt(seed)&0xffffffffn)^0x6d757369)>>>0;
   const rnd=n=>{ r=(Math.imul(r,1664525)+1013904223)>>>0; return Math.floor(r/4294967296*n); };
-  const used=new Set(), all=songs.map((_,i)=>i);
-  const choose=list=>{ const on=list.filter(i=>items[i].it.enabled!==false), a=on.length?on:list, fresh=a.filter(i=>!used.has(i)), p=fresh.length?fresh:a, c=p[rnd(p.length)]; used.add(c); return c; };
-  let dungeon=null, shared;
+  const used=new Set(), all=songs.map((_,i)=>i), sizes={};
+  const sz=i=>sizes[i]??(sizes[i]=moduleSize(items[i].it.data));
+  /* What will be in the ROM so far. A pick must still fit when the randomizer places everything in its own order. */
+  const placed=[];
+  const fits=(tag,size)=>{ const a=[...placed,{tag,size}], b=[0,0], endingFirst=State.v.skipcredits&&!a.some(e=>e.tag==='Credits'),
+      rank=e=>endingFirst&&e.tag==='Ending'?-1:PLACE_ORDER.indexOf(e.tag); /* With its scene skipped, the Ending song is placed first, as the credits song. */
+    a.sort((x,y)=>rank(x)-rank(y));
+    return a.length<=MAX_MUSIC_SONGS&&a.every(e=>{ const k=b[0]+e.size<=BANK_ROOM?0:b[1]+e.size<=BANK_ROOM?1:-1; if(k<0) return false; b[k]+=e.size; return true; }); };
+  /* Songs that fit; while many slots remain, leave room for them by preferring songs near a fair share. */
+  /* A song that stops would leave these places silent, so Random only gives them songs that loop. */
+  const stops=State.pack.stops||(State.pack.stops={});
+  const loops=i=>!(stops[i]??(stops[i]=moduleStops(items[i].it.data)));
+  const choose=(list,tag,left,group)=>{ const fit=list.filter(i=>sz(i)>=256&&fits(tag,sz(i))&&(group!=='Locations'||loops(i))); if(!fit.length) return null;
+    const free=2*BANK_ROOM-placed.reduce((n,e)=>n+e.size,0), small=fit.filter(i=>sz(i)<=1.5*free/left), base=small.length?small:fit;
+    const on=base.filter(i=>items[i].it.enabled!==false), a=on.length?on:base, fresh=a.filter(i=>!used.has(i)), p=fresh.length?fresh:a, c=p[rnd(p.length)];
+    used.add(c); placed.push({tag,size:sz(c)}); return c; };
   const slots=Object.entries(MUSIC_SLOTS).flatMap(([group,list])=>list.map(([name,tags0])=>{
     const floor=tags0[0].startsWith('Floor'), same=floor&&sameFloors(), first=same?list.find(x=>x[0]==='Dungeon Floor 1'):null;
-    const tags=first?first[1]:tags0, v=assign[slotKey(group,first?first[0]:name)]; let song=null;
-    if(same&&shared!==undefined&&v==='random') song=shared;
-    else if(v==='random'){ const own=all.filter(i=>hasTag(songs[i],floor?[tags[0]]:tags));
-      if(own.length) song=choose(own);
-      else if(floor){ if(dungeon===null){ const d=all.filter(i=>hasTag(songs[i],tags)); dungeon=d.length?choose(d):-1; } if(dungeon>=0) song=dungeon; } }
-    else if(v!=null&&v!==''&&songs[+v]) song=+v;
-    if(same&&v==='random'&&shared===undefined) shared=song;
-    return {name,tag:tags0[0],floor,song}; }));
+    return {name,group,tag:tags0[0],tags:first?first[1]:tags0,floor,same,v:group==='Jingles'&&!customJingles()?undefined:assign[slotKey(group,first?first[0]:name)],song:null,key:slotKey(group,first?first[0]:name)}; }));
+  /* Tracks picked by hand keep their room; Random slots then fill it, most often heard first. */
+  slots.forEach(x=>{ if(x.v==null||x.v===''||x.v==='random'||!songs[+x.v]) return; x.song=+x.v; });
+  /* Each floor is its own copy in the ROM, except the song shared as the one Dungeon song once every floor is set. */
+  const floors=slots.filter(x=>x.floor), mostUsed=()=>{ const n={}; floors.forEach(x=>{ n[x.song]=(n[x.song]||0)+1; }); return +Object.keys(n).sort((a,b)=>n[b]-n[a])[0]; };
+  const handMain=floors.every(x=>x.song!==null)?mostUsed():-1, hasDefault=floors.some(x=>x.song===null&&x.v!=='random');
+  let mainPlaced=false;
+  slots.forEach(x=>{ if(x.song===null) return;
+    if(x.floor&&x.song===handMain){ if(!mainPlaced){ mainPlaced=true; placed.push({tag:'Dungeon',size:sz(x.song)}); } }
+    else placed.push({tag:x.tag,size:sz(x.song)}); });
+  const rand=slots.filter(x=>x.v==='random').sort((x,y)=>FILL_ORDER.indexOf(x.tag)-FILL_ORDER.indexOf(y.tag));
+  let dungeon=null, shared, left=rand.filter(x=>!x.same||x.tag==='Floor1').length;
+  rand.forEach(x=>{ if(x.same&&shared!==undefined){ x.song=shared; return; }
+    const own=all.filter(i=>hasTag(songs[i],x.floor?[x.tags[0]]:x.tags));
+    if(own.length) x.song=choose(own,x.same?'Dungeon':x.tag,left,x.group);
+    /* No tagged song that loops and fits: a location falls back to any song, a floor to a dungeon song. */
+    if(x.song==null&&!x.floor&&x.group==='Locations') x.song=choose(all,x.tag,left,x.group); /* Random on a slot with no tagged songs: any song. */
+    if(x.song==null&&x.floor){ if(dungeon===null){ const d=all.filter(i=>hasTag(songs[i],DUNGEON_TAGS)), c=d.length?choose(d,hasDefault?x.tag:'Dungeon',left,x.group):null; dungeon=c===null?-1:c; if(c!==null) x.song=c; }
+      else if(dungeon>=0){ /* A floor left on Default means no shared Dungeon song, so this floor is another copy. */
+        if(!hasDefault) x.song=dungeon; else if(fits(x.tag,sz(dungeon))){ placed.push({tag:x.tag,size:sz(dungeon)}); x.song=dungeon; } } }
+    if(x.same) shared=x.song;
+    left--; });
   /* With every floor set, the most used song becomes the one Dungeon song, saving a copy per floor. */
-  const floors=slots.filter(x=>x.floor), out={single:[],groups:[]}; let main=-1, count=0;
-  if(floors.every(x=>x.song!==null)){ const n={}; floors.forEach(x=>{ n[x.song]=(n[x.song]||0)+1; });
-    main=+Object.keys(n).sort((a,b)=>n[b]-n[a])[0]; }
-  const add=(song,tag)=>{ const {it,g}=items[song], copy={...it,uses:[tag],enabled:tag!=='Ending'}; count++; /* The credits take any Ending song, but enabled songs first, so this leaves it for the original credits. */
+  const out={single:[],groups:[]}, list=[]; let main=-1, count=0;
+  if(floors.every(x=>x.song!==null)) main=mostUsed();
+  const add=(song,tag,key)=>{ const {it,g}=items[song], copy={...it,uses:[tag],enabled:tag!=='Ending'}; count++; list.push({tag,title:it.title,key});
+/* The credits take any Ending song, but enabled songs first, so this leaves it for the original credits. */
     if(g) out.groups.push({...g,items:[copy]}); else out.single.push(copy); };
-  if(main>=0) add(main,'Dungeon');
-  slots.forEach(x=>{ if(x.song!==null&&!(x.floor&&x.song===main)) add(x.song,x.tag); });
-  return {text:JSON.stringify(out),count};
+  if(main>=0) add(main,'Dungeon',floors[0].key);
+  slots.forEach(x=>{ if(x.song!==null&&!(x.floor&&x.song===main)) add(x.song,x.tag,x.key); });
+  return {text:JSON.stringify(out),count,list};
 }
 /* The ROM and music pack are kept in this browser's own storage, and never leave it. */
 const FileStore={
@@ -549,57 +661,76 @@ const PICKS_KEY='dwrMusicPicks';
 /* A new pack starts on its tagged songs. Slots with none keep the game's music. */
 function setPack(p){ State.pack=p; State.assign={};
   if(p) Object.entries(MUSIC_SLOTS).forEach(([group,list])=>list.forEach(([name,tags])=>{ if(p.songs.some(s=>hasTag(s,tags))) State.assign[slotKey(group,name)]='random'; }));
-  try{ const v=JSON.parse(localStorage.getItem(PICKS_KEY)); if(p&&v&&v.name===p.name) State.assign=v.assign||{}; }catch(e){}
+  try{ const v=JSON.parse(localStorage.getItem(PICKS_KEY)); if(p&&v&&v.name===p.name){ State.assign=v.assign||{}; /* Picks saved before Credits had its own section. */
+    ['Original Credits','Stat Scroll'].forEach(n=>{ const o='Jingles/'+n; if(o in State.assign){ State.assign['Credits/'+n]=State.assign[o]; delete State.assign[o]; } }); } }catch(e){}
   State.emit('pack'); }
 function savePicks(){ try{ if(State.pack) localStorage.setItem(PICKS_KEY,JSON.stringify({name:State.pack.name,assign:State.assign||{}})); }catch(e){} }
 const slotKey=(group,name)=>group+'/'+name;
 /* One track for dungeon floors 1-7 is on by default, and the choice is kept in this browser. */
 const FLOORS_KEY='dwrSameFloors';
 const sameFloors=()=>State.sameFloors!==false;
+/* Custom Jingles is off by default. Off hides that section and they play the default game music; the picks are kept. */
+const JINGLES_KEY='dwrCustomJingles';
+const customJingles=()=>State.customJingles===true;
+try{ if(localStorage.getItem(JINGLES_KEY)==='1') State.customJingles=true; }catch(e){}
 const isFloorN=name=>/^Dungeon Floor [2-7]$/.test(name);
 try{ if(localStorage.getItem(FLOORS_KEY)==='0') State.sameFloors=false; }catch(e){}
 const hasTag=(song,tags)=>song.uses.some(u=>tags.some(t=>t.toLowerCase()===String(u).toLowerCase()));
-function assignedCount(){ return Object.entries(State.assign||{}).filter(([k,v])=>v!==''&&!(sameFloors()&&isFloorN(k.split('/')[1]))).length; }
+function assignedCount(){ return Object.entries(State.assign||{}).filter(([k,v])=>v!==''&&!(sameFloors()&&isFloorN(k.split('/')[1]))&&!(!customJingles()&&k.startsWith('Jingles/'))).length; }
 function trackBox(){
   const box=el('div',{class:'trackbox'});
   const only=el('input',{type:'checkbox',id:'taggedonly'}); only.checked=State.taggedOnly!==false;
   only.addEventListener('change',()=>{ State.taggedOnly=only.checked; paint(); });
   const same=el('input',{type:'checkbox',id:'samefloors'}); same.checked=sameFloors();
   same.addEventListener('change',()=>{ State.sameFloors=same.checked; try{ localStorage.setItem(FLOORS_KEY,same.checked?'1':'0'); }catch(e){} paint(); State.emit('assign'); });
+  const jing=el('input',{type:'checkbox',id:'customjingles'}); jing.checked=customJingles();
+  jing.addEventListener('change',()=>{ State.customJingles=jing.checked; try{ localStorage.setItem(JINGLES_KEY,jing.checked?'1':'0'); }catch(e){} paint(); State.emit('assign'); });
   const cols=el('div',{class:'trackcols'});
   function fill(sel,group,slot){ const songs=State.pack?State.pack.songs:[], key=slotKey(group,slot[0]), cur=(State.assign||{})[key]??'';
     const tagged=[],other=[]; songs.forEach((s,i)=>(hasTag(s,slot[1])?tagged:other).push(i));
     const opt=i=>el('option',{value:i,text:songs[i].name});
-    sel.innerHTML=''; sel.append(el('option',{value:'',text:'Game default'}));
-    if(tagged.length) sel.append(el('option',{value:'random',text:'Random tagged'}));
+    sel.innerHTML=''; sel.append(el('option',{value:'',text:tagged.length||State.taggedOnly===false?'Default':'Default (none tagged)'}));
+    if(tagged.length||cur==='random'||(State.taggedOnly===false&&group==='Locations'&&songs.length)) sel.append(el('option',{value:'random',text:'Random'}));
     if(State.taggedOnly!==false){ tagged.forEach(i=>sel.append(opt(i)));
       if(cur!==''&&cur!=='random'&&other.includes(+cur)) sel.append(el('option',{value:cur,text:songs[+cur].name+' (not tagged)'})); }
     else { if(tagged.length) sel.append(el('optgroup',{label:'Tagged'},tagged.map(opt))); if(other.length) sel.append(el('optgroup',{label:'Other tracks'},other.map(opt))); }
     sel.value=cur; sel.disabled=!songs.length;
     return tagged.length; }
   function paint(){ cols.innerHTML='';
-    Object.entries(MUSIC_SLOTS).forEach(([group,slots])=>{ const col=el('div',{class:'trackcol'},el('span',{class:'sublab',text:group}));
+    Object.entries(MUSIC_SLOTS).forEach(([group,slots])=>{ if(group==='Jingles'&&!customJingles()) return; const col=el('div',{class:'trackcol'},el('span',{class:'sublab'},group,el('small',{class:'tagn',text:'tagged songs'})));
       slots.forEach(slot=>{ if(sameFloors()&&isFloorN(slot[0])) return;
         const label=sameFloors()&&slot[0]==='Dungeon Floor 1'?'Dungeon Floors 1-7':slot[0];
         const id='t'+(++UID), sel=el('select',{id}), n=fill(sel,group,slot);
-        sel.addEventListener('change',()=>{ const key=slotKey(group,slot[0]); if(!State.assign) State.assign={}; if(sel.value==='') delete State.assign[key]; else State.assign[key]=sel.value; savePicks(); State.emit('assign'); });
+        sel.dataset.slot=slotKey(group,slot[0]); if(State.badSlots&&State.badSlots.has(sel.dataset.slot)) sel.classList.add('trackbad');
+        sel.addEventListener('change',()=>{ const key=slotKey(group,slot[0]); if(State.badSlots) State.badSlots.delete(key); sel.classList.remove('trackbad'); if(!State.assign) State.assign={}; if(sel.value==='') delete State.assign[key]; else State.assign[key]=sel.value; savePicks(); State.emit('assign'); });
         col.append(el('div',{class:'trackrow'},el('label',{for:id,text:label}),sel,el('small',{class:'tagn',title:'Tagged tracks for this slot','aria-label':n+' tagged tracks',text:State.pack?String(n):''}))); });
       cols.append(col); }); }
-  box.append(el('label',{class:'onlytag',for:'taggedonly'},only,' Only show tagged tracks'),
-    el('label',{class:'onlytag',for:'samefloors'},same,' Same track for dungeon floors 1-7'),cols,
-    el('p',{class:'packstat',text:'A slot with no tagged tracks only offers Game default. Untick Only show tagged tracks to use any track there. With every dungeon floor set, Dragonlord Room and Hauksness on Game default play the main dungeon track. Original Credits needs Stat Scroll set too, or its track plays over the stat scroll instead.'}));
+  /* Every slot at once: Random where the pack has tagged songs, or back to the game's music. */
+  function setAll(random){ State.assign={};
+    if(random&&State.pack) Object.entries(MUSIC_SLOTS).forEach(([group,list])=>list.forEach(([name,tags])=>{ if(State.pack.songs.some(s=>hasTag(s,tags))||(State.taggedOnly===false&&group==='Locations')) State.assign[slotKey(group,name)]='random'; }));
+    savePicks(); paint(); State.emit('assign'); }
+  const allRandom=el('button',{type:'button',class:'mini',text:'All Random',title:'Every slot with tagged songs picks one at random. With Only show tagged tracks unticked, locations and battles with none tagged pick any song.',onclick:()=>setAll(true)});
+  const allDefault=el('button',{type:'button',class:'mini',text:'All Default',title:'Every slot goes back to the default game music',onclick:()=>setAll(false)});
+  const paintAll=()=>{ allRandom.disabled=allDefault.disabled=!State.pack; };
+  State.on(i=>{ if(i==='pack'||i==='*') paintAll(); }); paintAll();
+  box.append(el('div',{class:'onlyrow'},el('label',{class:'onlytag',for:'taggedonly'},only,' Only show tagged tracks'),
+    el('label',{class:'onlytag',for:'samefloors'},same,' Same track for dungeon floors 1-7'),
+    el('label',{class:'onlytag',for:'customjingles'},jing,' Custom Jingles')),el('div',{class:'packall'},allRandom,allDefault),cols,
+    el('p',{class:'packstat',text:'Stat Scroll on Default keeps the default game music there. With Skip Original Credits on, the Original Credits track plays over the stat scroll instead.'}),
+    el('p',{class:'packstat',text:'A slot with no tagged tracks only offers Default. Untick Only show tagged tracks to use any track there.'}),
+    el('p',{class:'packstat',text:'With every dungeon floor set, Dragonlord Room and Hauksness on Default play the main dungeon track.'}));
   State.on(i=>{ if(i==='pack') paint(); }); paint(); return box;
 }
 function packControls(){
   const uid='p'+(++UID);
   const wrap=el('div',{class:'packbox'});
   const inp=el('input',{type:'file',id:uid,accept:'.json5,.json','aria-describedby':uid+'s'});
-  const status=el('p',{id:uid+'s',class:'packstat',role:'status'});
+  const status=el('p',{id:uid+'s',class:'packstat packstatus',role:'status'});
   function paint(){ const p=State.pack;
     status.textContent=p?'Loaded '+p.songs.length+' tracks from "'+p.name+'".':'No pack loaded. Game music plays as normal.'; }
   inp.addEventListener('change',async()=>{ const f=inp.files[0]; if(!f) return;
     try{ const songs=songsFromPack(await f.text()); if(!songs.length) throw 0; const pk={name:f.name,songs,text:await f.text()}; setPack(pk); rememberPack(pk); }
-    catch(e){ setPack(null); rememberPack(null); status.textContent='"'+f.name+'" could not be read as a music pack.'; } });
+    catch(e){ inp.value=''; status.textContent='"'+f.name+'" could not be read as a music pack.'+(State.pack?' Your pack "'+State.pack.name+'" is still loaded.':''); } });
   const clr=el('button',{type:'button',class:'mini',text:'Clear',onclick:()=>{ inp.value=''; setPack(null); rememberPack(null); }});
   wrap.append(el('label',{for:uid,class:'sublab',text:'Pack file (.json5)'}),el('span',{class:'caprow'},inp,clr),status,trackBox());
   State.on(i=>{ if(i==='pack'||i==='*') paint(); }); paint(); return wrap;
@@ -613,9 +744,15 @@ function selectCtl(it){
 /* Standard control: returns {root, label, input, desc}. Pages style .opt, .name, .desc, .tog, .mark */
 /* Options that do nothing unless another option is on or random. */
 const NEEDS={mapsize:'map',biome:'map',safestart:'map',onlyhealmore:'spells'};
-function needsOff(id){ return NEEDS[id]&&!(State.v[NEEDS[id]]|0); }
-const LEGEND='[ ] off  [x] on  [?] random';
-const REMIX_IDS=['bank','biome','encounters','keyherb','noshake','pack','quickspell','safestart'];
+function needsOff(id){ return (NEEDS[id]&&!(State.v[NEEDS[id]]|0))||(CONFLICT_WITH[id]&&(State.v[CONFLICT_WITH[id]]|0)); }
+const LEGEND='[ ] off  [x] on  [?] random  (click to cycle)';
+const NEEDS_NAME={map:'Random Map',spells:'Random Spell Learning'};
+const REMIX_IDS=['autoreturn','bank','biome','encounters','freecharlock','keyherb','noshake','pack','quickspell','safestart'];
+/* These cannot be on with Free Charlock: Short and Easy Charlock are exclusive with it, and the rest depend on the
+   Dragonlord or on the ending he gives. Checking Free Charlock turns them off and disables them. */
+const CONFLICT_WITH={shortcharlock:'freecharlock',easycharlock:'freecharlock',three:'freecharlock',cursed:'freecharlock',radish:'freecharlock',disguised:'freecharlock'};
+State.on(i=>{ const v=State.v;
+  if((i==='freecharlock'||i==='*')&&v.freecharlock) Object.keys(CONFLICT_WITH).forEach(o=>{ if(v[o]){ v[o]=0; State.emit(o); } }); });
 function control(it, opts){
   opts=opts||{}; const [id,name,desc,kind,extra]=it; const uid='c'+(++UID);
   const root=el('div',{class:'opt k-'+(kind===S?'select':kind==='pack'?'pack':'toggle'),'data-id':id});
@@ -631,8 +768,9 @@ function control(it, opts){
     const upd=()=>{ const b=State.v.biome|0; h.textContent=(b===1||b===2||b===4)?'Tip: long walks over desert and swamp feel better with Encounter Rate set to Low or Medium.':''; h.hidden=!h.textContent; };
     State.on(i=>{ if(i==='biome'||i==='*') upd(); }); upd(); root.append(h); }
   root.title = REMIX_IDS.includes(id) ? 'REMIX: added in this version, so these flags only work here.' : opts.tip ? desc : '';
-  if(NEEDS[id]){ const dep=()=>{ const off=needsOff(id); root.classList.toggle('needsoff',off); if(input) input.disabled=off; };
-    State.on(i=>{ if(i===NEEDS[id]||i===id||i==='*') dep(); }); dep(); }
+  if(NEEDS[id]||CONFLICT_WITH[id]){ const tag=el('span',{class:'needtag',text:NEEDS[id]?'Needs '+NEEDS_NAME[NEEDS[id]]:'Off while Free Charlock is on'}); root.querySelector('.name').append(tag);
+    const dep=()=>{ const off=needsOff(id); root.classList.toggle('needsoff',off); tag.hidden=!off; if(input) input.disabled=off; };
+    State.on(i=>{ if(i===NEEDS[id]||i===CONFLICT_WITH[id]||i===id||i==='*') dep(); }); dep(); }
   return root;
 }
 function tabById(id){ return TABS.find(t=>t.id===id); }
@@ -640,17 +778,20 @@ function matches(it,q){ q=q.toLowerCase(); return !q||it[1].toLowerCase().includ
 
 /* Shared chrome pieces */
 function flagsBlock(){
-  const fi=el('input',{id:'flags',type:'text',maxlength:40,'aria-label':'Flags',value:State.flags()});
-  fi.addEventListener('change',()=>{ let ok; State.oddFlags=false; State.keepPersonal(()=>{ ok=State.setFlags(fi.value.trim()); }); if(!ok) fi.value=State.flags(); State.say(ok?(State.oddFlags?'Some values in those flags were not recognized, so those options went back to their first choice.':''):'Those flags are not valid, so your flags did not change. Flags are 40 letters and digits (A-Z, 2-7).'); });
+  const fi=el('input',{id:'flags',type:'text','aria-label':'Flags',value:State.flags()});
+  fi.addEventListener('change',()=>{ let ok; State.oddFlags=false;
+    const raw=fi.value, clean=raw.replace(/^\s*flags\s*:?/i,'').replace(/[\s-]/g,'').toUpperCase();
+    State.keepPersonal(()=>{ ok=State.setFlags(clean); }); if(!ok) fi.value=State.flags();
+    State.say(ok?(State.oddFlags?'Some values in those flags were not recognized, so those options went back to their first choice.':''):'Those flags are not valid, so your flags did not change. Flags are 40 letters and digits (A-Z, 2-7); found '+clean.replace(/[^A-Z2-7]/g,'').length+'.'); });
   const sd=el('input',{id:'seed',type:'text',inputmode:'numeric',maxlength:20,'aria-label':'Seed',value:State.seed});
   sd.addEventListener('change',()=>{ let v=sd.value.replace(/\D/g,''); if(v) v=(BigInt(v)>18446744073709551615n?18446744073709551615n:BigInt(v)).toString(); if(!v){ State.newSeed(); State.say&&State.say('A seed is a number, so a new random one was chosen.'); return; } State.seed=v; sd.value=v; State.emit('seed'); });
   const rnd=el('button',{type:'button',class:'btn',text:'Random Seed',onclick:()=>State.newSeed()});
   const sum=el('input',{id:'checksum',type:'text',readonly:true,'aria-label':'Checksum',placeholder:'None yet'});
-  const cp=el('button',{type:'button',class:'btn',text:'Copy',disabled:true,title:'Copies the link, flags, seed and checksum',onclick:async()=>{ const text='Dragon Warrior Randomizer - TheGobOne Remix\nFlags: '+State.flags()+'\nSeed: '+State.seed+'\nChecksum: '+sum.value+'\n'+location.href.split('#')[0]+'#f='+State.flags()+'&s='+State.seed; let ok=true;
+  const cp=el('button',{type:'button',class:'btn',text:'Copy',title:'Copies the link, flags, seed and checksum (once there is one)',onclick:async()=>{ const text='Dragon Warrior Randomizer - TheGobOne Remix\nFlags: '+State.flags()+'\nSeed: '+State.seed+'\n'+(sum.value?'Checksum: '+sum.value+'\n':'')+location.href.split('#')[0]+'#f='+State.flags()+'&s='+State.seed; let ok=true;
     try{ await navigator.clipboard.writeText(text); }catch(e){ const t=document.createElement('textarea'); t.value=text; document.body.append(t); t.select(); try{ ok=document.execCommand('copy'); }catch(x){ ok=false; } t.remove(); }
     cp.textContent=ok?'Copied!':'Press Ctrl+C'; setTimeout(()=>{ cp.textContent='Copy'; },1500); }});
   /* A checksum only belongs to the flags and seed it was made from. */
-  State.showChecksum=v=>{ sum.value=v; cp.disabled=!v; };
+  State.showChecksum=v=>{ sum.value=v; };
   State.on(i=>{ fi.value=State.flags(); sd.value=State.seed; if(i!=='pack'&&i!=='rom'){ State.showChecksum(''); State.clearDone&&State.clearDone(); } });
   return {flags:fi,seed:sd,rnd,copy:cp,sum};
 }
@@ -662,7 +803,7 @@ function romBlock(){
   const st=el('span',{class:'romstat',role:'status',text:'No ROM loaded. Choose your uncompressed Dragon Warrior ROM.'});
   const none=st.textContent;
   const forget=el('button',{type:'button',class:'mini romforget',text:'Forget',onclick:()=>{ State.rom=null; inp.value=''; FileStore.del('rom'); paint(); State.emit('rom'); }});
-  function paint(note){ const r=State.rom; forget.hidden=!r;
+  function paint(note){ const r=State.rom; forget.hidden=!r; st.classList.toggle('romneed',!r);
     st.textContent=r?'Loaded: '+r.name+' ('+(note||'stays in your browser')+')':none; }
   inp.addEventListener('change',async()=>{ const f=inp.files[0]; if(!f) return;
     const bytes=new Uint8Array(await f.arrayBuffer()), bad=romProblem(bytes);
@@ -675,13 +816,13 @@ function romBlock(){
   return {input:inp,status:st,label:lab,forget};
 }
 /* Flags that add code to the ROM, largest first. Sizes from the find_free_space calls in common/dwr.c. */
-const SPACE_FLAGS=['bank','warp','hurtdoors','build','encounters','keyherb','radish','runmech','lvlrefill','returnesc','guillotine','unbreakable'];
+const SPACE_FLAGS=['freecharlock','bank','warp','hurtdoors','build','encounters','keyherb','radish','runmech','lvlrefill','returnesc','guillotine','unbreakable'];
 function spaceMessage(){ const on=SPACE_FLAGS.filter(id=>State.v[id]).map(id=>State.find(id)[1]);
   if(State.pack) on.splice(1,0,'Custom Music Pack');
   return 'Not enough ROM space for these flags. '+(on.length?'Try turning off one of: '+on.slice(0,5).join(', ')+'.':'Try turning some flags off.'); }
 /* One full build in the browser. The button downloads it, and the space check only measures it. */
 function buildOnce(){
-  const seed=BigInt(State.seed||'0').toString(), flags=State.flags(), out_name='DWRando.'+seed+'.'+flags+'.nes';
+  const seed=BigInt(State.seed||'0').toString(), flags=State.flags(), out_name='DWR.'+seed+'.'+flags+'.nes';
   const sprite=State.find('sprite')[4][State.v.sprite|0]||'Random';
   FS.writeFile('/input.nes',State.rom.bytes);
   Module.ccall('custom_music_clear',null,[],[]);
@@ -695,7 +836,7 @@ function buildOnce(){
   if(sum<0n) sum+=18446744073709551616n;
   let data=null;
   if(sum!==0n){ data=FS.readFile('/'+out_name); FS.unlink('/'+out_name); }
-  return {seed,flags,out_name,picks,log,sum,data};
+  return {seed,flags,out_name:'DWR.'+seed+'.'+flags+'.nes',picks,log,sum,data};
 }
 function failMessage(log){
   const has=t=>log.some(x=>x.includes(t));
@@ -704,6 +845,27 @@ function failMessage(log){
     return 'Could not draw a map for this seed with Biome '+b+' and Map Size '+z+'. This is rare. Try another seed first, then Normal map size or the original Continent.'; }
   if(has('Out of room')) return spaceMessage();
   return 'Something went wrong while randomizing. Your browser console may say more.'; }
+/* After a download: what was built, and anything the music pack could not place. */
+const resultDlg=el('dialog',{class:'win resultwin','aria-labelledby':'resulttitle'});
+document.body.append(resultDlg);
+/* Opens the Sound tab and boxes the slots whose song did not fit. The box clears when you change that slot. */
+function goToSound(keys){
+  State.badSlots=new Set(keys);
+  const q=document.getElementById('flagsearch'); if(q&&q.value){ q.value=''; q.dispatchEvent(new Event('input')); }
+  tabsApi.select('sound');
+  State.emit('pack');
+  const first=document.querySelector('select.trackbad');
+  if(first) first.scrollIntoView({block:'center'});
+}
+function showResult(name,lines){
+  const bad=lines.flatMap(l=>l.keys||[]);
+  const close=el('button',{type:'button',class:'btn',text:'OK',onclick:()=>resultDlg.close()});
+  const go=bad.length?el('button',{type:'button',class:'btn',text:'Go to Sound',onclick:()=>{ resultDlg.close(); goToSound(bad); }}):null;
+  resultDlg.replaceChildren(el('h2',{id:'resulttitle',text:'ROM downloaded'}),el('p',{class:'resultname',text:name}),
+    ...lines.flatMap(l=>[el('p',{text:l.text}),...(l.items?[el('ul',{class:'resultlist'},l.items.map(t=>el('li',{text:t})))]:[])]),el('div',{class:'resultbtns'},close,...(go?[go]:[])));
+  if(!resultDlg.open) resultDlg.showModal();
+  close.focus();
+}
 function goBlock(out){
   const o=out||el('p',{class:'result',role:'status'});
   State.say=t=>{ o.textContent=t; };
@@ -720,10 +882,26 @@ function goBlock(out){
       const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:'application/octet-stream'}));
       a.download=out_name; window.lastRom={name:out_name,size:data.length}; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000);
       State.showChecksum(sum.toString(16).padStart(16,'0')); const last=log.slice(log.map(t=>t.includes('Out of room')).lastIndexOf(true)+1);
-      const noCredits=last.some(t=>t.includes('No room for the credits song')), placed=last.filter(t=>/\(\d+ bytes, bank \d\)/.test(t)).length-(noCredits?1:0);
-      const music=last.some(t=>t.includes('keeping the original music'))?' The music pack did not fit, so the game music plays.':
-        placed<picks.count?' '+(picks.count-placed)+' of '+picks.count+' music picks did not fit, so those play the game music.'+(noCredits?' That includes the credits song.':''):'';
-      o.textContent='ROM downloaded: '+out_name+'.'+music;
+      const noCredits=last.some(t=>t.includes('No room for the credits song'));
+      const lines=[];
+      if(last.some(t=>t.includes('No room for Free Charlock'))) lines.push({text:'Free Charlock did not fit in this ROM, so Charlock plays as normal.'});
+      if(last.some(t=>t.includes('No room for name screen wrapping'))) lines.push({text:'Name screen wrapping did not fit in this ROM, so the name cursor stops at the edges.'});
+      if(picks.count){
+        /* Placed songs are the log lines ending in (N bytes, bank B); the title starts after the padded slot name. */
+        const left={}; let bytes=0, placed=0;
+        last.forEach(t=>{ const m=/\((\d+) bytes, bank \d\)\s*$/.exec(t); if(!m) return; const title=t.slice(15,m.index).trim(); left[title]=(left[title]||0)+1; bytes+=+m[1]; placed++; });
+        if(last.some(t=>t.includes('keeping the original music'))){
+          lines.push({text:'The music pack did not fit in this ROM, so the default game music plays.'});
+        } else {
+          /* The log shows 'Group: Title', so match on the end. */
+          const missed=picks.list.filter(p=>{ const k=Object.keys(left).find(t=>left[t]>0&&(t===p.title||t.endsWith(': '+p.title))); if(k){ left[k]--; return false; } return true; });
+          lines.push({text:'Music: '+(picks.count-missed.length)+' of '+picks.count+' songs placed ('+(bytes/1024).toFixed(1)+' KB of about 17 KB). Slots without a song play the default game music.'});
+          if(noCredits) lines.push({text:'The credits song did not fit.'});
+          if(missed.length) lines.push({text:'These songs did not fit, so their slots play the default game music:',items:missed.map(p=>p.tag+': '+p.title),keys:missed.map(p=>p.key)});
+        }
+      }
+      o.textContent='ROM downloaded.';
+      showResult(out_name,lines);
     }catch(e){ o.textContent=e.message||'Something went wrong while randomizing.'; }
     b.disabled=false; }});
   return {button:b,result:o};
@@ -733,11 +911,14 @@ const PRESET_KEY='dwrSavedPresets';
 function savedPresets(){ try{ const v=JSON.parse(localStorage.getItem(PRESET_KEY)); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
 function storePresets(list){ try{ localStorage.setItem(PRESET_KEY,JSON.stringify(list)); return true; }catch(e){ return false; } }
 function presetArea(){
-  const grid=el('div',{class:'presetgrid'}), root=el('div',{class:'presetarea'},grid);
+  const grid=el('div',{class:'presetgrid'}), mine=el('div',{class:'presetgrid'}), saved=el('div',{class:'presetsaved'},el('span',{text:'Saved'}),mine);
+  const root=el('div',{class:'presetarea'},el('div',{class:'presetleft'},el('span',{text:'Presets'}),grid),saved);
   const name=el('input',{type:'text',maxlength:20,class:'presetname','aria-label':'New preset name',placeholder:'Preset name'});
   const msg=el('span',{class:'presetmsg',role:'status'});
   function paint(){
-    grid.replaceChildren(...presetButtons('mini'),...savedPresets().map(p=>el('span',{class:'savedpreset'},
+    grid.replaceChildren(...presetButtons('mini'));
+    saved.hidden=!savedPresets().length;
+    mine.replaceChildren(...savedPresets().map(p=>el('span',{class:'savedpreset'},
       el('button',{type:'button',class:'mini preset',title:p.flags,text:p.name,onclick:()=>State.keepPersonal(()=>State.setFlags(p.flags))}),
       el('button',{type:'button',class:'mini presetdel','aria-label':'Delete preset '+p.name,text:'X',onclick:()=>{
         if(!window.confirm('Delete preset "'+p.name+'"?')) return;
@@ -761,25 +942,45 @@ function presetButtons(cls){
   return PRESETS.map(p=>el('button',{type:'button',class:cls||'btn preset',onclick:()=>State.keepPersonal(()=>State.applyPreset(p)),title:p.blurb},p.name));
 }
 function summaryList(){
-  const ul=el('ul',{class:'sumlist'});
+  /* Everything that is on, grouped by tab. Compact shows one count per tab; click a tab to open it.
+   * Open tabs stay open as options change, and the choice is kept in this browser. */
+  const ul=el('ul',{class:'sumlist sumtabs'}), open=new Set(), KEY='dwrStatusCompact';
+  let compact=false; try{ compact=localStorage.getItem(KEY)==='1'; }catch(e){}
+  function line(it){ const x=State.v[it[0]]|0;
+    if(it[3]===S) return el('li',null,it[1]+': '+it[4][x]);
+    return el('li',null,it[1],(x===2?' (random)':''),it[4]==='bank'?' ['+BANK_LEVELS[State.bankLevel].name+', cap '+State.bankCap+']':''); }
+  function lines(t){ const rows=t.items.filter(it=>isChanged(it)&&!needsOff(it[0])).map(line);
+    if(State.pack&&t.items.some(it=>it[0]==='pack')) rows.push(el('li',null,'Music pack: '+State.pack.name+(assignedCount()?' ('+assignedCount()+' chosen)':'')));
+    return rows; }
   function paint(){ ul.innerHTML='';
-    State.all().forEach(it=>{ if(!isChanged(it)||needsOff(it[0])) return; const x=State.v[it[0]]|0;
-      if(it[3]===S){ ul.append(el('li',null,it[1]+': '+it[4][x])); return; }
-      ul.append(el('li',null,it[1],(x===2?' (random)':''),it[4]==='bank'?' ['+BANK_LEVELS[State.bankLevel].name+', cap '+State.bankCap+']':'')); });
-    if(State.pack) ul.append(el('li',null,'Music pack: '+State.pack.name+(assignedCount()?' ('+assignedCount()+' chosen)':'')));
+    ul.classList.toggle('sumfull',!compact);
+    TABS.forEach(t=>{ const n=tabCount(t); if(!n) return;
+      if(compact){
+        const d=el('details',null,el('summary',null,el('span',{text:t.label}),el('span',{class:'count',text:String(n)})),el('ul',{class:'sumlist'},lines(t)));
+        d.open=open.has(t.id);
+        d.addEventListener('toggle',()=>{ if(d.open) open.add(t.id); else open.delete(t.id); });
+        ul.append(el('li',null,d));
+      } else {
+        ul.append(el('li',{class:'sumhead'},el('span',{text:t.label}),el('span',{class:'count',text:String(n)})),...lines(t));
+      } });
     if(!ul.children.length) ul.append(el('li',{text:'Nothing on yet.'})); }
+  ul.setCompact=v=>{ compact=v; try{ localStorage.setItem(KEY,v?'1':'0'); }catch(e){} paint(); };
+  ul.isCompact=()=>compact;
   State.on(paint); paint(); return ul;
 }
 State.init();
 /* Comfort settings protect the player, so they survive a reload. */
 const COMFORT=['noflash','nored','noshake'], COMFORT_KEY='dwrComfort';
 try{ const v=JSON.parse(localStorage.getItem(COMFORT_KEY)); COMFORT.forEach(id=>{ if(v&&v[id]) State.v[id]=1; }); }catch(e){}
+/* The chosen hero sprite survives a reload too, saved by name so list changes can't swap it. */
+try{ const i=State.find('sprite')[4].indexOf(localStorage.getItem('dwrSprite')); if(i>0) State.v.sprite=i; }catch(e){}
 /* The address carries the flags and seed, so copying it shares the setup. */
 try{ const q=new URLSearchParams(location.hash.slice(1)), f=q.get('f'), sd=q.get('s');
   if(f) State.keepPersonal(()=>{ State.setFlags(f.trim().toUpperCase()); });
   if(sd&&/^\d{1,20}$/.test(sd)) State.seed=sd; }catch(e){}
 State.on(()=>{ try{ history.replaceState(null,'','#f='+State.flags()+'&s='+State.seed); }catch(e){} });
 State.on(()=>{ try{ localStorage.setItem(COMFORT_KEY,JSON.stringify(Object.fromEntries(COMFORT.map(id=>[id,State.v[id]?1:0])))); }catch(e){} });
+State.on(()=>{ try{ localStorage.setItem('dwrSprite',State.find('sprite')[4][State.v.sprite|0]||'Random'); }catch(e){} });
 FileStore.get('pack').then(p=>{ if(p&&!State.pack){ try{ const songs=songsFromPack(p.text); if(songs.length) setPack({name:p.name,songs,text:p.text}); }catch(e){} } });
 
 /* Accessible tabs: roving tabindex, arrows/Home/End, aria-selected. orient: 'h' or 'v' */
@@ -805,7 +1006,7 @@ function makeTabs(list, panel, tabs, render, orient, label){
   return {select, btns, current:()=>cur};
 }
 /* Count of active (non-default) items in a tab */
-function tabCount(t){ return t.items.filter(isChanged).length + (t.items.some(it=>it[0]==='pack')&&State.pack?1:0); }
+function tabCount(t){ return t.items.filter(it=>isChanged(it)&&!needsOff(it[0])).length +(t.items.some(it=>it[0]==='pack')&&State.pack?1:0); }
 function liveBadge(t){ const s=el('span',{class:'count'}); const p=()=>{ s.textContent=tabCount(t); s.setAttribute('aria-label',tabCount(t)+' on'); }; State.on(p); p(); return s; }
 function backLink(){ return document.createComment(''); }
 
@@ -845,7 +1046,7 @@ const nesColor=i=>'#'+NES_COLORS.substr((i&63)*6,6);
 const HERO_FRAMES={};
 function buildHeroFrames(name){
   if(HERO_FRAMES[name]) return HERO_FRAMES[name];
-  const flags='IVIAAVCEKACAAAAAAAAAAEAUAAQBAAAAABYCAAAA', file='/DWRando.1.'+flags+'.nes';
+  const flags='IVIAAVCEKACAAAAAAAAAAEAUAAQBAAAAABYCAAAA', file='/DWR.1.'+flags+'.nes';
   FS.writeFile('/input.nes',State.rom.bytes);
   Module.ccall('custom_music_clear',null,[],[]);
   const sum=Module.ccall('dwr_randomize','bigint',['string','bigint','string','string','string'],['/input.nes',1n,flags,name,'/']);
@@ -904,17 +1105,17 @@ function heroWin(){
 }
 scr.append(backLink(),
  el('section',{class:'win title'},el('h1',{text:'DRAGON WARRIOR RANDOMIZER - THEGOBONE REMIX'}),el('p',{text:'A command window for a new quest. Choose a command with the arrow keys.'})),
- el('section',{class:'win'},el('h2',{text:'Quest'}),
+ el('section',{class:'win'},el('h2',{text:'Setup'}),
    el('div',{class:'row'},el('span',{text:'ROM'}),rb.label,rb.input,rb.forget,rb.status),
    el('div',{class:'idrow'},el('div',{class:'idfields'},el('div',{class:'row'},el('label',{for:'flags',text:'Flags'}),fb.flags),
    el('div',{class:'row'},el('label',{for:'seed',text:'Seed'}),fb.seed,fb.rnd),
    el('div',{class:'row'},el('label',{for:'checksum',text:'Checksum'}),fb.sum,fb.copy,gb.button),gb.result),
-   el('div',{class:'idpresets'},el('span',{text:'Presets'}),presetArea()))));
+   el('div',{class:'idpresets'},presetArea()))));
 const main=el('div',{class:'main'});
 const cmd=el('nav',{class:'win cmd','aria-label':'Command menu'});
 cmd.append(el('h2',{text:'Command'}));
 const tabList=el('div',{class:'cmd'});
-const panel=el('section',{class:'win panel'});
+const panel=el('main',{class:'win panel'});
 const tabs=TABS.map(t=>({id:t.id,label:t.label,head:t.head,contents:()=>[document.createTextNode(t.label),liveBadge(t)]}));
 const tabsApi=makeTabs(tabList,panel,tabs,(t,p)=>{ const tab=tabById(t.id);
   p.append(el('h2',{text:tab.long}),el('p',{class:'blurb',text:tab.blurb}),el('p',{class:'legend',text:LEGEND}),el('div',{class:'opts'},tab.sections.flatMap(s=>[
@@ -928,23 +1129,30 @@ cmd.append(el('button',{type:'button',class:'mini skipopts',text:'Skip to option
 function searchWin(){
   const inp=el('input',{type:'search',id:'flagsearch',placeholder:'Search flags  ( / )','aria-label':'Search flags',autocomplete:'off',maxlength:40});
   const note=el('p',{class:'searchnote',role:'status'});
+  /* Compact hides the descriptions on every tab. The choice is kept in this browser. */
+  const CKEY='dwrOptCompact';
+  const cmp=el('input',{type:'checkbox',id:'optcompact'}); let cmpOn=false; try{ cmpOn=localStorage.getItem(CKEY)==='1'; }catch(e){}
+  cmp.checked=cmpOn; document.body.classList.toggle('compact',cmpOn);
+  cmp.addEventListener('change',()=>{ document.body.classList.toggle('compact',cmp.checked); try{ localStorage.setItem(CKEY,cmp.checked?'1':'0'); }catch(e){} });
+  const compactRow=el('label',{class:'animrow',for:'optcompact',title:'Hide the option descriptions'},cmp,el('span',{text:'Compact'}));
   const chg=el('input',{type:'checkbox',id:'searchchanged'}), chgRow=el('label',{class:'animrow',for:'searchchanged',title:'Show only the flags you have changed'},chg,el('span',{text:'Changed'}));
-  function show(){ const q=inp.value.trim(), only=chg.checked;
-    if(!q&&!only){ note.textContent=''; tabsApi.select(tabsApi.current()||TABS[0].id); return; }
-    const hits=TABS.map(t=>({t,items:t.items.filter(it=>matches(it,q)&&(!only||isChanged(it)))})).filter(x=>x.items.length), n=hits.reduce((a,x)=>a+x.items.length,0);
+  const rmx=el('input',{type:'checkbox',id:'searchremix'}), rmxRow=el('label',{class:'animrow',for:'searchremix',title:'Show only the flags added in this version'},rmx,el('span',{text:'Remix'}));
+  function show(){ const q=inp.value.trim(), only=chg.checked, remix=rmx.checked;
+    if(!q&&!only&&!remix){ note.textContent=''; tabsApi.select(tabsApi.current()||TABS[0].id); return; }
+    const hits=TABS.map(t=>({t,items:t.items.filter(it=>matches(it,q)&&(!only||isChanged(it))&&(!remix||REMIX_IDS.includes(it[0])))})).filter(x=>x.items.length), n=hits.reduce((a,x)=>a+x.items.length,0);
     note.textContent=n+(n===1?' match':' matches');
     panel.setAttribute('role','tabpanel'); panel.removeAttribute('aria-labelledby'); panel.innerHTML='';
     tabs.forEach(t=>{ tabsApi.btns[t.id].classList.remove('active'); tabsApi.btns[t.id].setAttribute('aria-selected','false'); });
-    panel.append(el('h2',{text:'Search'}),el('p',{class:'blurb',text:n?(q?n+(n===1?' flag matches "':' flags match "')+q+'".':n+(n===1?' flag is changed.':' flags are changed.')):(q?'No flag matches "'+q+'". Try a shorter word.':'Nothing is changed yet.')}),
+    panel.append(el('h2',{text:'Flags'}),el('p',{class:'blurb',text:n?(q?n+(n===1?' flag matches "':' flags match "')+q+'".':n+' '+(only&&remix?'changed Remix ':only?'changed ':'Remix ')+(n===1?'flag.':'flags.')):(q?'No flag matches "'+q+'". Try a shorter word.':only&&remix?'No Remix flag is changed yet.':'Nothing is changed yet.')}),
       el('p',{class:'legend',text:LEGEND}),
       el('div',{class:'opts'},hits.flatMap(x=>[el('h3',{class:'optsec',text:x.t.long}),...x.t.sections.filter(s=>s.note&&s.ids.some(id=>x.items.some(it=>it[0]===id))).map(s=>el('p',{class:'secnote',text:s.note})),...x.items.map(it=>control(it))]))); }
-  inp.addEventListener('input',show); chg.addEventListener('change',show);
+  inp.addEventListener('input',show); chg.addEventListener('change',show); rmx.addEventListener('change',show);
   document.addEventListener('keydown',e=>{ if(e.key==='/'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){ e.preventDefault(); inp.focus(); inp.select(); } });
-  inp.addEventListener('keydown',e=>{ if(e.key==='Escape'&&(inp.value||chg.checked)){ e.preventDefault(); inp.value=''; chg.checked=false; show(); } });
+  inp.addEventListener('keydown',e=>{ if(e.key==='Escape'&&(inp.value||chg.checked||rmx.checked)){ e.preventDefault(); inp.value=''; chg.checked=false; rmx.checked=false; show(); } });
   /* Choosing a category ends the search. */
-  tabList.addEventListener('click',()=>{ inp.value=''; chg.checked=false; note.textContent=''; });
-  tabList.addEventListener('keydown',()=>{ inp.value=''; chg.checked=false; note.textContent=''; });
-  return el('section',{class:'win searchwin'},el('h2',{text:'Search'}),chgRow,inp,note);
+  tabList.addEventListener('click',()=>{ inp.value=''; chg.checked=false; rmx.checked=false; note.textContent=''; });
+  tabList.addEventListener('keydown',()=>{ inp.value=''; chg.checked=false; rmx.checked=false; note.textContent=''; });
+  return el('section',{class:'win searchwin'},el('h2',{text:'Flags'}),inp,el('div',{class:'searchrow'},chgRow,rmxRow,compactRow),note);
 }
 const spaceLine=el('p',{class:'spaceline',role:'status'});
 let spaceTimer=null;
@@ -956,7 +1164,10 @@ function checkSpace(){ spaceTimer=null;
   catch(e){ spaceLine.textContent=''; } }
 State.on(i=>{ if(i==='seed') return; clearTimeout(spaceTimer);
   spaceLine.textContent=State.rom&&wasmReady?'ROM space: checking...':''; spaceTimer=setTimeout(checkSpace,1000); });
-const sum=el('section',{class:'win sumwin'},el('h2',{text:'Status'}),spaceLine,summaryList());
+const sumUl=summaryList();
+const compactCb=el('input',{type:'checkbox',id:'statuscompact'}); compactCb.checked=sumUl.isCompact();
+compactCb.addEventListener('change',()=>sumUl.setCompact(compactCb.checked));
+const sum=el('section',{class:'win sumwin'},el('h2',{text:'Status'}),el('label',{class:'onlytag sumcompact',for:'statuscompact'},compactCb,' Compact'),spaceLine,sumUl);
 main.append(el('div',{class:'leftcol'},cmd,searchWin(),el('div',{class:'herostack'},heroWin(),colorRow())),panel,el('div',{class:'rightcol'},sum));
 scr.append(main);
 app.append(scr);

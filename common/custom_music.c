@@ -26,6 +26,10 @@
 #define HI8(x) ((uint8_t)(((x) >> 8) & 0xff))
 
 #define FIRST_JINGLE 0x10 /* requests from here on are events */
+/* Sizes of the three fixed-bank hooks. */
+#define HOOK_YS_SIZE 10
+#define HOOK_RQ_SIZE 71
+#define HOOK_FRAME_SIZE 24
 #define REQUEST_BATTLE_RESUME 0x18
 #define REQUEST_CREDITS 0x1f
 #define REQUEST_HAUKSNESS 0x1c
@@ -117,6 +121,7 @@ static void read_key(reader *r, char *buf, size_t n)
 {
     size_t i = 0;
 
+    buf[0] = '\0';
     skip_space(r);
     if (*r->p == '"' || *r->p == '\'') {
         char *s = read_string(r);
@@ -239,14 +244,14 @@ static uint8_t *decode_module(const char *text, size_t *size)
     return out;
 }
 
-/* Swaps square 1 and 2 in every frame so the melody avoids sound effects, which
- * take over square 2. Returns FALSE if the module's tables are out of bounds. */
-static BOOL swap_squares(uint8_t *d, size_t size)
-{
 #define W16(o) ((size_t)d[o] | (size_t)d[(o) + 1] << 8)
+
+/* FALSE if the module's song list, 8-byte song header, frame list, a frame's 5 channel pointers
+ * or a pattern pointer is out of bounds, or the song has no frames. */
+static BOOL module_ok(const uint8_t *d, size_t size)
+{
     size_t list, header, frames;
-    int count, i;
-    size_t seen[256];
+    int count, i, c;
 
     if (size < 15)
         return FALSE;
@@ -254,19 +259,38 @@ static BOOL swap_squares(uint8_t *d, size_t size)
     if (list + 2 > size)
         return FALSE;
     header = W16(list);
-    if (header + 4 > size)
+    if (header + 8 > size)
         return FALSE;
     frames = W16(header);
     count = d[header + 2];
-    if (frames + 2 * (size_t)count > size)
+    if (!count || frames + 2 * (size_t)count > size)
         return FALSE;
+    for (i = 0; i < count; i++) {
+        size_t frame = W16(frames + 2 * (size_t)i);
+        if (frame + 10 > size)
+            return FALSE;
+        for (c = 0; c < 5; c++) {
+            if (W16(frame + 2 * (size_t)c) >= size)
+                return FALSE;
+        }
+    }
+    return TRUE;
+}
+
+/* Swaps square 1 and 2 in every frame so the melody avoids sound effects, which
+ * take over square 2. The module must have passed module_ok. */
+static void swap_squares(uint8_t *d)
+{
+    size_t header = W16(W16(0));
+    size_t frames = W16(header);
+    int count = d[header + 2], i;
+    size_t seen[256];
+
     for (i = 0; i < count; i++) {
         size_t f = W16(frames + 2 * (size_t)i);
         int j;
         BOOL dup = FALSE;
         uint8_t t;
-        if (f + 4 > size)
-            return FALSE;
         for (j = 0; j < i; j++)
             dup = dup || seen[j] == f;
         seen[i] = f;
@@ -275,9 +299,8 @@ static BOOL swap_squares(uint8_t *d, size_t size)
         t = d[f]; d[f] = d[f + 2]; d[f + 2] = t;
         t = d[f + 1]; d[f + 1] = d[f + 3]; d[f + 3] = t;
     }
-    return TRUE;
-#undef W16
 }
+#undef W16
 
 /* ------------------------------------------------------------ pack loading */
 
@@ -379,11 +402,13 @@ static void read_item(reader *r, int group_square, const char *group_title)
         s.data = decode_module(data, &s.size);
         /* Rips include sound effects and very short stingers, which make poor loops. */
         if (s.data && (s.size >= MIN_SONG_SIZE || is_reserved(&s)) && s.size <= 0xc000 - FT_SONGS
-                && !strstr(s.title, "SFX")
-                && (s.square != 1 || swap_squares(s.data, s.size)))
+                && !strstr(s.title, "SFX") && module_ok(s.data, s.size)) {
+            if (s.square == 1)
+                swap_squares(s.data);
             songs[song_count++] = s;
-        else
+        } else {
             free(s.data);
+        }
     }
     free(data);
 }
@@ -564,7 +589,7 @@ static const scene_t scenes[SCENE_COUNT] = {
     {"Title",       {"Title"}},
 };
 
-/* Scene for each of the game's music requests. Below $11; the rest are jingles. */
+/* Scene for each of the game's music requests. Below FIRST_JINGLE; the rest are events. */
 static int scene_for_request(int id)
 {
     if (id == 1) return SC_TITLE;
@@ -628,6 +653,16 @@ static int pick(const char *const *tags, BOOL enabled_only, const uint16_t next[
     return n ? candidates[mt_rand(0, n - 1)] : -1;
 }
 
+static int count_tagged(const char *const *tags)
+{
+    int n = 0, i;
+
+    for (i = 0; i < song_count; i++)
+        if (has_tag(&songs[i], tags))
+            n++;
+    return n;
+}
+
 /* Events with their own song only if a pack tags one; otherwise the game's music plays. */
 typedef struct {
     const char *name;
@@ -670,18 +705,27 @@ void custom_music_apply(dw_rom *rom)
     int chosen[SCENE_COUNT];
     int i, b, id;
     uint16_t ys, rq, frame;
-    uint8_t map[32], lo[MAX_PLACED], hi[MAX_PLACED], bank_of[MAX_PLACED];
+    uint8_t map[32], lo[MAX_PLACED], hi[MAX_PLACED];
 
     if (!song_count)
         return;
+    for (i = 0; i < song_count; i++)
+        songs[i].bank = -1;
     printf("Adding custom music...\n");
 
     mt_init(rom->seed ^ 0x6d75736963ULL);
     /* The credits run in 32 KB banking mode, where only bank 6 of the music banks
      * can be mapped, so their song is placed first. */
     {
-        int found = pick(events[0].tags, TRUE, next, TRUE);
-        if (found < 0) found = pick(events[0].tags, FALSE, next, TRUE);
+        /* A Credits song first. An Ending song only if the ending will not miss it: its
+         * scene is skipped, or the pack has another one. */
+        static const char *const credits_only[4] = {"Credits"};
+        int found = pick(credits_only, TRUE, next, TRUE);
+        if (found < 0) found = pick(credits_only, FALSE, next, TRUE);
+        if (found < 0 && (SKIP_VANILLA_CREDITS(rom) || count_tagged(events[1].tags) >= 2)) {
+            found = pick(events[1].tags, TRUE, next, TRUE);
+            if (found < 0) found = pick(events[1].tags, FALSE, next, TRUE);
+        }
         event_song[0] = -1;
         if (found >= 0 && place(&songs[found], next, order, &placed, found)) {
             event_song[0] = placed - 1;
@@ -722,16 +766,16 @@ void custom_music_apply(dw_rom *rom)
         map[id] = (uint8_t)chosen[scene_for_request(id)]; /* -1 becomes $ff: silence */
     map[REQUEST_BATTLE_RESUME] = map[0x0e];
     map[REQUEST_HAUKSNESS] = map[0x09];
+    map[REQUEST_OLD_MAN_CAVE] = map[0x03]; /* the basement and shrines use the castle's song */
     for (i = 0; i < EVENT_COUNT; i++)
         if (event_song[i] >= 0)
             map[events[i].request] = (uint8_t)event_song[i];
     memset(lo, 0, sizeof(lo));
     memset(hi, 0, sizeof(hi));
-    memset(bank_of, 0, sizeof(bank_of));
     for (i = 0; i < placed; i++) {
         lo[i] = LO8(songs[order[i]].address);
-        hi[i] = HI8(songs[order[i]].address);
-        bank_of[i] = (uint8_t)songs[order[i]].bank;
+        /* Songs sit at $80xx-$BFxx, so bit 6 is free to say which bank holds the song. */
+        hi[i] = (uint8_t)(HI8(songs[order[i]].address) | (songs[order[i]].bank ? 0x40 : 0));
     }
 
     for (b = 0; b < 2; b++) {
@@ -744,13 +788,33 @@ void custom_music_apply(dw_rom *rom)
             }
         }
     }
+    /* If the three hooks do not all fit, the original music stays. Better than a build that fails. */
+    {
+        static const uint8_t sizes[3] = {HOOK_YS_SIZE, HOOK_RQ_SIZE, HOOK_FRAME_SIZE};
+        int at[3], k, ok = TRUE;
+
+        for (k = 0; k < 3; k++) {
+            at[k] = dwr_try_free_space(rom->content, 0xc422, sizes[k]);
+            if (at[k] < 0) {
+                ok = FALSE;
+                break;
+            }
+            memset(&rom->content[at[k]], 0x00, sizes[k]); /* held while the others are looked up */
+        }
+        while (--k >= 0)
+            memset(&rom->content[at[k]], 0xff, sizes[k]);
+        if (!ok) {
+            printf("No room for the music hooks, keeping the original music.\n");
+            return;
+        }
+    }
+
     for (b = 0; b < 2; b++) {
         uint8_t *base = &rom->expansion[(banks[b] - 3) * 0x4000];
         memcpy(base + (FT_BASE - 0x8000), ft_image, sizeof(ft_image));
         memcpy(base + (FT_MAP - 0x8000), map, sizeof(map));
         memcpy(base + (FT_LO - 0x8000), lo, sizeof(lo));
         memcpy(base + (FT_HI - 0x8000), hi, sizeof(hi));
-        memcpy(base + (FT_BANKS - 0x8000), bank_of, sizeof(bank_of));
     }
     for (i = 0; i < placed; i++) {
         song_t *s = &songs[order[i]];
@@ -759,8 +823,8 @@ void custom_music_apply(dw_rom *rom)
     }
 
     /* Game music tracks write to unmapped $402x unless a jingle is playing. */
-    ys = find_free_space(rom->content, 0xc422, 10);
-    vpatch(rom, ys, 10, 0xad, LO8(RAM_JINGLE), HI8(RAM_JINGLE), 0xd0, 0x02, 0xa0, 0x20,
+    ys = find_free_space(rom->content, 0xc422, HOOK_YS_SIZE);
+    vpatch(rom, ys, HOOK_YS_SIZE, 0xad, LO8(RAM_JINGLE), HI8(RAM_JINGLE), 0xd0, 0x02, 0xa0, 0x20,
             0x4c, 0xcb, 0x80);
     vpatch(rom, 0x4071, 2, LO8(ys), HI8(ys));
     vpatch(rom, 0x407e, 2, LO8(ys), HI8(ys));
@@ -768,8 +832,8 @@ void custom_music_apply(dw_rom *rom)
 
     /* Music requests: remember the id and quiet the channels for the new song. */
     /* The battle sting is part of the game's battle music, so let it play first. */
-    rq = find_free_space(rom->content, 0xc422, 71);
-    vpatch(rom, rq, 71,
+    rq = find_free_space(rom->content, 0xc422, HOOK_RQ_SIZE);
+    vpatch(rom, rq, HOOK_RQ_SIZE,
             0xa2, 0xff, 0x8e, 0x05, 0x60,         /* ldx #$ff, stx $6005 (replaced code) */
             0xc9, 0x80, 0xb0, 0x3d,               /* cmp #$80, bcs done: sound effect */
             0x8d, LO8(RAM_WANT), HI8(RAM_WANT),
@@ -788,6 +852,16 @@ void custom_music_apply(dw_rom *rom)
             0x60);
     vpatch(rom, 0x41a0, 5, 0x20, LO8(rq), HI8(rq), 0xea, 0xea);
 
+    /* Each frame: the game's sound code, then the driver in its current bank. */
+    frame = find_free_space(rom->content, 0xc422, HOOK_FRAME_SIZE);
+    vpatch(rom, frame, HOOK_FRAME_SIZE,
+            0xa9, 0x01, 0x20, 0x96, 0xff, 0x20, 0x28, 0x80,
+            0xad, LO8(RAM_BANKSEL), HI8(RAM_BANKSEL), 0xf0, 0x03,
+            0xa9, 0x03, 0x2c, 0xa9, 0x06,    /* bank 3, or 6 when the selector is 0 (BIT skips the load) */
+            0x20, 0x96, 0xff,
+            0x4c, LO8(FT_WRAP), HI8(FT_WRAP));
+    vpatch(rom, 0xfee8, 8, 0x20, LO8(frame), HI8(frame), 0xea, 0xea, 0xea, 0xea, 0xea);
+
     /* Credits: ask for the tagged song and update the driver from their NMI. */
     if (event_song[0] >= 0) {
         const uint8_t start[14] = {0xa9, 0x01, 0xa2, 0x00, 0xa0, 0x80,
@@ -800,13 +874,21 @@ void custom_music_apply(dw_rom *rom)
         if (!memcmp(start_at, start, 14) && !memcmp(update_at, update, 3)) {
             /* Same bytes at the same address in banks 5 and 7, because the switch to
              * banks 6 and 7 happens while this code is running. */
-            static const uint8_t stub[51] = {
+            /* The two 5-bit mapper writes share one subroutine, at offset 32. Its address
+             * depends on where the stub lands, so it is filled in below. */
+            uint8_t stub[52] = {
+                /* Until the credits ask for their song the old one may be in the other
+                 * bank, where the driver would read junk. Stay silent until then. */
+                0xad, LO8(RAM_WANT), HI8(RAM_WANT), 0xc9, REQUEST_CREDITS, 0xf0, 0x06,
+                0xa9, 0x00, 0x8d, 0x15, 0x40, 0x60,
                 0xa9, 0x00, 0x8d, LO8(RAM_BANKSEL), HI8(RAM_BANKSEL),
                 0xa9, 0x06,
-                0x8d, 0xff, 0xff, 0x4a, 0x8d, 0xff, 0xff, 0x4a, 0x8d, 0xff, 0xff, 0x4a,
-                0x8d, 0xff, 0xff, 0x4a, 0x8d, 0xff, 0xff,
+                0x20, 0x00, 0x00,           /* JSR sw (filled in) */
                 0x20, LO8(FT_WRAP), HI8(FT_WRAP),
                 0xa9, 0x04,
+                0x20, 0x00, 0x00,           /* JSR sw (filled in) */
+                0x60,
+                /* sw: write A's low 5 bits to the mapper, one bit per write, lowest first */
                 0x8d, 0xff, 0xff, 0x4a, 0x8d, 0xff, 0xff, 0x4a, 0x8d, 0xff, 0xff, 0x4a,
                 0x8d, 0xff, 0xff, 0x4a, 0x8d, 0xff, 0xff,
                 0x60
@@ -822,8 +904,14 @@ void custom_music_apply(dw_rom *rom)
                     break;
             }
             if (u >= 0xff00 - sizeof(stub)) {
+                if (!dwr_packing())
+                    dwr_no_room();
                 printf("No room for the credits song, keeping the original credits music.\n");
             } else {
+                stub[21] = LO8(u + 32);
+                stub[22] = HI8(u + 32);
+                stub[29] = LO8(u + 32);
+                stub[30] = HI8(u + 32);
                 patch(rom, u, sizeof(stub), stub);
                 memcpy(bank5 + (u - 0xc000), stub, sizeof(stub));
                 memset(start_at, 0xea, 14);
@@ -840,13 +928,4 @@ void custom_music_apply(dw_rom *rom)
         }
     }
 
-    /* Each frame: the game's sound code, then the driver in its current bank. */
-    frame = find_free_space(rom->content, 0xc422, 27);
-    vpatch(rom, frame, 27,
-            0xa9, 0x01, 0x20, 0x96, 0xff, 0x20, 0x28, 0x80,
-            0xad, LO8(RAM_BANKSEL), HI8(RAM_BANKSEL), 0x29, 0x01, 0xf0, 0x04,
-            0xa9, 0x03, 0xd0, 0x02, 0xa9, 0x06,
-            0x20, 0x96, 0xff,
-            0x4c, LO8(FT_WRAP), HI8(FT_WRAP));
-    vpatch(rom, 0xfee8, 8, 0x20, LO8(frame), HI8(frame), 0xea, 0xea, 0xea, 0xea, 0xea);
 }

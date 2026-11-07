@@ -70,19 +70,15 @@ if (EMSCRIPTEN)
     target_link_options(dwrandomizer PRIVATE
         "SHELL:
         -s EXPORTED_FUNCTIONS='_dwr_randomize,_sprite_name,_version,_custom_music_load,_custom_music_clear'
-        -s EXPORTED_RUNTIME_METHODS='ccall,cwrap'
+        -s EXPORTED_RUNTIME_METHODS='ccall,cwrap,FS'
+        -s FORCE_FILESYSTEM=1
+        -s ALLOW_MEMORY_GROWTH=1
         -s WASM_BIGINT")
     file(REMOVE_RECURSE                                        ${CMAKE_BINARY_DIR}/release/)
     file(MAKE_DIRECTORY                                        ${CMAKE_BINARY_DIR}/release/)
-    file(CREATE_LINK ${CMAKE_SOURCE_DIR}/webui/index.html      ${CMAKE_BINARY_DIR}/release/index.html)
-    file(CREATE_LINK ${CMAKE_SOURCE_DIR}/webui/logo.png        ${CMAKE_BINARY_DIR}/release/logo.png)
-    file(CREATE_LINK ${CMAKE_SOURCE_DIR}/webui/index.js        ${CMAKE_BINARY_DIR}/release/index.js)
-    file(CREATE_LINK ${CMAKE_SOURCE_DIR}/webui/index.css       ${CMAKE_BINARY_DIR}/release/index.css)
-    file(CREATE_LINK ${CMAKE_SOURCE_DIR}/webui/base32.js       ${CMAKE_BINARY_DIR}/release/base32.js)
-    file(CREATE_LINK ${CMAKE_SOURCE_DIR}/webui/interface.js    ${CMAKE_BINARY_DIR}/release/interface.js)
-    file(CREATE_LINK ${CMAKE_SOURCE_DIR}/webui/modal.js        ${CMAKE_BINARY_DIR}/release/modal.js)
-    file(CREATE_LINK ${CMAKE_SOURCE_DIR}/webui/.htaccess       ${CMAKE_BINARY_DIR}/release/.htaccess)
-    file(CREATE_LINK ${CMAKE_SOURCE_DIR}/webui/sprites         ${CMAKE_BINARY_DIR}/release/sprites SYMBOLIC)
+    # The site is the generator. It needs the exports above, including FS.
+    file(CREATE_LINK ${CMAKE_SOURCE_DIR}/site/index.html       ${CMAKE_BINARY_DIR}/release/index.html)
+    file(COPY ${CMAKE_SOURCE_DIR}/site/sprites DESTINATION ${CMAKE_BINARY_DIR}/release)
     add_custom_command(TARGET dwrandomizer POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/dwrandomizer.js ${CMAKE_BINARY_DIR}/release/)
     add_custom_command(TARGET dwrandomizer POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${CMAKE_BINARY_DIR}/dwrandomizer.wasm ${CMAKE_BINARY_DIR}/release/)
 else()

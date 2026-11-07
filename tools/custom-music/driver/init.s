@@ -32,6 +32,8 @@ ft_music_init:
 	lda #$40
 	sta $4017		; ;; ;;; Disable frame IRQs
 
+	lda #$00		; a trill from the last song must not carry over
+	sta var_Triangle_Trill
 	lda #$FF		;;; ;; ; Reset triangle linear counter
 	sta var_Linear_Counter
 .if .defined(CHANNEL_CONTROL)

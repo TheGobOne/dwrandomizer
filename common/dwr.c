@@ -68,12 +68,33 @@ static int compare(const void *a, const void *b)
 static void update_flags(dw_rom *rom)
 {
     size_t i;
+    const uint8_t safe_start = rom->flags[8] & 0x20;
+    const uint8_t free_charlock_flag = rom->flags[11] & 0x02;
+    const uint8_t auto_return_flag = rom->flags[3] & 0x02;
 
+    /* As the high half of a pair this bit would read as "maybe" for Key & Herb. */
+    rom->flags[8] &= ~0x20;
+    /* The same goes for these: as the high half of a pair they would turn the low half into a maybe flag. */
+    rom->flags[11] &= ~0x02;
+    rom->flags[3] &= ~0x02;
     /* mcgrew's last 2 bytes do not contain maybe flags. */
     /* flags[12] holds the Run Bank cap, not maybe flags. */
     for (i=0; i < 12; i++) {
         rom->flags[i] |= (rom->flags[i] >> 1) & 0x55 & mt_rand(0, 0xff);
         rom->flags[i] &= 0x55;
+    }
+    rom->flags[8] |= safe_start;
+    rom->flags[11] |= free_charlock_flag;
+    rom->flags[3] |= auto_return_flag;
+    /* Free Charlock cannot go with these: Short Charlock, Easy Charlock (exclusive), and Three's Company, Cursed Princess,
+     * Radish Finish and Disguised Dragonlord, which depend on the Dragonlord and the ending he gives.
+     * Open Charlock is fine beside it. */
+    if (free_charlock_flag) {
+        rom->flags[7] &= (uint8_t)~0x03;   /* Short Charlock */
+        rom->flags[8] &= (uint8_t)~0x0f;
+        rom->flags[10] &= (uint8_t)~0xc0;
+        rom->flags[16] &= (uint8_t)~0x0c;
+        rom->flags[20] &= (uint8_t)~0xc0;
     }
     if (RANDOM_MAP_SIZE(rom) == 0xc0) {
         rom->flags[13] &= 0x3f;
@@ -186,6 +207,13 @@ static BOOL dwr_init(dw_rom *rom, const char *input_file, char *flags)
         return FALSE;
     }
     fclose(input);
+    /* The right kind of file: an iNES ROM with four program banks. */
+    if (memcmp(rom->header, "NES\x1a", 4) || rom->header[4] != 4) {
+        fprintf(stderr, "File '%s' is not a Dragon Warrior ROM, aborting.", input_file);
+        free(rom->header);
+        free(rom->expansion);
+        return FALSE;
+    }
 
     rom->content = &rom->header[0x10];
     strncpy((char *)rom->flags_encoded, flags, 40);
@@ -398,8 +426,7 @@ void dwx_run_mechanics(dw_rom *rom)
 {
 	const uint16_t ram_n = 0x6803; // Number of run attempts minus one. This just requires 2 bits so we could use a byte from the warp whistle if we really wanted to save a byte
     const uint16_t battle_start_hook = 0xe4f0;
-    const uint16_t battle_start_newcode = find_free_space(rom->content, 0xc422, 8);
-    const uint16_t costs_xp_newcode = find_free_space(rom->content, 0xc422, 17);
+    uint16_t battle_start_newcode, costs_xp_newcode;
     const uint16_t tryrun_newcode = 0xee94; // Overwrites original code post rng call
     const uint16_t tryrunsafer_hook_check_n = 0xe898; // Hook into original code (overwrites jsr to TryRun)
     uint16_t tryrunsafer_newcode_check_n;
@@ -421,6 +448,7 @@ void dwx_run_mechanics(dw_rom *rom)
     }
     else if(DWX_RUN_MECHANICS(rom) == 4) // Costs XP.
     {
+        costs_xp_newcode = find_free_space(rom->content, 0xc422, 17);
         vpatch(rom, costs_xp_newcode, 17,
             0x4e, xp_enemy_hi & 0xff, (xp_enemy_hi >> 8) & 0xff,   // LSR xp_enemy_hi
             0x6e, xp_enemy_lo & 0xff, (xp_enemy_lo >> 8) & 0xff,   // ROR xp_enemy_lo
@@ -467,6 +495,7 @@ void dwx_run_mechanics(dw_rom *rom)
 
     // For everything that follows, we need a run attempt counter
     // Hook at battle start to set ram_n to 0
+    battle_start_newcode = find_free_space(rom->content, 0xc422, 8);
     vpatch(rom, battle_start_hook, 4, 0x20, battle_start_newcode & 0xff, (battle_start_newcode >> 8) & 0xff, 0xea); // JSR battle_start_newcode and NOP for operation alignment
     vpatch(rom, battle_start_newcode, 8,
         0xa9, 0x00, // LDA $00
@@ -1284,12 +1313,12 @@ static void open_charlock(dw_rom *rom)
 
     printf("Opening Charlock and removing quest items...\n");
     /* remove the quest items since we won't need them */
-    for (i=0; i <= 31; ++i) {
+    for (i=0; i < CHEST_COUNT; ++i) {
         if (is_quest_item(rom->chests[i].item)) {
             rom->chests[i].item = GOLD;
         }
     }
-    for (i=0; i <= 3; ++i) {
+    for (i=0; i < 3; ++i) {
         if (is_quest_item(rom->search_table->item[i]))
                 rom->search_table->item[i] = 0;
     }
@@ -1715,15 +1744,15 @@ static void not_sharing_the_world(dw_rom *rom)
  */
 static void radish_finish(dw_rom *rom)
 {
-    uint16_t newcode = find_free_space(rom->content, 0xc422, 33);
-
     if (!RADISH_FINISH(rom))
         return;
+
+    uint16_t newcode = find_free_space(rom->content, 0xc422, 33);
 
     printf("The princess is craving radishes...\n");
 
     // Hook into original dialogue processing code:
-    vpatch(rom, 0xd193, 3, 0x4c, newcode & 0xff, (newcode >> 8) & 0xff); // JSR newcode
+    vpatch(rom, 0xd193, 3, 0x4c, newcode & 0xff, (newcode >> 8) & 0xff); // JMP newcode
 
     vpatch(rom, newcode, 33,
         0x48,       // pha (original code overwritten by hook, part 1/2)
@@ -1731,7 +1760,7 @@ static void radish_finish(dw_rom *rom)
         0xd0, 0x17, // BNE NEXT
         0xa5, 0xdf, // It is radish dialogue! Check if we rescued Gwaelin. lda zeropage status bits
         0x29, 0x01, // and immediate Gwaelin bit
-        0xf0, 0x11, // bne NEXT, Player is not carrying Gwaelin, move ahead
+        0xf0, 0x11, // beq NEXT, Player is not carrying Gwaelin, move ahead
 
         0x20, 0xcb, 0xc7, 0x74, // Display radish
         0xa9, 0x03,             // lda window type (command)
@@ -1831,15 +1860,17 @@ static void key_herb_counter(dw_rom *rom)
 {
     /* LV to E rows of the original window, which stay where they are. */
     const size_t rows = 0x6fc7 - 0x6fb4;
-    const uint16_t window = find_free_space(rom->content, 0xc422, 4 + rows + 2 + 5);
+    uint16_t window;
     const uint16_t chain = rom->content[0x6379] | (rom->content[0x637a] << 8);
-    uint16_t c, w = window;
+    uint16_t c, e, w;
 
     if (!KEY_HERB_COUNTER(rom))
         return;
+    window = find_free_space(rom->content, 0xc422, 4 + rows + (DEATH_COUNTER(rom) ? 2 : 0) + 5);
+    w = window;
 
-    /* With deaths too, the window starts a block higher to clear the battle text. */
-    vpatch(rom, w, 4, 0x01, DEATH_COUNTER(rom) ? 0x08 : 0x07, 0x08, DEATH_COUNTER(rom) ? 0x11 : 0x21);
+    /* The window starts one block higher, so its bottom stays clear of the battle text. */
+    vpatch(rom, w, 4, 0x01, DEATH_COUNTER(rom) ? 0x08 : 0x07, 0x08, 0x11);
     w += 4;
     patch(rom, w, rows, &rom->content[0x6fb4]);
     w += rows;
@@ -1849,6 +1880,14 @@ static void key_herb_counter(dw_rom *rom)
     }
     vpatch(rom, w, 5, 0x2e, 0x9a, 0x82, 0x2b, 0x9b); /* K n  H n, with n under the other numbers */
     vpatch(rom, 0x6f6c, 2, LO(window), HI(window));
+
+    /* The cleanup after a fight only clears the area under the original window.
+     * Have it also close this window, or its raised top row stays on the map. */
+    e = find_free_space(rom->content, 0xc422, 10);
+    vpatch(rom, e, 10,
+        0xa9, 0x0b, 0x20, 0xa2, 0xa7,             /* lda #$0b : jsr close_window */
+        0xa9, 0x00, 0x4c, 0xa2, 0xa7);            /* lda #$00 : jmp close_window (pop-up) */
+    vpatch(rom, 0xee7d, 5, 0x20, LO(e), HI(e), 0xea, 0xea);
 
     /* Codes $9A and $9B share the gold code's slot, so they arrive at its hook. */
     c = find_free_space(rom->content, 0xc422, 22);
@@ -2141,44 +2180,31 @@ static void spike_rewrite(dw_rom *rom)
         spikes[0], spikes[1], spikes[2], spikes[3], spikes[4], spikes[5], spikes[6], spikes[7]
     );
 
+    /* All three checks below share one search, at $e90e. It returns the matching index in X
+     * with N clear, or X = $ff with N set when no spike is at this spot. */
+
     /* start of a spike encounter */
     vpatch(rom, 0x0cd51, 41,
-            0xa2, 0x07,       /*   ldx #7                                  */
-            0xa5, 0x45,       /* - lda MAP_INDEX                           */
-            0xdd, 0x7a, 0xcd, /*   cmp spike_map,x                         */
-            0xd0, 0x1b,       /*   bne +                                   */
-            0xa5, 0x3a,       /*   lda X_POS                               */
-            0xdd, 0x82, 0xcd, /*   cmp spike_x,x                           */
-            0xd0, 0x14,       /*   bne +                                   */
-            0xa5, 0x3b,       /*   lda Y_POS                               */
-            0xdd, 0x8a, 0xcd, /*   cmp spike_y,x                           */
-            0xd0, 0x0d,       /*   bne +                                   */
+            0x20, 0x0e, 0xe9, /*   jsr find_spike                          */
+            0x30, 0x4c,       /*   bmi +done                               */
             0xbd, 0x92, 0xcd, /*   lda spike_flags,x                       */
             0x25, 0xe4,       /*   and QUEST_PROGRESS                      */
-            0xd0, 0x33,       /*   bne +done                               */
+            0xd0, 0x45,       /*   bne +done                               */
             0xbd, 0x9a, 0xcd, /*   lda spike_monster,x                     */
             0x4c, 0xdf, 0xe4, /*   jmp start_combat                        */
-            0xca,             /* + dex                                     */
-            0x10, 0xdb,       /*   bpl -                                   */
-            0x30, 0x28        /*   bmi +done                               */
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff
       );
 
     /* ran away from a spike encounter */
     vpatch(rom, 0x0e8d4, 108,
-            0xa2, 0x07,       /*    ldx #7                                   */
-            0xa5, 0x45,       /* -- lda MAP_INDEX                            */
-            0xdd, 0x7a, 0xcd, /*    cmp spike_map,x                          */
-            0xd0, 0x43,       /*    bne +                                    */
-            0xa5, 0x3a,       /*    lda X_POS                                */
-            0xdd, 0x82, 0xcd, /*    cmp spike_x,x                            */
-            0xd0, 0x3c,       /*    bne +                                    */
-            0xa5, 0x3b,       /*    lda Y_POS                                */
-            0xdd, 0x8a, 0xcd, /*    cmp spike_y,x                            */
-            0xd0, 0x35,       /*    bne +                                    */
+            0x20, 0x0e, 0xe9, /*    jsr find_spike                           */
+            0x30, 0x67,       /*    bmi +done                                */
             0xbd, 0x92, 0xcd, /*    lda spike_flags,x                        */
             0x25, 0xe4,       /*    and QUEST_PROGRESS                       */
-            0xd0, 0x4e,       /*    bne +done                                */
-            0x20, 0xbb, 0xc6, /*    jsr b3_c6bb                              */
+            0xd0, 0x60,       /*    bne +done                                */
+0x20, 0xbb, 0xc6, /*    jsr b3_c6bb                              */
             0xa5, 0xdc,       /*    lda _UNUSED_DC                           */
             0x85, 0x3a,       /*    sta X_POS                                */
             0x85, 0x8e,       /*    sta X_POS_2                              */
@@ -2200,32 +2226,38 @@ static void spike_rewrite(dw_rom *rom)
             0xa9, 0x02,       /*    lda #$02      ;                          */
             0x8d, 0x2f, 0x60, /*    sta $602f     ;                          */
             0x4c, 0x97, 0xb0, /*    jmp $b097                                */
+
+            /* e90e: find_spike */
+            0xa2, 0x07,       /*    ldx #7                                   */
+            0xa5, 0x45,       /* -- lda MAP_INDEX                            */
+            0xdd, 0x7a, 0xcd, /*    cmp spike_map,x                          */
+            0xd0, 0x0e,       /*    bne +                                    */
+            0xa5, 0x3a,       /*    lda X_POS                                */
+            0xdd, 0x82, 0xcd, /*    cmp spike_x,x                            */
+            0xd0, 0x07,       /*    bne +                                    */
+            0xa5, 0x3b,       /*    lda Y_POS                                */
+            0xdd, 0x8a, 0xcd, /*    cmp spike_y,x                            */
+            0xf0, 0x03,       /*    beq found                                */
             0xca,             /* +  dex                                      */
-            0x10, 0xb3,       /*    bpl --                                   */
-            0x30, 0x1b,       /*    bmi +done                                */
+            0x10, 0xe8,       /*    bpl --                                   */
+            0x60,             /* found: rts                                  */
 
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            0xff, 0xff, 0xff, 0xff, 0xff);
+            0xff);
 
     /* defeated a spike encounter */
     vpatch(rom, 0x0e96b, 36,
-            0xa2, 0x07,       /*   ldx #7                                    */
-            0xa5, 0x45,       /* - lda MAP_INDEX                             */
-            0xdd, 0x7a, 0xcd, /*   cmp spike_map,x                           */
-            0xd0, 0x15,       /*   bne +                                     */
-            0xa5, 0x3a,       /*   lda X_POS                                 */
-            0xdd, 0x82, 0xcd, /*   cmp spike_x,x                             */
-            0xd0, 0x0e,       /*   bne +                                     */
-            0xa5, 0x3b,       /*   lda Y_POS                                 */
-            0xdd, 0x8a, 0xcd, /*   cmp spike_y,x                             */
-            0xd0, 0x07,       /*   bne +                                     */
+            0x20, 0x0e, 0xe9, /*   jsr find_spike                            */
+            0x30, 0x07,       /*   bmi +                                     */
             0xbd, 0x92, 0xcd, /*   lda spike_flags,x                         */
             0x05, 0xe4,       /*   ora QUEST_PROGRESS                        */
             0x85, 0xe4,       /*   sta QUEST_PROGRESS                        */
-            0xca,             /* + dex                                       */
-            0x10, 0xe1,       /*   bpl -                                     */
-            0xea,             /*   nop                                       */
+            0xa2, 0xff,       /* + ldx #$ff                                  */
+            0x4c, 0x8c, 0xe9, /*   jmp past the free bytes                   */
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xea,             /*   nop (room for the win hooks at $e98c)     */
             0xea,             /*   nop                                       */
             0xea              /*   nop                                       */
         );
@@ -2983,7 +3015,7 @@ static void npc_shenanigans(dw_rom *rom)
         NPCsPointerTables[i/2][i%2] = (uint16_t)(original_NPC_pointer_table[2*(12*(i%2) + i/2)]) + (uint16_t)((original_NPC_pointer_table[2*(12*(i%2) + i/2)+1]) << 8);
         original_NPC_data = &rom->content[NPCsPointerTables[i/2][i%2] - 0x8000];
         j = 0;
-        while(original_NPC_data[j] < 0xff)
+        while(original_NPC_data[j] < 0xff && k < 136)
         {
             NPCData[k][0] = original_NPC_data[j];
             NPCData[k][1] = original_NPC_data[j + 1];
@@ -3085,7 +3117,7 @@ static void npc_shenanigans(dw_rom *rom)
         do
         {
             chosen_NPC = mt_rand(0, sizeof(NPCData) / (6*sizeof(uint8_t)) - 1);
-        } while(!(NPCData[chosen_NPC][3] & swappable_check));
+        } while(!(NPCData[chosen_NPC][3] & swappable_check) || NPCData[chosen_NPC][4] == 0xff);
 
         switch((0xe0 & NPCData[chosen_NPC][0]) >> 5)
         {
@@ -3278,10 +3310,10 @@ static void npc_shenanigans(dw_rom *rom)
  */
 void return_escapes(dw_rom *rom)
 {
-    const uint16_t newcode = find_free_space(rom->content, 0xc422, 22);
-
     if (!RETURN_ESCAPES(rom))
         return;
+
+    const uint16_t newcode = find_free_space(rom->content, 0xc422, 22);
     printf("Allowing Zooming out of battle...\n");
 
     // Skip checking for return as a spell that can't be used in battle
@@ -3343,6 +3375,11 @@ void find_zoom_tile(dw_rom *rom, uint8_t town, uint8_t zoom_data[][3], uint8_t i
         zoom_data[i][1] = x+1;
 }
 
+/* The menu's current save slot, and three bytes each for what is kept per slot. */
+#define SAVE_SLOT 0x6039
+#define SLOT_VISITED 0x6810
+#define SLOT_RETURN 0x6813
+
 /**
  * Makes Return send you to the last place you saved or used an inn at
  * and/or
@@ -3351,10 +3388,6 @@ void find_zoom_tile(dw_rom *rom, uint8_t town, uint8_t zoom_data[][3], uint8_t i
  *
  * @param rom The rom struct
  */
-/* The menu's current save slot, and three bytes each for what is kept per slot. */
-#define SAVE_SLOT 0x6039
-#define SLOT_VISITED 0x6810
-#define SLOT_RETURN 0x6813
 
 void zoom_and_whistle(dw_rom *rom)
 {
@@ -3366,13 +3399,7 @@ void zoom_and_whistle(dw_rom *rom)
 	const uint16_t ram_v = 0x6802; // List of visited towns (00RC GKBT)
 
 	/* Copies the visited towns and Return town into this save slot's own bytes. */
-	const uint16_t persist = find_free_space(rom->content, 0xc422, 16);
-	const uint16_t newcode = (vpatch(rom, persist, 16,
-        0xae, LO(SAVE_SLOT), HI(SAVE_SLOT),
-        0xad, ram_v & 0xff, (ram_v >> 8) & 0xff, 0x9d, LO(SLOT_VISITED), HI(SLOT_VISITED),
-        0xad, ram_i & 0xff, (ram_i >> 8) & 0xff, 0x9d, LO(SLOT_RETURN), HI(SLOT_RETURN),
-        0x60), find_free_space(rom->content, 0xc82b, 178)); // Starting address for new code
-	uint16_t address = newcode; // Starting address for new code
+	uint16_t persist, newcode, address;
 
 	uint8_t i;
 
@@ -3380,6 +3407,16 @@ void zoom_and_whistle(dw_rom *rom)
 
     if (!RETURN_TO_ZOOM(rom) && !WARP_WHISTLE(rom))
         return;
+
+    persist = find_free_space(rom->content, 0xc422, 16);
+	vpatch(rom, persist, 16,
+        0xae, LO(SAVE_SLOT), HI(SAVE_SLOT),
+        0xad, ram_v & 0xff, (ram_v >> 8) & 0xff, 0x9d, LO(SLOT_VISITED), HI(SLOT_VISITED),
+        0xad, ram_i & 0xff, (ram_i >> 8) & 0xff, 0x9d, LO(SLOT_RETURN), HI(SLOT_RETURN),
+        0x60);
+
+	newcode = find_free_space(rom->content, 0xc82b, 181); // Starting address for new code
+	address = newcode;
 
     zoom_data[0][0] = 0x05; // Tantegel throne room
     find_zoom_tile(rom, 4, zoom_data, 0);
@@ -3495,10 +3532,11 @@ void zoom_and_whistle(dw_rom *rom)
     vpatch(rom, 0xd43f, 3, 0x20, address & 0xff, (address >> 8) & 0xff); // JSR new code
 
     // New code to set zoom index to Tantegel when saving
-    code_size = 9;
+    code_size = 12;
     vpatch(rom, address, code_size,
         0xa9, 0,            // LDA Tantegel index
         0x8d, ram_i & 0xff, (ram_i >> 8) & 0xff, // STA ram_i
+        0x20, LO(persist), HI(persist), // keep it in this save slot
         0x20, 0x48, 0xf1,   // Go to vanilla subroutine
         0x60                // RTS
     );
@@ -3563,17 +3601,17 @@ void zoom_and_whistle(dw_rom *rom)
  */
 void hurtmore_doors(dw_rom *rom)
 {
-    const uint16_t newcode = find_free_space(rom->content, 0xc422, 173);
-
     if (!HURTMORE_DOORS(rom))
         return;
+
+    const uint16_t newcode = find_free_space(rom->content, 0xc422, 132);
     printf("Allowing destruction of doors with Hurtmore...\n");
 
     // Hook into original UnknownSpell code:
     vpatch(rom, 0xdb34, 3, 0x4c, newcode & 0xff, (newcode >> 8) & 0xff); //
 
     // New code
-    vpatch(rom, newcode, 173,
+    vpatch(rom, newcode, 132,
         0xc9, 0x09,         // CMP #SPL_HURTMORE
         0xf0, 0x03,         // BEQ to the new code
         0x4c, 0x55, 0xda,   // JMP SpellFizzle
@@ -3581,8 +3619,27 @@ void hurtmore_doors(dw_rom *rom)
         // clear windows
         0xA9, 0x02, 0x20, 0xA2, 0xA7, 0xA9, 0x03, 0x20, 0xA2, 0xA7, 0xA9, 0x00, 0x20, 0xA2, 0xA7,
 
-        // key stuff. Yeah, this is just lazy for now. This is mostly the original key routine, minus the key checking & decrementing parts
-        0xA5, 0x3A, 0x85, 0x3C, 0xA5, 0x3B, 0x85, 0x3E, 0xC6, 0x3E, 0x20, 0x17, 0xAC, 0xA5, 0x3C, 0xC9, 0x11, 0xF0, 0x44, 0xA5, 0x3A, 0x85, 0x3C, 0xA5, 0x3B, 0x85, 0x3E, 0xE6, 0x3E, 0x20, 0x17, 0xAC, 0xA5, 0x3C, 0xC9, 0x11, 0xF0, 0x31, 0xA5, 0x3A, 0x85, 0x3C, 0xA5, 0x3B, 0x85, 0x3E, 0xC6, 0x3C, 0x20, 0x17, 0xAC, 0xA5, 0x3C, 0xC9, 0x11, 0xF0, 0x1E, 0xA5, 0x3A, 0x85, 0x3C, 0xA5, 0x3B, 0x85, 0x3E, 0xE6, 0x3C, 0x20, 0x17, 0xAC, 0xA5, 0x3C, 0xC9, 0x11, 0xF0, 0x0B, 0x20, 0xF0, 0xC6, 0x02, 0x20, 0xC5, 0xC7, 0x0B, 0x4C, 0xD9, 0xCF, 0xA2, 0x00, 0xBD, 0x0C, 0x60, 0xF0, 0x09, 0xE8, 0xE8, 0xE0, 0x10, 0xD0, 0xF5, 0x4C, 0xD9, 0xCF, 0xA5, 0x42, 0x9D, 0x0C, 0x60, 0xA5, 0x43, 0x9D, 0x0D, 0x60, 0xA5, 0x42, 0x38, 0xE5, 0x3A, 0x0A, 0x85, 0x0F, 0xA5, 0x43, 0x38, 0xE5, 0x3B, 0x0A, 0x85, 0x10, 0xA9, 0x00, 0x85, 0x4C, 0xA9, 0x8A, 0x00, 0x04, 0x17, 0x20, 0x66, 0xAD, 0x20, 0x08, 0xC6, 0xA5, 0x47, 0xD0, 0xF9, 0x4C, 0x6A, 0xCF
+        // Look for a door on each side: up, down, left, right. The game's key routine does this too.
+        0xa9, 0x03,             // LDA #3
+        0x48, 0xaa,             // loop: PHA, TAX
+        0xa5, 0x3a, 0x18,       // LDA CharXPos, CLC
+        0x7d, (newcode + 60) & 0xff, (newcode + 60) >> 8, // ADC x offsets,X
+        0x85, 0x3c,             // STA
+        0xa5, 0x3b, 0x18,       // LDA CharYPos, CLC
+        0x7d, (newcode + 64) & 0xff, (newcode + 64) >> 8, // ADC y offsets,X
+        0x85, 0x3e,             // STA
+        0x20, 0x17, 0xac,       // JSR GetBlockID
+        0x68, 0xaa,             // PLA, TAX
+        0xa5, 0x3c, 0xc9, 0x11, // LDA tile, CMP #door
+        0xf0, 0x0f,             // BEQ found
+        0xca, 0x8a,             // DEX, TXA
+        0x10, 0xdf,             // BPL loop
+        0x4c, 0x8e, 0xdc,       // JMP "there is no door here" in the key routine
+        0x01, 0xff, 0x00, 0x00, // x offsets: right, left, down, up
+        0x00, 0x00, 0x01, 0xff, // y offsets
+
+        // found: the rest of the key routine, with the Hurtmore sound
+        0xA2, 0x00, 0xBD, 0x0C, 0x60, 0xF0, 0x09, 0xE8, 0xE8, 0xE0, 0x10, 0xD0, 0xF5, 0x4C, 0xD9, 0xCF, 0xA5, 0x42, 0x9D, 0x0C, 0x60, 0xA5, 0x43, 0x9D, 0x0D, 0x60, 0xA5, 0x42, 0x38, 0xE5, 0x3A, 0x0A, 0x85, 0x0F, 0xA5, 0x43, 0x38, 0xE5, 0x3B, 0x0A, 0x85, 0x10, 0xA9, 0x00, 0x85, 0x4C, 0xA9, 0x8A, 0x00, 0x04, 0x17, 0x20, 0x66, 0xAD, 0x20, 0x08, 0xC6, 0xA5, 0x47, 0xD0, 0xF9, 0x4C, 0x6A, 0xCF
     );
 }
 
@@ -3593,10 +3650,10 @@ void hurtmore_doors(dw_rom *rom)
  */
 void levelup_refill(dw_rom *rom)
 {
-    const uint16_t newcode = find_free_space(rom->content, 0xc422, 24);
-
     if (!LEVELUP_REFILL(rom))
         return;
+
+    const uint16_t newcode = find_free_space(rom->content, 0xc422, 24);
     printf("Making levelups refreshing...\n");
 
     // Hook into first 3 of 5 free bytes in mcgrew's ChkNewSpell
@@ -3670,10 +3727,10 @@ void max_keys(dw_rom *rom)
  */
 void unbreakable_keys(dw_rom *rom)
 {
-    const uint16_t newcode = find_free_space(rom->content, 0xc422, 11);
-
     if (!UNBREAKABLE_KEYS(rom) || NO_KEYS(rom))
         return;
+
+    const uint16_t newcode = find_free_space(rom->content, 0xc422, 11);
     printf("Keys are made of titanium in Alefgard...\n");
 
     // Hook into first 4 bytes of UseKey
@@ -3779,10 +3836,10 @@ void step_counter(dw_rom *rom)
  */
 void npc_guillotine(dw_rom *rom)
 {
-	const uint16_t newcode = find_free_space(rom->content, 0xc82b, 20); // Starting address for new code
-
     if (!NPC_GUILLOTINE(rom))
         return;
+
+    const uint16_t newcode = find_free_space(rom->content, 0xc82b, 20); // Starting address for new code
 
     vpatch(rom, 0xd11f, 2, newcode & 0xff, (newcode >> 8) & 0xff); // Save original JSR to set NPC direction but point to newcode
 
@@ -3907,6 +3964,172 @@ void random_princess_location(dw_rom *rom)
 }
 
 static uint16_t run_bank_win_code = 0;
+
+/**
+ * After the Dragonlord's second form dies, the game would put the hero back on the overworld at Charlock.
+ * With Auto Return on it takes the tail of the Return spell instead, which puts the hero in front of Tantegel.
+ *
+ * @param rom The rom struct
+ */
+static void auto_return(dw_rom *rom)
+{
+    if (!AUTO_RETURN(rom))
+        return;
+    printf("Returning automatically after the Dragonlord...\n");
+    /* Was: ldx #$12 : lda #$02 : jmp $d9e2 (leave by the Charlock warp). */
+    vpatch(rom, 0xea03, 7, 0x4c, 0x00, 0xdb, 0xea, 0xea, 0xea, 0xea);
+}
+
+/**
+ * Entering Charlock from the overworld puts the hero beside the Dragonlord and starts the fight.
+ * The entrance warp now leads to the throne room. A hook at the top of the main loop starts the fight
+ * when the hero stands on the arrival tile. A latch stops it starting again after running away, until
+ * the hero has left the room. Runs late, and is left out if there is no room.
+ *
+ * @param rom The rom struct
+ */
+static void free_charlock(dw_rom *rom)
+{
+    const uint16_t latch = 0x680b;
+    const uint8_t x = 16, y = 25; /* just below the Dragonlord at 16,24 */
+    /* With Short Charlock the entrance already leads to the throne room, and walking off it still works. */
+    const uint8_t entry_map = SHORT_CHARLOCK(rom) ? CHARLOCK_THRONE_ROOM : CHARLOCK;
+    const size_t walk_size = SHORT_CHARLOCK(rom) ? 0 : 18;
+    size_t i;
+    int found = -1, c, w = 0;
+
+    if (!FREE_CHARLOCK(rom))
+        return;
+    for (i = 0; i < 51; i++) {
+        if (rom->map.warps_from[i].map == OVERWORLD && rom->map.warps_to[i].map == entry_map)
+            found = (int)i;
+    }
+    if (found < 0) {
+        printf("Charlock's entrance was not found, leaving Free Charlock out.\n");
+        return;
+    }
+    /* Both pieces go in, or neither does. */
+    c = dwr_try_free_space(rom->content, 0xc422, 57);
+    if (c >= 0 && walk_size) {
+        memset(&rom->content[c], 0x00, 57); /* held while the other is looked up */
+        w = dwr_try_free_space(rom->content, 0xc422, walk_size);
+        memset(&rom->content[c], 0xff, 57);
+    }
+    if (c < 0 || w < 0) {
+        printf("No room for Free Charlock, leaving it out.\n");
+        return;
+    }
+    printf("Freeing Charlock...\n");
+    if (walk_size) {
+        /* Walking off a map looks for the warp leading to it, and the entrance no longer leads here.
+         * Replaces ldx #0 : lda $45 at the start of that search. */
+        vpatch(rom, (uint16_t)w, walk_size,
+            0xa2, 0x00, 0xa5, 0x45,                       /* the code this replaced */
+            0xc9, CHARLOCK, 0xd0, 0x07,                   /* not Charlock: the normal search */
+            0xa2, (uint8_t)(found * 3), 0xa9, 0x02,       /* leave by the entrance's warp */
+            0x4c, 0xe2, 0xd9,
+            0x4c, 0x2c, 0xb2);
+        vpatch(rom, 0x3228, 4, 0x4c, LO(w), HI(w), 0xea);
+    }
+    rom->map.warps_to[found].map = CHARLOCK_THRONE_ROOM;
+    rom->map.warps_to[found].x = x;
+    rom->map.warps_to[found].y = y;
+    vpatch(rom, (uint16_t)c, 57,
+        0xa5, 0x45, 0xc9, CHARLOCK_THRONE_ROOM, 0xd0, 0x24,   /* in the throne room, or clear the latch */
+        0xad, LO(latch), HI(latch), 0xd0, 0x24,               /* already started: carry on */
+        0xa5, 0xe4, 0x29, 0x04, 0xd0, 0x1e,                   /* already beaten: carry on */
+        0xa5, 0x3a, 0xc9, x, 0xd0, 0x18,                      /* on the arrival tile? */
+        0xa5, 0x3b, 0xc9, y, 0xd0, 0x12,
+        0xa9, 0x01, 0x8d, LO(latch), HI(latch),
+        /* The fight code ends in RTS, so it must be called, or it returns into junk after the win. */
+        0xa9, 0x26, 0x20, 0xdf, 0xe4, 0x4c, 0x56, 0xca,
+        0xa9, 0x00, 0x8d, LO(latch), HI(latch),
+        0xa5, 0xda, 0xd0, 0x03, 0x4c, 0x6c, 0xca,             /* the code this replaced */
+        0x4c, 0x5a, 0xca);
+    vpatch(rom, 0xca56, 4, 0x4c, LO(c), HI(c), 0xea);
+}
+
+/**
+ * With menu wrapping on, the name entry cursor wraps at all four edges too.
+ * The hooks live in the fixed bank, because bank 1 can be full. Runs last, so it only uses room nothing
+ * else needed, and is left out if there is none. The up and down hooks keep whatever dwr_menu_wrap and
+ * run_bank left at the addresses they replace.
+ *
+ * Window $0B is the name screen: $D8 column, $D9 row, $64F2 and $64F3 the cursor's tile position.
+ * The bottom row has 6 letters, then BACK at column 6 and END at column 9.
+ *
+ * @param rom The rom struct
+ */
+static void name_entry_wrap(dw_rom *rom)
+{
+    uint16_t c;
+    uint8_t old[4];
+    int room;
+
+    if (!MENU_WRAP(rom))
+        return;
+    room = dwr_try_free_space(rom->content, 0xc422, 148);
+    if (room < 0) {
+        printf("No room for name screen wrapping, leaving it out.\n");
+        return;
+    }
+
+    /* Up from the top row, using the game's own column fix for the bottom row. */
+    memcpy(old, &rom->content[0x69e0], 4);
+    c = (uint16_t)room;
+    vpatch(rom, c, 40,
+        0xad, 0xdc, 0x64, 0xc9, 0x0b, 0xd0, 0x1a,  /* window $0B, or the old code */
+        0xa5, 0xd9, 0xd0, 0x16,                    /* top row, or the old code */
+        0x20, 0x30, 0xab,                          /* erase the cursor */
+        0xa9, 0x04, 0x85, 0xd9, 0x20, 0x3f, 0xab,  /* row 4, then fix the column */
+        0xa9, 0x05, 0x85, 0xd9,
+        0xa9, 0x0c, 0x8d, 0xf3, 0x64,
+        0x4c, 0x35, 0xab,                          /* draw it */
+        old[0], old[1], old[2], old[3],
+        0x4c, 0xe4, 0xa9);
+    vpatch(rom, 0x69e0, 4, 0x4c, LO(c), HI(c), 0xea);
+
+    /* Down from the bottom row. Columns 6 and 9 exist on the top row too. */
+    memcpy(old, &rom->content[0x6a0b], 3);
+    c = (uint16_t)(room + 40);
+    vpatch(rom, c, 34,
+        0xad, 0xdc, 0x64, 0xc9, 0x0b, 0xd0, 0x15,
+        0xa5, 0xd9, 0xc9, 0x05, 0xd0, 0x0f,
+        0x20, 0x30, 0xab,
+        0xa9, 0x00, 0x85, 0xd9,
+        0xa9, 0x02, 0x8d, 0xf3, 0x64,
+        0x4c, 0x35, 0xab,
+        old[0], old[1], old[2],
+        0x4c, 0x0e, 0xaa);
+    vpatch(rom, 0x6a0b, 3, 0x4c, LO(c), HI(c));
+
+    /* Left from the first column: column 10, or END on the bottom row. */
+    c = (uint16_t)(room + 74);
+    vpatch(rom, c, 40,
+        0xa5, 0xd8, 0xf0, 0x03, 0x4c, 0x77, 0xaa,
+        0xad, 0xdc, 0x64, 0xc9, 0x0b, 0xd0, 0x19,
+        0x20, 0x30, 0xab,
+        0xa2, 0x0a, 0xa9, 0x15,
+        0xa4, 0xd9, 0xc0, 0x05, 0xd0, 0x04,
+        0xa2, 0x09, 0xa9, 0x13,
+        0x86, 0xd8, 0x8d, 0xf2, 0x64,
+        0x4c, 0x35, 0xab,
+        0x60);
+    vpatch(rom, 0x6a73, 4, 0x4c, LO(c), HI(c), 0xea);
+
+    /* Right from the last column, or from END on the bottom row: back to column 0. */
+    c = (uint16_t)(room + 114);
+    vpatch(rom, c, 34,
+        0xae, 0x06, 0x65, 0xca, 0xe4, 0xd8, 0xf0, 0x03, 0x4c, 0x01, 0xab,
+        0xad, 0xdc, 0x64, 0xc9, 0x0b, 0xd0, 0x0f,
+        0x20, 0x30, 0xab,                          /* offset 18: from END */
+        0xa9, 0x00, 0x85, 0xd8,
+        0xa9, 0x01, 0x8d, 0xf2, 0x64,
+        0x4c, 0x35, 0xab,
+        0x60);
+    vpatch(rom, 0x6af9, 6, 0x4c, LO(c), HI(c), 0x4c, LO(c + 18), HI(c + 18));
+    vpatch(rom, 0x6aed, 1, 0x0e);                  /* END's branch now lands on that second jump */
+}
 
 /**
  * Run Bank: each win banks one guaranteed escape (max 99), shown and spent
@@ -4151,14 +4374,19 @@ static void danger_meter(dw_rom *rom)
     span = high[rate] - low[rate] + 1;
 
     /* All tiles reach $CDFD with a mask in A: $07 hills and desert, $0F most tiles, $1F grass. */
-    c = find_free_space(rom->content, 0xc422, 52);
-    vpatch(rom, c, 52,
+    c = find_free_space(rom->content, 0xc422, 67);
+    vpatch(rom, c, 67,
+        /* Towns, castles and shrines never have fights, so their steps don't count. */
+        0xa6, 0x45, 0xe0, 0x0f, 0xb0, 0x09,       /* map 15 and up: dungeons */
+        0xe0, 0x04, 0x90, 0x05,                   /* maps 1-3: overworld, Charlock, Hauksness */
+        0xe0, 0x06, 0xf0, 0x01,                   /* map 6: Charlock throne room */
+        0x60,
         0xa2, 0x04, 0xc9, 0x1f, 0xf0, 0x08,       /* ldx #4, grass */
         0xa2, 0x05, 0xc9, 0x0f, 0xf0, 0x02,       /* ldx #5, most tiles */
         0xa2, 0x08,                               /* ldx #8, hills and desert */
         0x8a, 0x18, 0x6d, LO(meter), HI(meter), 0x8d, LO(meter), HI(meter),
         0xcd, LO(target), HI(target), 0x90, 0x18, /* below target: done */
-        /* Reached: empty the meter and pick the next target. Towns and Repel
+        /* Reached: empty the meter and pick the next target. Repel can still
          * stop the fight in the code at $CE7C, and the meter still starts over. */
         0xa9, 0x00, 0x8d, LO(meter), HI(meter),
         0xa5, 0x95,
@@ -4216,7 +4444,7 @@ static void run_bank_win_hook(dw_rom *rom)
  */
 void new_flags_ram_init(dw_rom *rom)
 {
-    const uint16_t newcode = find_free_space(rom->content, 0xc82b, 23); // Starting address for new code
+    const uint16_t newcode = find_free_space(rom->content, 0xc82b, 29); // Starting address for new code
     const uint16_t address = 0x6800; // First RAM byte used by new flags
 
     const uint16_t ram_i = address; // Return index
@@ -4228,14 +4456,15 @@ void new_flags_ram_init(dw_rom *rom)
     // Hook start of the game
     vpatch(rom, 0xca1a, 3, 0x20, newcode & 0xff, (newcode >> 8) & 0xff); // JSR new code
 
-    vpatch(rom, newcode, 23,
+    vpatch(rom, newcode, 29,
         0xa9, 0,	// LDA 0
         0x8d, ram_i & 0xff, (ram_i >> 8) & 0xff, // STA (set Return index to Tantegel)
 		0x8d, ram_j & 0xff, (ram_j >> 8) & 0xff, // STA (set Whistle index to Tantegel)
-        0x8d, ram_s & 0xff, (ram_s >> 8) & 0xff, // STA (set byte 1 of step counter to 0)
-		0x8d, (ram_s+1) & 0xff, ((ram_s+1) >> 8) & 0xff, // STA (set byte 2 of step counter to 0)
 		0xa9, 1,	// LDA 1
 		0x8d, ram_v & 0xff, (ram_v >> 8) & 0xff, // STA (only Tantegel has been visited)
+        0xa5, 0xba, 0x05, 0xbb, 0xd0, 0x06,      // This runs on a continue too: keep the steps unless XP is 0
+        0x8d, ram_s & 0xff, (ram_s >> 8) & 0xff, // STA (set byte 1 of step counter to 0)
+		0x8d, (ram_s+1) & 0xff, ((ram_s+1) >> 8) & 0xff, // STA (set byte 2 of step counter to 0)
         0x20, 0x47, 0xcb,   // Go to vanilla subroutine
         0x60                // RTS
     );
@@ -4384,7 +4613,6 @@ void speed_up_harp_and_princess(dw_rom *rom)
  */
 static void random_town_entrances(dw_rom *rom)
 {
-    uint8_t town_index[] = {0, 2, 3, 9, 10, 11}; // Garinham, Kol, Brecconary, Rimuldar, Hauksness, Cantlin. Index in the direction & entrance position tables
     uint16_t direction = 0x9914 - 0x8000; // Bank 0
     uint16_t position = 0xf461; // Bank 3
     uint8_t i;
@@ -4533,7 +4761,6 @@ void apply_stuff_to_rom(dw_rom *rom)
     memset(&rom->content[0xc7ec], 0xff, 0xc9b5 - 0xc7ec);
     memset(&rom->content[0xf232], 0xff, 0xf35b - 0xf232);
 
-    instant_name_print(rom);
     show_spells_learned(rom);
     other_patches(rom);
     short_charlock(rom);
@@ -4554,6 +4781,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     dwr_fighters_ring(rom);
     lower_xp_reqs(rom);
     dwr_death_necklace(rom);
+    instant_name_print(rom);
     dwr_menu_wrap(rom);
     npc_guillotine(rom);
     randomize_flute_song(rom);
@@ -4649,7 +4877,8 @@ static void spoiler_log(dw_rom *rom, const char *path)
         {WARP_HAUKSNESS, "Hauksness"}, {WARP_CHARLOCK, "Charlock"}, {WARP_SWAMP_NORTH, "Swamp Cave north"},
         {WARP_SWAMP_SOUTH, "Swamp Cave south"}, {WARP_MOUNTAIN_CAVE, "Mountain Cave"},
         {WARP_GARINS_GRAVE, "Garin's Grave"}, {WARP_ERDRICKS_CAVE, "Erdrick's Cave"},
-        {WARP_STAFF_SHRINE, "Staff Shrine"}, {WARP_JERK_CAVE, "Jerk Cave"}};
+        {WARP_STAFF_SHRINE, "Staff Shrine"}, {WARP_JERK_CAVE, "Jerk Cave"},
+        {WARP_TANTEGEL_BASEMENT, "Tantegel Basement"}};
     char name[1100];
     FILE *out;
     size_t i;
@@ -4662,10 +4891,19 @@ static void spoiler_log(dw_rom *rom, const char *path)
         fprintf(stderr, "Unable to open file '%s' for writing\n", name);
         return;
     }
-    fprintf(out, "Seed %"PRIu64"\nFlags %s\n\nPlaces (x, y on the overworld)\n", rom->seed, rom->flags_encoded);
-    for (i = 0; i < sizeof(places) / sizeof(places[0]); i++)
-        fprintf(out, "  %-18s %3d, %3d\n", places[i].name,
-                rom->map.warps_from[places[i].warp].x, rom->map.warps_from[places[i].warp].y);
+    fprintf(out, "Seed %"PRIu64"\nFlags %s\n", rom->seed, rom->flags_encoded);
+    if (RANDOM_MAP(rom)) {
+        static const char *const biomes[] = {"Continent", "Caldera", "Wasteland", "Riverlands"};
+        fprintf(out, "Biome %s\n", biomes[BIOME(rom)]);
+    }
+    fprintf(out, "\nPlaces (x, y on the overworld unless noted)\n");
+    for (i = 0; i < sizeof(places) / sizeof(places[0]); i++) {
+        const dw_warp *w = &rom->map.warps_from[places[i].warp];
+        fprintf(out, "  %-18s %3d, %3d", places[i].name, w->x, w->y);
+        if (w->map != 1 && w->map < sizeof(maps) / sizeof(maps[0]))
+            fprintf(out, "  inside %s", maps[w->map]);
+        fprintf(out, "\n");
+    }
     fprintf(out, "\nChests\n");
     for (i = 0; i < CHEST_COUNT; i++) {
         dw_chest *c = &rom->chests[i];
@@ -4685,13 +4923,19 @@ static void spoiler_log(dw_rom *rom, const char *path)
 /* Where find_free_space goes when the ROM is full. */
 static jmp_buf *no_space_handler = NULL;
 
+/* Free space search mode: first fit is what every earlier build used, so it stays the default.
+ * Best fit is only tried after a build ran out of room. */
+static BOOL fit_best = FALSE;
+static BOOL ran_out_of_room = FALSE;
+static int fail_stage = 0; /* 1 before the checksum, 2 after it */
+
 /**
  * Randomizes a Dragon Warrior rom file
  * This does everything without the Winter theme, and does not output a file.
  * This only returns the CRC so it can be used by the original dwr_randomize
  *
  */
-uint64_t dwr_randomizeWithoutWinterTheme(const char* input_file, uint64_t seed, char *flags)
+static uint64_t without_winter_once(const char* input_file, uint64_t seed, char *flags)
 {
     uint64_t crc = 0;
     dw_rom rom;
@@ -4724,6 +4968,31 @@ uint64_t dwr_randomizeWithoutWinterTheme(const char* input_file, uint64_t seed, 
     return crc;
 }
 
+/* Why the build without the Winter theme stopped, for the build that asked for it. */
+static BOOL winter_no_room = FALSE;
+
+uint64_t dwr_randomizeWithoutWinterTheme(const char* input_file, uint64_t seed, char *flags)
+{
+    BOOL saved_fit = fit_best, saved_ran_out = ran_out_of_room;
+    uint16_t saved_win = run_bank_win_code; /* this inner build sets its own address */
+    uint64_t crc;
+
+    /* Chosen on its own, so it matches a build made without the Winter theme. */
+    fit_best = FALSE;
+    ran_out_of_room = FALSE;
+    crc = without_winter_once(input_file, seed, flags);
+    if (!crc && ran_out_of_room) {
+        fit_best = TRUE;
+        ran_out_of_room = FALSE;
+        crc = without_winter_once(input_file, seed, flags);
+    }
+    winter_no_room = !crc && ran_out_of_room;
+    fit_best = saved_fit;
+    ran_out_of_room = saved_ran_out;
+    run_bank_win_code = saved_win;
+    return crc;
+}
+
 /**
  * Randomizes a Dragon Warrior rom file
  *
@@ -4734,8 +5003,8 @@ uint64_t dwr_randomizeWithoutWinterTheme(const char* input_file, uint64_t seed, 
  * @return A checksum for the new rom. This checksum is taken before certain
  *      options which don't affect gameplay.
  */
-uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
-        const char *sprite_name, const char* output_dir)
+static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *flags,
+        const char *sprite_name, const char* output_dir, BOOL fit_game, BOOL fit_extras)
 {
     uint64_t crc = 0;
     char output_file[1025] = { 0 };
@@ -4744,7 +5013,7 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
 
     check_structs();
 
-    snprintf(output_file, 1024, "%s/DWRando.%"PRIu64".%s.nes", output_dir,
+    snprintf(output_file, 1024, "%s/DWR.%"PRIu64".%s.nes", output_dir,
             seed, flags);
     printf("Using seed# %"PRIu64"\n", seed);
     printf("Using flags %s\n", flags);
@@ -4765,15 +5034,25 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
     }
     no_space_handler = &on_no_space;
 
+    fit_best = fit_game;
+    fail_stage = 1;
     winter_theme(rom);
 
     apply_stuff_to_rom(rom);
 
     crc = crc64(0, rom->content, 0x10000);
+    /* Music and the look of the game come after the checksum and can be packed on their own. */
+    fit_best = fit_extras;
+    fail_stage = 2;
     printf("Checksum: %016"PRIx64"\n", crc);
     if(WINTER_THEME(rom))
     {
         crc = dwr_randomizeWithoutWinterTheme(input_file, seed, flags);
+        if (!crc) {
+            if (winter_no_room)
+                dwr_no_room();
+            dwr_give_up("Could not make the checksum without the Winter theme.");
+        }
         printf("Checksum without winter theme: %016"PRIx64"\n", crc);
     }
 
@@ -4796,6 +5075,9 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
     sprite(rom, sprite_name);
     invisible_npcs(rom); // in case the custom sprite also changed NPCS.
     noir_mode(rom);
+    free_charlock(rom);
+    auto_return(rom);
+    name_entry_wrap(rom);
 
 
     no_space_handler = NULL;
@@ -4813,18 +5095,79 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
     return crc;
 }
 
+/**
+ * Randomizes a Dragon Warrior rom file. If the code does not fit, the build is tried again with
+ * the code packed more tightly, first for what comes after the checksum, then for everything.
+ *
+ * @return A checksum for the new rom, or 0 if it could not be made.
+ */
+uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
+        const char *sprite_name, const char* output_dir)
+{
+    BOOL fit_game = FALSE, fit_extras = FALSE;
+    uint64_t crc;
+
+    for (;;) {
+        ran_out_of_room = FALSE;
+        crc = dwr_randomize_once(input_file, seed, flags, sprite_name, output_dir, fit_game, fit_extras);
+        fit_best = FALSE;
+        if (crc || !ran_out_of_room)
+            return crc;
+        if (fail_stage == 1) {
+            if (fit_game)
+                return 0;
+            fit_game = TRUE;
+            fit_extras = FALSE;
+        } else if (!fit_extras) {
+            fit_extras = TRUE;
+        } else if (!fit_game) {
+            /* Last resort. A music pack can then change the checksum, but the build works. */
+            fit_game = TRUE;
+            fit_extras = FALSE;
+        } else {
+            return 0;
+        }
+        printf("Out of room, packing the code more tightly...\n");
+    }
+}
+
 // Looks through the ROM for at least n bytes of free space
 uint16_t find_free_space(uint8_t *content, uint16_t start, uint8_t n)
 {
     return find_free_space_in(content, start, 0xfffe, n);
 }
 
-// The same, for code that has to stay below end (not inclusive), such as within one bank.
-// If there is no room, randomizing stops and returns an error.
-uint16_t find_free_space_in(uint8_t *content, uint16_t start, uint16_t end, uint8_t n)
+/* First fit is what every earlier build used, so it stays the default. Best fit takes the smallest
+ * gap that is big enough and leaves the large gaps for large pieces of code. It is only tried after
+ * a build ran out of room, so builds that already worked keep exactly the same bytes. */
+
+/* The search itself. Returns the address, or -1 when nothing fits. */
+static int search_free_space(uint8_t *content, uint16_t start, uint16_t end, uint8_t n)
 {
     BOOL found;
     uint32_t i, j;
+
+    if (fit_best) {
+        uint32_t at, run, best_at = 0, best_len = 0x10000;
+
+        for (at = start; at < end; ) {
+            if (content[at] != 0xff) {
+                at++;
+                continue;
+            }
+            run = 0;
+            while (at + run < end && content[at + run] == 0xff)
+                run++;
+            if (run >= n && run < best_len) {
+                best_len = run;
+                best_at = at;
+            }
+            at += run;
+        }
+        if (best_len != 0x10000) {
+            return (int)best_at;
+        }
+    }
 
     for(i = start; i + n <= end; i++)
     {
@@ -4841,10 +5184,51 @@ uint16_t find_free_space_in(uint8_t *content, uint16_t start, uint16_t end, uint
         if(found)
             return i;
     }
-    printf("Not enough space left for these %d bytes!\n", n);
+    return -1;
+}
+
+// Like find_free_space, for code that has to stay below end (not inclusive), such as within one bank.
+// If there is no room, randomizing stops and returns an error.
+uint16_t find_free_space_in(uint8_t *content, uint16_t start, uint16_t end, uint8_t n)
+{
+    int at = search_free_space(content, start, end, n);
+
+    if (at < 0) {
+        printf("Not enough space left for these %d bytes!\n", n);
+        dwr_no_room();
+    }
+    return (uint16_t)at;
+}
+
+/* Like find_free_space, but returns -1 instead of stopping the build when nothing fits. */
+int dwr_try_free_space(uint8_t *content, uint16_t start, uint8_t n)
+{
+    return search_free_space(content, start, 0xfffe, n);
+}
+
+/* Stops the build as if the ROM were full, so it can be tried again with tighter packing. */
+void dwr_no_room(void)
+{
+    ran_out_of_room = TRUE;
     if (no_space_handler)
         longjmp(*no_space_handler, 1);
     abort();
+}
+
+/* Stops the build for good, with no second try. */
+void dwr_give_up(const char *why)
+{
+    printf("%s\n", why);
+    ran_out_of_room = FALSE;
+    if (no_space_handler)
+        longjmp(*no_space_handler, 1);
+    abort();
+}
+
+/* True while the second try with tighter packing is running. */
+BOOL dwr_packing(void)
+{
+    return fit_best;
 }
 
 // Looks through the ROM for free space and prints it
