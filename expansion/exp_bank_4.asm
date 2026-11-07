@@ -56,10 +56,6 @@ credit_start:
 
     ; clear Zero page and RAM famistudio uses
     lda #0
-    ldx #$f
--   sta FAMISTUDIO_ASM6_ZP_ENUM,x
-    dex
-    bpl -
     tax
 -   sta FAMISTUDIO_ASM6_BSS_ENUM,x
     sta $00,x
@@ -86,7 +82,11 @@ credit_start:
 
     lda #0
     sta FRAMECOUNT
-    ; wait for 240 frames
+    lda NMI_SKIP_TILE
+    sta NEXT_TILE
+    lda #$88        ; NMI back on now that everything is set up
+    sta PPUCTRL
+    ; wait for 30 frames
     ldx #30
 -   jsr exp_wait_for_nmi
     dex
@@ -321,6 +321,7 @@ handle_instruction:
     jsr bin_to_bcd
     ldx #2
     jsr print_bcd_x
+    rts
 
 +next_instr:
     cmp #INSTR_SHOW_NUMBER
@@ -332,7 +333,6 @@ handle_instruction:
     lda (STATS_ADDR),y
     sta TMP_ADDR + 1
     jsr addr_to_bcd         ; convert the value at the address to BCD
-    ldx #4
     jsr print_bcd           ; print the last 4 digits of the BCD to the screen
     lda #2
     jsr add_stats_addr      ; Add 2 to the script pointer
@@ -941,7 +941,7 @@ calculate_play_time:
     sbc #1
     sta REMAINDER
     lda REMAINDER+1
-    sbc #1
+    sbc #0
     sta REMAINDER+1
     +
     ; divide by 6 to get centiseconds
@@ -1186,6 +1186,7 @@ nmi:
     sta PPUADDR
     lda #%00011010
     sta PPUMASK     ; enable rendering
+credits_music_update:
     jsr famistudio_update
     pla
     tay

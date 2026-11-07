@@ -2,6 +2,8 @@
 .base $8000
 
 exp_start_dwr_credits:
+    lda #0          ; the NMI also writes the mapper, so keep it out of the switch
+    sta PPUCTRL
     lda #$a9        ; lda
     sta $200
     lda #%00000010  ; Change banking mode

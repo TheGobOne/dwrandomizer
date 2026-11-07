@@ -247,6 +247,8 @@ function setup_ui() {
         'The stats window will also have a death counter.');
     ui.addOption   ('Cosm.',   3, 14, 3, 'Allow Custom Spell Names',
         'Allow spell names to be changed based on the chosen sprite.', true);
+    ui.addOption   ('Cosm.',   9, 14, 1, 'Disable Screen Shake',
+        'Keeps the screen still when you take damage.', true);
     ui.addOption   ('Cosm.',   5, 14, 2, 'Skip Original Credits',
         'Skip the original credits and go straight to stat scroll.', true);
 
@@ -289,6 +291,8 @@ function setup_ui() {
         'One of the above': 7
     });
 
+    ui.addTriOption('2', 12, 11, 2, 'Run Bank',
+        'Each win banks a guaranteed escape (max 99). Spend one with the BANK battle command. Not usable on the Dragonlord.');
     ui.addTriOption('2',  0, 15, 6, 'Charlock Inn',
         'Make the final dive easier by having a comfy bed and breakfast at the Dragonlord\'s.');
     ui.addTriOption('2',  2, 19, 0, 'Random Key Carry',

@@ -4,6 +4,8 @@
 #include <string.h>
 #include <time.h>
 
+#include "base32.h"
+#include "custom_music.h"
 #include "dwr.h"
 #include "dwr_types.h"
 #include "map.h"
@@ -41,8 +43,48 @@ int main(int argc, char **argv)
     char *flags;
     char default_flags[] = DEFAULT_FLAGS;
     char *input_file, *output_dir;
+    static const char *const bank_levels[4] = {"normal", "easy", "strict", "verystrict"};
+    int bank_cap = 0, bank_level = 0, encounters = 0, quick_spell = 0, key_herb = 0;
+    static const char *const encounter_rates[4] = {"default", "low", "medium", "high"};
+    char encoded[64] = {0};
 
     printf("DWRandomizer version %s\n", VERSION);
+    while (argc >= 3 && !strncmp(argv[1], "--", 2)) {
+        if (!strcmp(argv[1], "--music")) {
+            if (!custom_music_load(argv[2]))
+                exit(1);
+        } else if (!strcmp(argv[1], "--encounters")) {
+            for (encounters = 3; encounters > 0; encounters--)
+                if (!strcmp(argv[2], encounter_rates[encounters]))
+                    break;
+        } else if (!strcmp(argv[1], "--spoiler")) {
+            dwr_set_spoiler(!strcmp(argv[2], "on"));
+        } else if (!strcmp(argv[1], "--key-herb")) {
+            key_herb = !strcmp(argv[2], "on");
+        } else if (!strcmp(argv[1], "--quick-spell")) {
+            quick_spell = !strcmp(argv[2], "on");
+        } else if (!strcmp(argv[1], "--bank-cap")) {
+            bank_cap = atoi(argv[2]);
+            if (bank_cap < 1 || bank_cap > 99) {
+                fprintf(stderr, "--bank-cap must be from 1 to 99\n");
+                exit(1);
+            }
+        } else if (!strcmp(argv[1], "--bank-level")) {
+            for (bank_level = 0; bank_level < 4; bank_level++)
+                if (!strcmp(argv[2], bank_levels[bank_level]))
+                    break;
+            if (bank_level == 4) {
+                fprintf(stderr, "--bank-level must be normal, easy, strict or verystrict\n");
+                exit(1);
+            }
+        } else {
+            fprintf(stderr, "Unknown option %s\n", argv[1]);
+            exit(1);
+        }
+        argv[2] = argv[0];
+        argv += 2;
+        argc -= 2;
+    }
     if (argc < 3) {
         print_usage(argv[0], default_flags);
         exit(0);
@@ -65,9 +107,29 @@ int main(int argc, char **argv)
         sprite = "Random";
     }
 
+    if (bank_cap || bank_level || encounters || quick_spell || key_herb) {
+        uint8_t raw[25] = {0};
+        strncpy(encoded, flags, 40);
+        base32_decode((uint8_t *)encoded, raw);
+        if (bank_cap || bank_level) {
+            raw[12] = (uint8_t)(bank_cap | ((bank_level & 2) << 6));
+            raw[14] = (uint8_t)((raw[14] & 0xfe) | (bank_level & 1));
+        }
+        raw[3] = (uint8_t)((raw[3] & 0xfe) | ((encounters >> 1) & 1));
+        raw[6] = (uint8_t)((raw[6] & 0xfe) | (encounters & 1));
+        if (key_herb)
+            raw[8] |= 0x10;
+        if (quick_spell)
+            raw[11] |= 0x01;
+        base32_encode(raw, 25, (uint8_t *)encoded);
+        encoded[40] = '\0';
+        flags = encoded;
+    }
+
     printf("Randomizing using seed: %"PRIu64" with flags %s\n", seed, flags);
 
-    dwr_randomize(input_file, seed, flags, sprite, output_dir);
+    if (!dwr_randomize(input_file, seed, flags, sprite, output_dir))
+        return 1;
 
     return 0;
 }

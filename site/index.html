@@ -1,0 +1,966 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dragon Warrior Randomizer - TheGobOne Remix</title>
+<style>
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 var(--font,system-ui,sans-serif)}
+button,input,select{font:inherit;color:inherit}
+.sr{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+:focus-visible{outline:3px solid var(--focus,#ffd23f);outline-offset:2px}
+.backlink{display:inline-block;padding:.5rem .75rem;color:var(--link,var(--fg));font-size:.85rem;text-decoration:underline}
+a{color:var(--link,inherit)}
+/* shared control skeleton, themed per page through variables */
+.opt{position:relative;padding:.55rem .6rem;display:grid;grid-template-columns:auto 1fr;column-gap:.7rem;row-gap:.1rem;align-items:start}
+.opt .tog{grid-row:1/3;min-width:3.1rem;min-height:2.75rem;cursor:pointer;background:var(--tog-bg,transparent);border:var(--tog-bd,2px solid currentColor);border-radius:var(--tog-r,0);padding:0 .35rem;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+.opt .tog[data-state="1"]{background:var(--tog-on,var(--accent));color:var(--tog-on-fg,var(--bg))}
+.opt .tog[data-state="2"]{background:var(--tog-rnd,var(--accent2,var(--accent)));color:var(--tog-on-fg,var(--bg));border-style:dashed}
+.opt .name{font-weight:700;align-self:center;cursor:pointer}
+.opt .desc{grid-column:2;margin:0;font-size:.85rem;color:var(--muted)}
+.opt.k-select,.opt.k-pack{grid-template-columns:1fr}
+.opt .hint{color:#ffd23f}
+.opt.k-select .desc,.opt.k-pack .desc{grid-column:1}
+.opt select,.opt input[type=number],.opt input[type=file]{max-width:100%;background:var(--field,transparent);border:var(--field-bd,2px solid currentColor);border-radius:var(--tog-r,0);padding:.45rem .5rem;min-height:2.6rem}
+.opt.k-toggle>.bankbox,.opt.k-toggle>.packbox{grid-column:1/-1}
+.bankbox,.packbox{margin:.5rem 0 .2rem;padding:.7rem;border:var(--sub-bd,2px dashed currentColor);display:grid;gap:.4rem}
+.sublab{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.caprow{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.caprow input[type=range]{flex:1 1 8rem;min-height:2.5rem;accent-color:var(--accent)}
+.caprow input[type=number]{width:5rem}
+.banknote,.packstat{margin:0;font-size:.85rem}
+.tiers,.scenes{display:flex;flex-wrap:wrap;gap:.3rem}
+.tier,.scene{border:1px solid currentColor;padding:.1rem .4rem;font-size:.78rem}
+.scene.used{background:var(--accent);color:var(--bg)}
+.songs{margin:0;padding-left:1.1rem;font-size:.85rem}
+.mini,.btn{cursor:pointer;min-height:2.75rem;padding:.4rem .9rem;background:var(--btn-bg,var(--accent));color:var(--btn-fg,var(--bg));border:var(--btn-bd,2px solid currentColor);border-radius:var(--tog-r,0);font-weight:700}
+.mini{min-height:2.4rem;padding:.2rem .7rem;font-size:.85rem;--btn-bg:transparent;--btn-fg:currentColor}
+input[type=text]{background:var(--field,transparent);border:var(--field-bd,2px solid currentColor);border-radius:var(--tog-r,0);padding:.5rem;min-height:2.75rem;max-width:100%}
+.result{margin:.5rem 0;word-break:break-all}
+.sumlist{margin:0;padding-left:1.1rem;font-size:.9rem}
+.romfile{max-width:100%}
+.tab{cursor:pointer}
+.count{display:inline-block;min-width:1.4em;text-align:center;font-size:.75em;padding:0 .3em;margin-left:.35em;border:1px solid currentColor}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+:root{--blue:#00008a;--line:#5a6bd0;--soft:#b9c4ff;--bg:#000;--fg:#fff;--accent:#fff;--muted:var(--soft);--font:"Courier New",ui-monospace,monospace;--tog-bd:0;--tog-on:#fff;--tog-on-fg:var(--blue);--tog-rnd:var(--soft);--field:var(--blue);--field-bd:2px solid #fff;--btn-bg:var(--blue);--btn-fg:#fff;--btn-bd:3px double #fff;--sub-bd:2px solid var(--soft);--focus:#ffff55}
+body{font-weight:700;letter-spacing:.02em}
+.screen{max-width:1000px;margin:0 auto;padding:.5rem 1rem 2rem;display:grid;gap:1.4rem}
+.win{background:var(--blue);border:4px double #fff;border-radius:6px;padding:1rem 1rem .8rem;box-shadow:0 0 0 3px #000,0 0 0 5px #fff4;position:relative}
+.win h2{margin:0;font-size:1rem;text-transform:uppercase;letter-spacing:.12em;background:#000;padding:0 .5rem;position:absolute;top:-.8rem;left:1rem}
+.title{text-align:center}
+.title h1{font-size:clamp(1.2rem,5vw,2.2rem);letter-spacing:.2em;margin:.2rem 0}
+.title p{margin:.2rem 0;color:var(--muted);font-weight:400}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center;margin:.4rem 0}
+.row label{min-width:4.5rem}
+.row input[type=text]{flex:1 1 14rem;color:#fff;font-size:.85rem}
+.main{display:grid;grid-template-columns:15rem 1fr;gap:1.4rem;align-items:start}
+.cmd{display:flex;flex-direction:column;gap:.1rem}
+.cmd .tab{background:none;border:0;color:#fff;text-align:left;padding:.45rem .5rem .45rem 1.6rem;min-height:2.75rem;position:relative;font-weight:700;text-transform:uppercase;letter-spacing:.06em}
+.cmd .tab::before{content:"";position:absolute;left:.4rem;top:50%;margin-top:-.4rem;border-left:.7rem solid transparent;border-top:.4rem solid transparent;border-bottom:.4rem solid transparent}
+.cmd .tab.active::before{border-left-color:#fff}
+.cmd .tab:hover::before{border-left-color:var(--soft)}
+.cmd .tab.active{background:#000}
+.cmd .count{float:right;border:0;color:var(--soft)}
+.panel .blurb{margin:0 0 .6rem;color:var(--muted);font-weight:400}
+.opts{display:grid;gap:.1rem}
+.opt{border-bottom:1px dotted var(--line)}
+.opt .tog{font-family:inherit}
+.opt .desc{font-weight:400}
+.opt select,.opt input{color:#fff}
+.opt select option{background:var(--blue)}
+.go{width:100%;font-size:1.1rem;letter-spacing:.2em;text-transform:uppercase}
+.sumwin .sumlist{columns:2}
+@media (max-width:720px){.main{grid-template-columns:1fr}.cmd{display:grid;grid-template-columns:1fr 1fr}.sumwin .sumlist{columns:1}}
+
+/* DWR font, built from the player's own ROM tiles */
+@font-face{font-family:"DWR Mockup";src:url(data:font/woff;base64,d09GRgABAAAAAAtYAAoAAAAALzAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAABPUy8yAAABZAAAADAAAABgZDhqeGNtYXAAAAHYAAAAjQAAAK4q6SzJZ2x5ZgAAAxwAAAaSAAAnkijMfOJoZWFkAAAA9AAAADYAAAA2L/dddWhoZWEAAAEsAAAAIAAAACQFegN6aG10eAAAAZQAAABEAAABZPmcAABsb2NhAAACaAAAALQAAAC0xFjOym1heHAAAAFMAAAAGAAAACAAawBGbmFtZQAACbAAAABaAAAAacbT5Pxwb3N0AAAKDAAAAUsAAALeUQNRegABAAAAAQAAHmshLl8PPPUAAQMgAAAAAOcShMUAAAAA5xOWQAAA/5wCvAK8AAAAAwACAAAAAAAAeJxjYGRgYNrzfw4DA7MCAwNDCtMeBqAICogEAGEBA/p4nGNgZGBgiGRwYRBkAAEmBjQAABHvALJ4nGNgZlZgnMDAysDCQBgwMjAowDn2QACkFFT3MO35P4eBgWkPQwqaeqBiAOERBnp4nGP8wsDACMRMe4A4goGBWYEyDDMDZB7jBAQbRsPYcPV7MOXR1dASM+qgYmS7wWKw8ImA0MjuhMnhCgdYWAAA4+obfHicXYw/DgFxFIS/RaFUKLYSifxq29L4v4uEZBGEiLiGU2g0rqBXOcWW2zvBivaZiChMMjPJ+14GyAF5uaz0Pl3govYp6VKkRp0GLTZs2bHn6G7ubqaPKo6AJp0vOfwIlsgPe1pmL7um5/SkbZ+KUMC/PELGLJgxp82IIWsm9OjTJdZ6xJIpKwZv0ZIh7wAAAAAAAAAAAABNAH0AtwD+AT4BagGjAdICGQJUAooCyAL7AzsDcAOpA+sENQRgBJgE3AUKBXEFtwX4BjYGdgaoBt8HFwdeB6MICghECIAIswj/CUUJiwnXCgEKKgpxCsIK8QsqC3sLqQwCDGIMrwztDUENjA3HDfUORw6YDvIPPA97D7gP0w/uD/4QGRAmEFoQhhCqENIQ/BEwEVoReBGeEbER2hIEEi4ScRLAEwwTGBNDE20TyXicvVpdbhs3EOaqgZ00ag3DEPLQh2CxCIqiBgpjUeghD31oD+ED8AA+ig6QA/QQPgAPoKPoNUo5MyR3SA5/VgpqaM3VH+f/mx9KbZVWavO6eVU/qFv1Xt2pB/VB/aI+qkn9qn5Xfyj1MO7Gad5Nn+w1tlb7WTMczi/a2MWY80tjPcKHN686/VOWG+DsOeOM+LHXbK8ndk1I+/F81MgA3PFLD6fzNlBS6p1SRclFmScnH6xADzcEOU9Wji2tGkUCasZsXr/+E0mmLJUyTdC2TNe+JulZoo/yn4/xi+eXSPTAzo9VbtTgaAM/+4Kt4R7siNq2exqQX9tn3NSgCLhLOLA0ZfrqHiwKWnaaHt09UNw8f/3XUjGwosRWTLhfa1m/91NFs0SlqUyl3hYpBlk+OZqTu7x8oBxnO/jTtLD9L/SasfCa5DUkk/hi7jWr42ZMLChzgPY8oD1rGn7ONfzg9i9LbOEAPfLoKUcIhN7z3B8XDzXv4XRBGKBYgL7YbR3thpxcPu9BJcsS+aDPFRIOzFpF5LfvOXuJao3Ve7mUnhbwM5e8Z0txqjNT1r11KMiH2cXpYHh0cE4etKzGI1GMa6Dbb19E2ch7GjodC9aUoyW3LUq9bSCGzer33IPG3W+b3VhL7M6dHim/YE6VGHOrlNBvxHyO+oBIumUZPWTyPJunWbyCvIPbbefz57KCtMOBVwfkr8ndMQei9416KaBD5r8CWhBC+Gh59OVQjhk5Ct8qYyU8ydXRU+EyaU3Er0Wp98Xo9N4zq736rP5Sf5O8Xqb9hfc+ul6wgMDbbf9t4v2pprzFStKQxkoRmVqsgufJmrOlAu5egg2tHJ5hhIAMgE66hU61nOYRo6oHei/TQA/tFjICbVNNN/AmeEVOvpZ1oErjMqY5FoMkpLOFZkqnO7MRBpWNSjUL/A/VfJ7GG7WY451nM7FGwbQZY5HcmnXEUmccOdorWkQhmr4bN5PDoCoX0NUg5gisrELM+yuQMuDQJUDps0wDMK1XlfWa69R518S82+4ynLQOCHF0EwHNJgMxEytpJqhQ86YACBIgAiaU6EZYOLEr+C+Gjcb21z+GA4idlaEd9VgL/dLoNbwsfcnq4dBV1kqydmd5L+WDwmtSShD6Z6ntubzLLeFaIUP2tbhd9fOKqoFpx4dFMXPD+yJXNBPrnJjwe/KFpV+J5lKX7Dn7qQXrgQzb8TpLjrW0GFkySY8Fv/qpacuZMLk38paWSLZiHnuVGGxaIJ1y+v4IqUh1fGrf5rxmZnaV57knP07omd/+PxqPm6YYea7UeKl7KjdOkb5/7pB+z+SHytP137R46aWZaygPsR6ldpXfO9+jQqXL/SzLd10cf0545mvKcdpxp5wvJa5nj3G8hPXSj5e5/w7ZdUX+qHRaEl435mzVHMIQV8qi8eQrH673RWFTLwkahx64phtmQOOOQ8QhBvF5ba4V3mvrq1kZrZpyz74OrXgQPqe5b9Ft1meCkN/bU53rULmi/c4oaUXL9ZmjsE5tHkMmodVEmotYXIvuybr3HhuhfgaSPJgcMOIhWgH16/DeUeXnuWh2ZcY0yhwy8jT+D8NZ3cFZGxkrtowmmqIds2hIwbEa3QFtmAqCKpyWXJ49kNT5v6USTGqjN0rDEJ1RDnMa7KJnNxWmz9OX7beGR5z2Ll1qOKPZzX5C5Uo07KwNfGsDva39psFvqb37JB0x2g+8gXkccNPFC3gi7DrYXa1F8VuIhNgH23drs/jaqc6ulFOwtswPWMooOTAPmdzu/qyVTqmh5MDjhIOf3rHG5Yb0lZ1QJJqOdJPailBcF2bz7ttPyeV309pvGPF1C9YvyjvH58mzu/DXCHrZUeuoR3sLfij8uuJjPm1J7ZachRlyDRjewxqHGpxTfPti6aTzlfgUlZ2P4IRXaxfDBwI6IBIGKtZvlbJ0htPitz4/zq6fgchb0EjTPArkvhHnPSGavPcsp3/Gt7nLcZ9jBOPLBD7Qx3c+HujnCdqf1JR+x5J6gteIYQ6Kc1nWZNV3FP0r3zHfsxZTwvXkfSx5sDjozzvM07JJW54aDzFJ6vtoEHfZLIejU4T0s1wB89mbWTD/EOpf/yOcVv3bx52Am7N0L8cnNYVaeuI+ITE2EF/Wwy3K/+kynsc2yfdSP5nZlVqMHtEMqvRbr2QnTiHfMdr0rnoOz7ragemOz9t9rTbx58nnEPnc0QDebzH3GnjV/ySKnm7Zh44MzdK//wBoZVgiAAB4nC2IsQqAIAAFTwuihiDoA1z6hb7A1cXFWUQaChTB/0+jGx53Dxg5EXQEy7cdydRqQIxze3a23yUrh3ZWmRTumm286uMLGodFYUgEbiq5deRq9uApL6yCDXQAAHicfZHnUhRBAAZpggiKIAIKiBIEFQGP2QkklTuCgEQDyIPw/kLPf6/quqaurnu+2u3q7vr/5/b+20M3PfTSxyP6ecwAgzzhKUM8Y5gRnjPKC8YYZ4KXvGKSKaZ5zQxveMssc8yzwDsWWeI9H/jIMp9YYZU1PtNinUBDJJEpbLDJFtvs8IWvfGOXNh322OeAQ75zxDEn/OCUM8654JIrfvKL3/zhmhv+9t21Wk1LrssgGxllklkWuSE3H5i1slbWylpZK2tlrayVq9WWHbkn9+WBPHxgcVWxX+wX+8V+sV/sF/vFfrFf7EfdqBt1o27UjbpRN+pG3Vhdt0W3RbdFt0W3Jbcl+8l+sp/sJ/vJfrKf7Cf7yX6oT7KeLQfvCt7VeEuob8QlQTfYCfc3htTJslr+p9FNnpPnUDvuCe4Jdae/N7pNvb39Dwnlf7MA) format("woff");font-weight:100 900;font-display:block}
+:root{--font:"DWR Mockup","Courier New",monospace}
+body{font-synthesis:none;-webkit-font-smoothing:none;font-smooth:never;letter-spacing:0;font-size:16px;line-height:1.5}
+body *{font-size:16px!important;letter-spacing:0!important}
+.title h1{font-size:32px!important}
+.screen{max-width:1200px}
+.idrow{display:flex;flex-wrap:wrap;gap:.8rem 1.6rem;align-items:start}
+.idfields{flex:0 1 auto;min-width:0;max-width:100%}
+.idpresets{flex:1 1 15rem;min-width:0;margin-top:.4rem}
+.presetgrid{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.4rem}
+.row input[type=text]{flex:0 1 auto;width:calc(40ch + 1.2rem);max-width:100%}
+.screen{grid-template-columns:minmax(0,1fr)}
+.screen>*{min-width:0}
+.main{grid-template-columns:19rem minmax(0,1fr)}
+.row input[type=text]{flex:1 1 auto;min-width:0;width:calc(40ch + 1.2rem)}
+.idfields{flex:0 1 calc(40ch + 7rem)}
+.idbtns{margin-left:calc(4.5rem + .6rem)}
+.idpresets{flex:1 1 18rem;margin-top:0}
+input[type=file]::file-selector-button{font:inherit}
+.meter{height:1.1rem;border:2px solid #fff;background:#000;margin:.8rem 0 .3rem}
+.meter i{display:block;height:100%;background-image:repeating-linear-gradient(90deg,var(--c) 0 14px,transparent 14px 16px)}
+.meter i.gentle{--c:#4cdc48}.meter i.balanced{--c:#fcd800}.meter i.brutal{--c:#f83800}
+.feel{margin:0}
+@media (max-width:720px){.main{grid-template-columns:minmax(0,1fr)}.cmd{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.idfields{flex:1 1 100%}.row label{width:100%}.idbtns{margin-left:0}.title h1{font-size:24px!important}.row input[type=text]{width:100%}}
+.row label{min-width:5.5rem}
+.idbtns{margin-left:calc(5.5rem + .6rem)}
+@media (max-width:720px){.idbtns{margin-left:0}}
+.leftcol{display:grid;gap:1.4rem;min-width:0}
+.feelwin .meter{margin-top:.4rem}
+.idfields{flex-basis:calc(40ch + 8rem)}
+@media (max-width:720px){.idfields{flex-basis:100%}}
+body *{font-size:12px!important}
+.title h1{font-size:24px!important;margin:0}
+.title p{display:none}
+.backlink{padding:.1rem .5rem}
+.win{padding:.7rem .7rem .5rem}
+.row{margin:.25rem 0;gap:.4rem}
+.row label{min-width:3.5rem}
+.idbtns{margin-left:calc(3.5rem + .4rem)}
+.idfields{flex-basis:calc(40ch + 5rem)}
+.row input[type=text]{width:calc(40ch + 1.2rem)}
+.idpresets{margin-top:0}
+.cmd .tab{min-height:1.9rem;padding-top:.2rem;padding-bottom:.2rem}
+.opt{padding:.3rem .5rem}
+.opt .tog{min-height:2rem;min-width:2.6rem}
+.main{grid-template-columns:15rem minmax(0,1fr) 20rem;gap:1rem}
+.leftcol,.rightcol{display:grid;gap:1rem;align-content:start;min-height:0;min-width:0}
+@media (min-width:1000px) and (min-height:500px){
+ html,body{height:100%;overflow:hidden}
+ #app{height:100%}
+ .screen{height:100vh;max-width:1500px;grid-template-rows:auto auto auto minmax(0,1fr);gap:.8rem;padding-bottom:.6rem}
+ .main{min-height:0;height:100%;align-items:stretch}
+ .panel{min-height:0;display:flex;flex-direction:column}
+ .panel>*{min-height:0}
+ .panel .opts{flex:1 1 auto;overflow:auto}
+ .leftcol,.rightcol{height:100%;grid-template-rows:minmax(0,auto) auto}
+ .rightcol{grid-template-rows:minmax(0,1fr) auto}
+ .sumwin{min-height:0;display:flex;flex-direction:column}
+ .sumwin .sumlist{overflow:auto;columns:1}
+}
+@media (max-width:999px){.main{grid-template-columns:15rem minmax(0,1fr)}.rightcol{grid-column:1/-1}}
+@media (max-width:720px){.main{grid-template-columns:minmax(0,1fr)}}
+.idfields .row:not(.idbtns){flex-wrap:nowrap}
+.idfields{flex:0 0 auto}
+.row input[type=text]{flex:0 0 auto}
+.title{padding:.3rem}
+.sumwin .sumlist{columns:1!important}
+@media (min-width:1000px) and (min-height:500px){
+ .leftcol{grid-template-rows:minmax(0,1fr) auto}
+ nav.cmd{min-height:0;display:flex;flex-direction:column}
+ nav.cmd>.cmd{flex:1 1 auto;min-height:0;overflow:auto}
+}
+@media (max-width:720px){.idfields{flex:1 1 100%}.idfields .row:not(.idbtns){flex-wrap:wrap}.row input[type=text]{flex:1 1 100%;width:100%}}
+.idfields .row label{flex:0 0 4rem;min-width:0}
+.idbtns{margin-left:calc(4rem + .4rem)}
+.sumwin .sumlist{column-count:1!important;overflow-x:hidden}
+@media (min-width:1000px) and (min-height:500px){.sumwin .sumlist{height:100%;display:block}}
+@media (max-width:720px){.idfields .row label{flex:1 1 100%}.idbtns{margin-left:0}.cmd .tab{padding-left:1.2rem}}
+@media (min-width:1000px) and (min-height:500px){
+ .main{grid-template-columns:13.5rem minmax(0,1fr) 17rem}
+ .leftcol,.rightcol{grid-template-rows:minmax(0,max-content) auto!important;align-content:start}
+ .sumwin .sumlist{height:auto;flex:1 1 auto;min-height:0;overflow-y:auto}
+}
+.sumwin .sumlist{columns:auto!important;column-count:auto!important}
+.heropic{width:96px;height:96px;margin:.3rem auto .5rem;background:#000;border:2px solid #fff;display:grid;place-items:center;box-sizing:content-box}
+.heropic img{width:96px;height:96px;image-rendering:pixelated;display:block}
+.heropic img[hidden],.heroq[hidden]{display:none}
+.heroq{font-size:32px!important}
+.herosel{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.3rem;align-items:stretch}
+.herosel select{min-width:0;width:100%;background:var(--blue);color:#fff;border:2px solid #fff}
+.herosel .mini{padding:.2rem .4rem;min-height:2rem}
+.trackbox{display:grid;gap:.6rem}
+.onlytag{display:flex;align-items:center;gap:.5rem;cursor:pointer}
+.onlytag input{width:1.1rem;height:1.1rem;accent-color:#fff}
+.trackcols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,24rem),1fr));gap:.6rem 1.4rem;align-items:start}
+.trackcol{display:grid;gap:.25rem;min-width:0}
+.trackrow{display:grid;grid-template-columns:10rem minmax(0,1fr) 5.5rem;gap:.4rem;align-items:center}
+.trackrow select{width:100%;min-width:0;min-height:1.7rem;background:var(--blue);color:#fff;border:2px solid #fff}
+.trackrow select:disabled{opacity:.55}
+.tagn{color:var(--muted);text-align:right}
+.trackrow{grid-template-columns:11rem minmax(0,1fr) 2rem}
+.trackcols{grid-template-columns:repeat(auto-fit,minmax(min(100%,22rem),1fr))}
+.savedpreset{display:inline-flex;gap:2px}
+.presetdel{padding-inline:.5rem}
+.idpresets{display:flex;flex-direction:column;align-self:stretch}
+.presetarea{flex:1;display:flex;flex-direction:column;gap:.4rem}
+.presetgrid{align-content:flex-start}
+.presetsave{display:flex;gap:.4rem;margin-top:auto;align-items:center}
+.presetname{flex:0 1 calc(20ch + 1.4rem);width:calc(20ch + 1.4rem);min-width:0;box-sizing:border-box;background:var(--blue);color:#fff;border:2px solid #fff;font:inherit;padding:.2rem .4rem}
+.presetmsg{min-width:0}
+.tier{cursor:help}
+#tiertip{position:fixed;z-index:50;max-width:16rem;padding:.4rem .6rem;background:var(--blue);color:#fff;border:2px solid #fff;pointer-events:none}
+#tiertip[hidden]{display:none}
+#tiertip ul{margin:.2rem 0 0;padding:0;list-style:none}
+/* Seeds are 64 bits: 20 digits at most. */
+.row input#seed{flex:0 1 auto;width:calc(20ch + 1.8rem)}
+.romforget{min-height:0;padding:.05rem .5rem}
+.romforget[hidden]{display:none}
+.idfields .row label{min-width:5.5rem}
+.row input#checksum{flex:0 1 auto;width:calc(20ch + 1.8rem)}
+.btn[disabled]{opacity:.5;cursor:default}
+/* Short categories keep their rows compact instead of stretching to fill the panel. */
+.opts{align-content:start;grid-auto-rows:max-content}
+.opt{grid-template-rows:auto auto}
+.opt .tog{align-self:start}
+/* Menu group heads, option sections, and a tighter fit on short screens. */
+.menuhead{color:var(--soft);padding:.25rem .3rem .05rem;border-bottom:1px dotted var(--line);margin-top:.15rem}
+.optsec{margin:.55rem 0 .05rem;padding:0 .3rem;color:#ffd23f;border-bottom:2px solid var(--line);font-weight:700;text-transform:uppercase}
+.optsec:first-child{margin-top:0}
+.secnote{margin:.15rem .3rem .1rem;color:var(--muted);font-weight:400}
+.panel .blurb{flex:none}
+.cmd .tab .count{float:right}
+.cmd .tab{flex:none;white-space:nowrap}
+.menuhead{flex:none;white-space:nowrap}
+.idfields .row label{min-width:6.2rem}
+@media (min-width:1000px) and (min-height:500px){.main{grid-template-columns:15.5rem minmax(0,1fr) 17rem}}
+@media (min-width:1000px) and (max-height:760px){
+ .screen{gap:.65rem;padding-top:.35rem;padding-bottom:.4rem}
+ .title{padding:.1rem}
+ .row{margin:.15rem 0}
+ .row input[type=text],.idfields .btn,.presetarea .mini,.presetname{min-height:1.75rem;padding-top:.1rem;padding-bottom:.1rem}
+ .cmd .tab{min-height:1.45rem;padding-top:.05rem;padding-bottom:.05rem}
+ .heropic,.heropic img{width:48px;height:48px}
+ .heropic{margin:.1rem auto .25rem}
+ .herosel .mini{min-height:1.6rem}
+}
+.title h1{white-space:nowrap;font-size:min(24px,calc((100vw - 4rem) / 53))!important}
+.btn.go,.btn.go:hover{background:#fff!important;color:var(--blue)!important;border-color:#fff!important}
+.opt[data-id=safestart]>.name::after,.opt[data-id=safestart]>label::after,.opt[data-id=biome]>.name::after,.opt[data-id=encounters]>.name::after,.opt[data-id=encounters]>label::after,.opt[data-id=quickspell]>.name::after,.opt[data-id=quickspell]>label::after,.opt[data-id=bank]>.name::after,.opt[data-id=bank]>label::after,.opt[data-id=keyherb]>.name::after,.opt[data-id=keyherb]>label::after,.opt[data-id=noshake]>.name::after,.opt[data-id=noshake]>label::after,.opt[data-id=pack]>.name::after,.opt[data-id=pack]>label::after{content:'REMIX';display:inline-block;margin-left:.6em;padding:0 .3em;background:none;border:2px solid #8ff5b0;color:#8ff5b0;font-size:1em;line-height:1.1;white-space:nowrap}
+.colorrow{display:flex;gap:.3rem;align-items:center;margin-top:.3rem;flex:none}
+.colorrow select{flex:1 1 0;min-width:0;background:var(--blue);color:#fff;border:2px solid #fff}
+.colorpick{flex:none;width:2.2rem;height:1.6rem;padding:0;background:none;border:2px solid #fff;cursor:pointer}
+.colorpick[hidden]{display:none}
+/* The sprite box is square, sized to what the screen height leaves. */
+.heropic,.heropic img{width:var(--hero);height:var(--hero);box-sizing:border-box}
+.heropic{--hero:10rem;margin:.3rem auto .4rem}
+.heropic img{object-fit:contain;--hero:100%}
+.heroq{font-size:3rem}
+.idfields .result{margin:.2rem 0 0}
+.idfields .result:empty{display:none}
+.btn.go,.idfields .row .btn{white-space:nowrap;min-width:max-content!important}
+@media (min-width:721px){.idfields .row .btn.go{padding-left:.1rem!important;padding-right:.1rem!important}}
+@media (min-width:1000px) and (min-height:500px){
+ .leftcol{height:100%;min-height:0;grid-template-rows:minmax(0,1fr) auto auto!important;gap:.65rem}
+ .leftcol>:first-child{min-height:0;overflow:hidden}
+ .rightcol{height:100%;grid-template-rows:minmax(0,1fr)!important}
+ .heropic{--hero:clamp(96px,calc(100vh - 760px),190px);margin:.2rem auto .3rem}
+ .herowin{padding-top:.6rem;padding-bottom:.4rem}
+ .idfields{flex-basis:calc(40ch + 16rem)!important}
+}
+.idfields .btn.go{flex:none;width:auto;min-height:0}
+.row input#checksum{width:calc(16ch + 1.8rem)}
+/* Flags, Seed and Checksum make one block with matching edges and heights. */
+@media (min-width:721px){
+ .idfields{flex:0 0 auto!important;width:calc(6.2rem + .6rem + 40ch + 1.2rem)}
+ .idfields .row{flex-wrap:nowrap;align-items:stretch;gap:.6rem}
+ .idfields .row label{flex:0 0 6.2rem;min-width:0;align-self:center}
+ .idfields .row input#flags{flex:1 1 0;width:auto;min-width:0}
+ .idfields .row input#seed,.idfields .row input#checksum{flex:0 0 calc(20ch + 1.8rem);width:auto;min-width:0}
+ .idfields .row .btn{flex:1 1 0;min-width:0;min-height:0!important;margin:0;padding:.1rem .3rem;box-sizing:border-box;white-space:nowrap}
+ .idfields .row .btn.go{flex:2 1 0}
+}
+.colorwin{padding-top:.6rem;padding-bottom:.4rem}
+.colorwin .colorrow{margin-top:.1rem}
+.herowalk{width:100%;height:100%;image-rendering:pixelated;display:block}
+.herowalk[hidden]{display:none}
+.animrow{display:flex;align-items:center;gap:.4rem;margin-top:.25rem;cursor:pointer}
+.animnote{color:var(--muted);margin-left:auto}
+/* The title sits outside the menu window, so only the list inside it scrolls. */
+.legend{margin:0 0 .3rem;color:var(--muted);font-weight:400;flex:none;white-space:pre-wrap}
+::placeholder{color:var(--soft);opacity:1}
+@media (min-width:1000px) and (min-height:500px) and (max-height:1079px){.cmd .tab{min-height:1.45rem;padding-top:.05rem;padding-bottom:.05rem}}
+.cmd .tab:focus-visible{outline-offset:-3px}
+@media (min-width:1000px) and (min-height:500px){
+ .screen{grid-template-rows:auto auto minmax(0,1fr)}
+ .leftcol{grid-template-rows:minmax(0,max-content) auto auto!important;align-content:start}
+ .leftcol>:first-child{overflow:visible}
+}
+.opt.needsoff{opacity:.55}
+.spaceline{margin:.1rem .3rem .3rem;color:var(--muted);flex:none}
+.spaceline:empty{display:none}
+/* Options shrink to their column, so long labels can't push the panel sideways. */
+.opts{grid-template-columns:minmax(0,1fr)}
+.opt{min-width:0;grid-template-columns:auto minmax(0,1fr)}
+.opt.k-select,.opt.k-pack{grid-template-columns:minmax(0,1fr)}
+.opt select{width:100%;min-width:0}
+.bankbox,.packbox{grid-template-columns:minmax(0,1fr)}
+input[type=file]{min-width:0;max-width:100%}
+/* Every command always shows. The hero picture gives up the space on short screens. */
+@media (min-width:1000px) and (min-height:500px){
+ .leftcol{display:flex;flex-direction:column;overflow:hidden auto;padding-top:.7rem;margin-top:-.7rem;height:calc(100% + .7rem)!important}
+ .leftcol>*{flex:none}
+ .leftcol>.herostack{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+ .herostack>.herowin{flex:1 1 auto}
+ .herostack>.colorwin{flex:none}
+ .leftcol>nav.cmd{overflow:visible}
+ nav.cmd>.cmd{flex:none;overflow:visible}
+ .heropic{--hero:clamp(48px,calc(100vh - 855px),190px)}
+}
+@media (min-width:1000px) and (max-height:860px){.heropic{display:none}.leftcol{gap:.3rem}.cmd .tab{min-height:1.3rem}}
+@media (min-width:1000px) and (max-height:700px){.cmd .tab{min-height:1.15rem}.herowin .animrow{display:none}.leftcol{gap:.15rem}.herowin,.colorwin,.searchwin{padding-top:.4rem;padding-bottom:.15rem}}
+.skipopts{position:absolute;left:-9999px}
+.skipopts:focus{position:static;display:block;width:100%;margin-top:.2rem}
+.romstat.romalert{color:#ffd23f}
+.herostack{display:grid;gap:.65rem;min-width:0}
+.searchwin{padding:.5rem .7rem .5rem}
+.searchwin input{width:100%;box-sizing:border-box;min-height:1.75rem;background:var(--blue);color:#fff;border:2px solid #fff;padding:.1rem .4rem}
+.searchwin input::placeholder{color:var(--muted)}
+.searchwin input[type=checkbox]{width:auto;min-height:0;flex:none}
+.searchwin{position:relative}
+.searchnote:empty{display:none}
+.searchwin .animrow{position:absolute;top:-.55rem;right:.5rem;margin:0;padding:0 .25rem;background:var(--blue);white-space:nowrap}
+.searchnote{margin:.2rem 0 0;color:var(--muted);min-height:1em}
+</style>
+</head>
+<body>
+<noscript>This page needs JavaScript.</noscript>
+<div id="app"></div>
+<script>
+var wasmReady=false;
+var Module={onRuntimeInitialized(){ wasmReady=true; if(window.State) State.emit('rom'); }, print:t=>{ console.log(t); if(window.dwrLog) window.dwrLog.push(t); }, printErr:t=>{ console.error(t); if(window.dwrLog) window.dwrLog.push(t); }};
+</script>
+<script src="dwrandomizer.js"></script>
+<script>
+window.MARKS=["[ ]","[x]","[?]"];
+/* Option list, state and controls. */
+const T = 't', C = 'c', S = 's';
+const TABS = [{"id":"world","label":"World","long":"World","blurb":"The land, the caves, and how you get across them.","sections":[{"title":"Land","note":"","ids":["map","mapsize","biome","safestart","swamp","masked","townentr","princessloc","encounters","bonk"]},{"title":"Dungeons","note":"","ids":["stairs","rotate","permtorch"]},{"title":"Travel","note":"","ids":["permrepel","repeldun","returntown","warp"]}],"items":[["map","Random Map","The overworld map will be randomly generated.","t"],["mapsize","Random Map Size","Size of a generated overworld. Needs Random Map.","s",["Normal","Small","Very Small","Random"]],["biome","Biome","The shape of a generated overworld. Needs Random Map. Caldera puts Charlock inside a mountain ring, Wasteland is mostly desert and swamp, and Riverlands cuts the land up with rivers and bridges.","s",["Continent (Original)","Caldera","Wasteland","Riverlands","Random"]],["safestart","Safe Start","Swamp within 3 tiles of Tantegel becomes grass, so your first steps are safe.","c"],["swamp","Big Swamp","Approximately 60% of the overworld will be poisonous swamp.","t"],["masked","Masked Overworld Locations","Is it a cave, or is it a town? Enter to find out!","t"],["townentr","Random Town Entrances","The player's location upon entering a town will be changed.","t"],["princessloc","Random Princess Location","The princess may be locked in a different cave.","t"],["encounters","Encounter Rate","Default keeps the original random rolls. Low, Medium and High use a danger meter: steps add points by terrain until a hidden target starts a fight.","s",["Default","Low","Medium","High"]],["bonk","Bonk Damage","Damage taken when walking into walls.","s",["None","1 HP","2 HP","20 HP","Instakill","Random (0-80)","Current HP / 2","One of the above"]],["stairs","Stair Shuffle","Where stairs take you inside dungeons will be randomized.","t"],["rotate","Randomly Rotate/Mirror Dungeons","All dungeons will be rotated at random angles and/or mirrored.","t"],["permtorch","Permanent Torch","At least a 3x3 area will always be lit in dungeons.","t"],["permrepel","Permanent Repel","Repel will always be active.","t"],["repeldun","Repel in Dungeons","Enables Repel to work in dungeons.","t"],["returntown","Return to Town","Wings and Return send you to the last place you saved or used an inn at.","t"],["warp","Warp Whistle","The Fairy Flute works as a warp whistle outside of battle, cycling between places you saved or used an inn at.","t"]]},{"id":"treasure","label":"Treasure","long":"Treasure & Keys","blurb":"What is in the chests, and what opens the doors.","sections":[{"title":"Chests","note":"","ids":["chests","chestloc","guards","unguarded","goldchest","noarmor","discardflute"]},{"title":"Keys & Doors","note":"","ids":["nokeys","unbreakable","keycarry","hurtdoors"]}],"items":[["chests","Shuffle Chests & Searches","The items in chests and search locations will be randomized.","t"],["chestloc","Random Chest Locations","Chests will be at a random set of predetermined locations.","t"],["guards","Treasure Guards","Important items will have a mid-level monster guarding them.","t"],["unguarded","Unguarded Overworld Search Spot","With Treasure Guards on, the overworld search spot is not guarded.","c"],["goldchest","Gold Chest Contents","Gold found in gold chests.","s",["5-20 G","120 G","500-755 G","560-815 G","Random (1-2000 G)","One of the above"]],["noarmor","No Armor in Charlock","Prevent Erdrick's Armor from being in a chest in Charlock Castle.","t"],["nokeys","Don't Require Magic Keys","All of the doors are unlocked. Just open them.","t"],["unbreakable","Unbreakable Keys","Using a key outside of the throne room will not remove it from your inventory.","t"],["keycarry","Random Key Carry","The maximum number of keys you can carry is random, between 2 and 9. Some flags make 4 the minimum.","t"],["hurtdoors","Hurtmore Doors","Blast doors open with a cast of Hurtmore.","t"],["discardflute","Discardable Flute","Make it possible to drop the flute on finding a new item with a full inventory.","t"]]},{"id":"hero","label":"Hero & Magic","long":"Hero & Magic","blurb":"How the hero grows, what he carries, and what he casts.","sections":[{"title":"Growth","note":"","ids":["build","growth","xp","levelspeed","lvlrefill"]},{"title":"Body & Bag","note":"","ids":["necklace","herbcarry","magicherbs","ascetic","invhero"]},{"title":"Spells","note":"Most of these need Random Spell Learning.","ids":["spells","healbefore","nohurtmore","onlyhealmore","l1radiant","l1repel","spellcost"]}],"items":[["build","Build Options","Which towns or castles get built.","s",["Unchanged","Vanilla","No builds","All builds","One of the above"]],["growth","Random Growth","Player statistical growth at each level will be randomized.","t"],["xp","Random XP Requirements","Experience requirements for each level will be randomized.","t"],["levelspeed","Leveling Speed","How fast the hero levels.","s",["Normal","Fast","Very Fast"]],["lvlrefill","Level-Up Refill","Have HP and MP refilled after leveling up.","t"],["necklace","Enable Death Necklace","Equipping the death necklace will cause +10 AP and -25% HP.","t"],["herbcarry","Random Herb Carry","The maximum number of herbs you can carry is random, between 0 and 9.","t"],["magicherbs","Magic Herbs","Make herbs refill MP rather than HP.","t"],["ascetic","Ascetic King","King Lorik will let the player keep their hard-earned gold upon dying.","t"],["invhero","Invisible Hero","Your sprite will be invisible.","t"],["spells","Random Spell Learning","The order and level you learn spells will be random.","t"],["healbefore","Heal/Hurt Before \"More\"","Heal must come before Healmore; Hurt before Hurtmore.","t"],["nohurtmore","No Hurtmore","You will never learn Hurtmore. Monsters can still have it.","t"],["onlyhealmore","Only Healmore","Never learn any spell other than this. Needs Random Spell Learning.","t"],["l1radiant","Level 1 Radiant","If spells are randomized, the hero always knows Radiant.","c"],["l1repel","Level 1 Repel","If spells are randomized, the hero always knows Repel.","c"],["spellcost","Random Spell Costs","All spells have a random MP cost between 1 and 8.","t"]]},{"id":"monsters","label":"Monsters","long":"Monsters","blurb":"Who you fight and what they are worth.","sections":[{"title":"","note":"","ids":["mabil","mzones","mstats","mxp","consistent","normxp","scared","scaledms"]}],"items":[["mabil","Random Monster Abilities","Monster spells and abilities will be randomized.","t"],["mzones","Random Monster Zones","Monster encounters in each zone will be randomized.","t"],["mstats","Random Monster Stats","Monster strength, agility, and HP will be randomized.","t"],["mxp","Random Monster XP & Gold","The XP and Gold gained from monsters will be randomized.","t"],["consistent","Make Random Stats Consistent","Keeps random stats, XP, and Gold consistent with one another.","t"],["normxp","Normalized Monster XP/Gold","XP and Gold gained from monsters will be randomized, but within pre-set limits.","t"],["scared","Scared Metal Slimes","Metal Slimes will always have a chance to run.","t"],["scaledms","Scaled Metal Slime XP","Metal Slime XP will depend on your current level.","t"]]},{"id":"battle","label":"Battle","long":"Battle","blurb":"What happens once the fight starts.","sections":[{"title":"Hits","note":"","ids":["crit","dl1crit","dl2crit"]},{"title":"Escapes","note":"Run Mechanics overrides Alternate Running Algorithm and Easy Charlock.","ids":["runmech","altrun","easycharlock","returnesc","bank"]},{"title":"Commands","note":"","ids":["quickspell","torches","flutefor"]}],"items":[["crit","Crit Chance","Chance of an excellent move.","s",["Never (0%)","Vanilla (1/32)","Double (1/16)","Always (100%)","Random (1-32)/32","AG/256","One of the above"]],["dl1crit","DL1 Crits","Allow excellent moves against the Dragonlord's 1st form.","t"],["dl2crit","DL2 Crits","Allow excellent moves against the Dragonlord's 2nd form.","t"],["runmech","Run Mechanics","How escaping from battle is decided.","s",["Vanilla","Safer Vanilla - 100% on 4th run","DW2 - Always flat 2/3 chance","DW4 - 50% first 2, 75% 3rd, 100% 4th","Costs XP","Random"]],["altrun","Alternate Running Algorithm","The run-blocking multiplier will depend on where you are.","t"],["easycharlock","Easy Charlock","Make it slightly easier to run from high-level monsters.","t"],["returnesc","Return Escapes","Return can be used in battle for a guaranteed escape.","t"],["bank","Run Bank","Kills earn banked escapes, faster for tougher monsters. Spend one with the BANK battle command. Not usable on the Dragonlord.","t","bank"],["quickspell","Quick Spell","Adds a battle command that casts your last spell again.","c"],["torches","Enable Torches in Battle","Torches and Fairy Water can be thrown at monsters.","t"],["flutefor","Flute Is For","Which enemies the Fairy Flute works on.","s",["Golem","All but DL2","All","One of the above"]]]},{"id":"shops","label":"Shops & Inns","long":"Shops & Inns","blurb":"Who sells what, and for how much.","sections":[{"title":"","note":"","ids":["wshops","wprices","vendor","sale","sumsalechance","innprice","keyprice","charlockinn"]}],"items":[["wshops","Random Weapon Shops","The weapons available in each shop will be randomized.","t"],["wprices","Random Weapon Prices","Pretty self-explanatory.","t"],["vendor","Vendor Shuffle","Weapon, fairy water, item, radish and key vendors are shuffled.","t"],["sale","Summer Sale","All weapons and armor 35-65% off!","t"],["sumsalechance","Summer Sale Tristate Chance","Chance the sale applies when set to random.","s",["12.5%","25%","50%","75%"]],["innprice","Inn Prices","How inn prices are set.","s",["Vanilla","Shuffled","Random (1-255 G)","One of the above"]],["keyprice","Key Prices","How key prices are set.","s",["Vanilla","Shuffled","Random (1-255 G)","One of the above"]],["charlockinn","Charlock Inn","Make the final dive easier by having a comfy bed and breakfast at the Dragonlord's.","t"]]},{"id":"quest","label":"Quest","long":"Quest","blurb":"The route to the end, how you win, and who helps you find it.","sections":[{"title":"Route","note":"","ids":["opencharlock","shortcharlock"]},{"title":"How You Win","note":"","ids":["disguised","cursed","three","radish"]},{"title":"People","note":"","ids":["hints","invnpc","guillotine"]}],"items":[["opencharlock","Open Charlock","No need to create a bridge to enter Charlock Castle.","t"],["shortcharlock","Short Charlock","Charlock Dungeon will be much shorter.","t"],["disguised","Disguised Dragonlord","The Dragonlord roams Alefgard as a random NPC. The original location hints at where he is.","t"],["cursed","Cursed Princess","Get Gwaelin to take a Cursed Belt when you return her to win.","t"],["three","Three's Company","Bring Gwaelin to the Dragonlord and accept his offer to win.","t"],["radish","Radish Finish","Feed the princess some fresh and cheap radishes to win.","t"],["hints","Hints","Whether NPC hints are corrected.","s",["Unchanged","Corrected"]],["invnpc","Invisible NPCs","All NPCs will be invisible.","t"],["guillotine","NPC Guillotine","Getting blocked by NPCs? Talk to them and they're sure to let you pass!","c"]]},{"id":"speed","label":"Speed & Help","long":"Speed & Help","blurb":"Pace, menus and on-screen numbers.","sections":[{"title":"Pace","note":"","ids":["fasttext","speed","wrap","skipcredits"]},{"title":"Numbers","note":"","ids":["deathctr","keyherb","nonumbers"]}],"items":[["fasttext","Fast Text","All text will progress much faster.","t"],["speed","Speed Hacks","Various aspects of the game will be much faster.","t"],["wrap","Enable Menu Wrapping","This enables cursor wrapping in menus.","t"],["skipcredits","Skip Original Credits","Skip the original credits and go straight to the stat scroll.","c"],["deathctr","Show Death Counter","The stats window will also have a death counter.","c"],["keyherb","Show Key & Herb Counter","The stats window will also show your keys and herbs.","c"],["nonumbers","No Numbers","No numbers will be visible until the Dragonlord fight.","t"]]},{"id":"visual","label":"Visual","long":"Visual","blurb":"How the game looks, and how much it flashes and shakes.","sections":[{"title":"Comfort","note":"Turn these on if flashing or shaking bothers you.","ids":["noflash","nored","noshake"]},{"title":"Look","note":"","ids":["customspell","modernspells","noir","winter"]}],"items":[["noflash","Disable Spell Flashing","Prevents the screen from flashing when you cast spells.","c"],["nored","Disable Red Flashes","Prevents the screen from flashing when walking on damage tiles.","c"],["noshake","Disable Screen Shake","Keeps the screen still when you take damage.","c"],["sprite","Player Sprite","Pick a hero sprite, or leave on Random.","s",["Random","Arkista's Ring Christine","Barry Sanders","Blaster Master Jason","Blinky","Bo Jackson","Bomberman","Clyde","DW2 Prince of Cannock","DW2 Prince of Midenhall","DW2 Princess of Moonbrooke","DW3 Female Fighter","DW3 Female Goof-off","DW3 Female Merchant","DW3 Female Pilgrim","DW3 Female Sage","DW3 Female Soldier","DW3 Female Wizard","DW3 Ghost","DW3 Hero","DW3 Male Fighter","DW3 Male Goof-off","DW3 Male Merchant","DW3 Male Pilgrim","DW3 Male Sage","DW3 Male Soldier","DW3 Male Wizard","DW4 Alena","DW4 Brey","DW4 Celia","DW4 Cristo","DW4 Doran","DW4 Healie","DW4 Hero","DW4 Heroine","DW4 Mara","DW4 Nara","DW4 Ragnar","DW4 Taloon","DW4 Tov (The Dog)","DW4 Yeti","DoaE Guan Yu","DoaE Huang Zhong","DoaE Jiang Wei","DoaE Lu Bu","DoaE Ma Chao","DoaE Zhang Fei","DoaE Zhao Yun","DoaE Zhuge Liang","Dragonlord","FF Black Belt","FF Black Mage","FF Black Wizard","FF Fighter","FF Knight","FF Master","FF Ninja","FF Red Mage","FF Red Wizard","FF Thief","FF White Mage","FF White Wizard","FF4 DK Cecil","FF4 Edge","Gwaelin","Inky","Jerry Rice","Kirby","Lala","Link","Lolo","Loto","Luigi","Mario","Metal Slime","Mina the Hollower","Ms. Pac-Man","Pac-Man","Pinky","Plumplim","Red Slime","Slime","StarTropics Mike","Sue","Waluigi","Wario","Yoshi"]],["customspell","Allow Custom Spell Names","Allow spell names to be changed based on the chosen sprite.","c"],["modernspells","Modern Spell Names","Use spell names from more recent DQ releases.","t"],["noir","Noir Mode","It's all black and white, baby!","t"],["winter","Winter Theme","Sometimes, saving Alefgard cannot wait until summer.","c"]]},{"id":"sound","label":"Sound","long":"Sound","blurb":"Music and custom music packs.","sections":[{"title":"","note":"","ids":["shufflemusic","nomusic","jingles","flutemusic","flutenorm","pack"]}],"items":[["shufflemusic","Shuffle Music","Music in each area will be randomized.","c"],["nomusic","Disable Music","This disables the game music in most situations.","c"],["jingles","Don't Mute Jingles","The Harp, Flute and Gwaelin jingles can be heard even if the Disable Music flag is on.","c"],["flutemusic","Randomize Flute Music","Change the Fairy Flute sound to a new random tune.","c"],["flutenorm","Normal Flute Speed","If Speed Hacks is on, the Fairy Flute music will not be sped up.","c"],["pack","Custom Music Pack","Load a JSON5 music pack (FamiTracker modules). Songs play via the Dn-FamiTracker driver; tagged scenes use their own song.","pack"]]}];
+const BANK_LEVELS = [
+ {v:'normal',name:'Normal',tiers:[16,12,8,6,4,3,2],note:'Balanced. Slimes need 16 kills per escape, big monsters 2.'},
+ {v:'easy',name:'Easy',tiers:[12,8,6,4,3,2,1],note:'Escapes come fastest. A big monster is worth a full escape.'},
+ {v:'strict',name:'Strict',tiers:[24,16,12,8,6,4,3],note:'Slower banking. Grind weak monsters at your own cost.'},
+ {v:'verystrict',name:'Very Strict',tiers:[32,24,16,12,8,6,4],note:'Hardest. Escapes are earned the long way.'}];
+/* From enemy_tier in common/dwr.c. The Dragonlord earns nothing. */
+const TIER_MONSTERS = [
+ ['Slime','Red Slime','Drakee','Ghost','Magician','Magidrakee'],
+ ['Scorpion','Druin','Poltergeist','Droll'],
+ ['Drakeema','Skeleton','Warlock','Metal Scorpion','Wolf','Wraith','Specter','Wolflord','Druinlord','Goldman'],
+ ['Drollmagi','Wyvern','Rogue Scorpion','Wraith Knight'],
+ ['Metal Slime','Knight','Magiwyvern','Demon Knight','Werewolf'],
+ ['Green Dragon','Starwyvern','Wizard','Axe Knight','Blue Dragon'],
+ ['Golem','Stoneman','Armored Knight','Red Dragon']];
+/* One floating list, so the scrolling panels can't clip it. */
+function tierTip(){
+  let t=document.getElementById('tiertip');
+  if(!t){ t=el('div',{id:'tiertip',role:'tooltip'}); t.hidden=true; document.body.append(t); }
+  return t;
+}
+function showTier(chip,i){
+  const t=tierTip(); t.replaceChildren(el('b',{text:'Tier '+(i+1)}),el('ul',null,TIER_MONSTERS[i].map(m=>el('li',{text:m}))));
+  t.hidden=false;
+  const r=chip.getBoundingClientRect(), w=t.offsetWidth, h=t.offsetHeight;
+  t.style.left=Math.max(4,Math.min(r.left,innerWidth-w-4))+'px';
+  t.style.top=(r.bottom+h+4<=innerHeight?r.bottom+4:Math.max(4,r.top-h-4))+'px';
+}
+function hideTier(){ tierTip().hidden=true; }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape') hideTier(); });
+const PRESETS = [
+ {id:'standard',name:'Standard',blurb:"juef's Standard flags.",flags:'IVIAAVCEKACAAAAAAAAAAEAUAAQBAAAAABYCAAAA'},
+ {id:'fast',name:'Fast Standard',blurb:"juef's Fast Standard flags.",flags:'IVIAAVCEKACFAAAAAAAAAIAUAAQBAAAAABYCAAAA'},
+ {id:'easy',name:'Easy Standard',blurb:"juef's Easy Standard flags.",flags:'IVIAAVCFKACACQAAKAAAAZAUAAQBAAAAABYCAAAA'},
+];
+
+/* ---------- state ---------- */
+const PERSONAL = ['nomusic','noflash','nored','noshake','customspell','skipcredits','winter','jingles'];
+const FLAG_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+/* From webui/index.js: where each option lives in the flag bytes. */
+const FLAG_MAP = {"Safe Start": {"byte": 8, "shift": 5, "mask": 1}, "Biome": {"byte": 2, "shift": 0, "mask": 51, "values": {"Continent (Original)": 0, "Caldera": 1, "Wasteland": 16, "Riverlands": 17, "Random": 34}}, "Show Key & Herb Counter": {"byte": 8, "shift": 4, "mask": 1}, "Shuffle Chests & Searches": {"byte": 0, "shift": 6, "mask": 3}, "Random Chest Locations": {"byte": 0, "shift": 4, "mask": 3}, "Random Growth": {"byte": 0, "shift": 2, "mask": 3}, "Random Map": {"byte": 0, "shift": 0, "mask": 3}, "Random Spell Learning": {"byte": 1, "shift": 6, "mask": 3}, "Random Weapon Shops": {"byte": 1, "shift": 4, "mask": 3}, "Random Weapon Prices": {"byte": 1, "shift": 2, "mask": 3}, "Random XP Requirements": {"byte": 1, "shift": 0, "mask": 3}, "Heal/Hurt Before \"More\"": {"byte": 2, "shift": 6, "mask": 3}, "Stair Shuffle": {"byte": 2, "shift": 2, "mask": 3}, "Enable Menu Wrapping": {"byte": 3, "shift": 6, "mask": 3}, "Enable Death Necklace": {"byte": 3, "shift": 4, "mask": 3}, "Enable Torches in Battle": {"byte": 3, "shift": 2, "mask": 3}, "Repel in Dungeons": {"byte": 4, "shift": 6, "mask": 3}, "Permanent Repel": {"byte": 4, "shift": 4, "mask": 3}, "Permanent Torch": {"byte": 4, "shift": 2, "mask": 3}, "Alternate Running Algorithm": {"byte": 4, "shift": 0, "mask": 3}, "Random Monster Abilities": {"byte": 5, "shift": 6, "mask": 3}, "Random Monster Zones": {"byte": 5, "shift": 4, "mask": 3}, "Random Monster Stats": {"byte": 5, "shift": 2, "mask": 3}, "Random Monster XP & Gold": {"byte": 5, "shift": 0, "mask": 3}, "Make Random Stats Consistent": {"byte": 6, "shift": 6, "mask": 3}, "Scared Metal Slimes": {"byte": 6, "shift": 4, "mask": 3}, "Scaled Metal Slime XP": {"byte": 6, "shift": 2, "mask": 3}, "Fast Text": {"byte": 7, "shift": 6, "mask": 3}, "Speed Hacks": {"byte": 7, "shift": 4, "mask": 3}, "Open Charlock": {"byte": 7, "shift": 2, "mask": 3}, "Short Charlock": {"byte": 7, "shift": 0, "mask": 3}, "Don't Require Magic Keys": {"byte": 8, "shift": 6, "mask": 3}, "Summer Sale": {"byte": 13, "shift": 2, "mask": 3}, "Cursed Princess": {"byte": 8, "shift": 2, "mask": 3}, "Three's Company": {"byte": 8, "shift": 0, "mask": 3}, "Leveling Speed": {"byte": 13, "shift": 4, "mask": 3, "values": {"Normal": 0, "Fast": 1, "Very Fast": 2}}, "Random Map Size": {"byte": 13, "shift": 6, "mask": 3, "values": {"Normal": 0, "Small": 1, "Very Small": 2, "Random": 3}}, "No Hurtmore": {"byte": 9, "shift": 6, "mask": 3}, "No Numbers": {"byte": 9, "shift": 4, "mask": 3}, "Invisible Hero": {"byte": 9, "shift": 2, "mask": 3}, "Invisible NPCs": {"byte": 9, "shift": 0, "mask": 3}, "Treasure Guards": {"byte": 13, "shift": 0, "mask": 3}, "Big Swamp": {"byte": 10, "shift": 0, "mask": 3}, "Randomly Rotate/Mirror Dungeons": {"byte": 10, "shift": 2, "mask": 3}, "No Armor in Charlock": {"byte": 10, "shift": 4, "mask": 3}, "Easy Charlock": {"byte": 10, "shift": 6, "mask": 3}, "Modern Spell Names": {"byte": 11, "shift": 6, "mask": 3}, "Noir Mode": {"byte": 11, "shift": 4, "mask": 3}, "Shuffle Music": {"byte": 14, "shift": 7, "mask": 1}, "Disable Music": {"byte": 14, "shift": 6, "mask": 1}, "Disable Spell Flashing": {"byte": 14, "shift": 5, "mask": 1}, "Show Death Counter": {"byte": 14, "shift": 4, "mask": 1}, "Allow Custom Spell Names": {"byte": 14, "shift": 3, "mask": 1}, "Disable Screen Shake": {"byte": 14, "shift": 1, "mask": 1}, "Skip Original Credits": {"byte": 14, "shift": 2, "mask": 1}, "Vendor Shuffle": {"byte": 16, "shift": 6, "mask": 3}, "Disguised Dragonlord": {"byte": 16, "shift": 2, "mask": 3}, "Radish Finish": {"byte": 20, "shift": 6, "mask": 3}, "Return Escapes": {"byte": 19, "shift": 6, "mask": 3}, "Return to Town": {"byte": 23, "shift": 6, "mask": 3}, "Warp Whistle": {"byte": 19, "shift": 4, "mask": 3}, "Hurtmore Doors": {"byte": 23, "shift": 4, "mask": 3}, "Unbreakable Keys": {"byte": 20, "shift": 2, "mask": 3}, "Ascetic King": {"byte": 20, "shift": 0, "mask": 3}, "Level-Up Refill": {"byte": 19, "shift": 2, "mask": 3}, "Run Mechanics": {"byte": 21, "shift": 5, "mask": 7, "values": {"Vanilla": 0, "Safer Vanilla - 100% on 4th run": 3, "DW2 - Always flat 2/3 chance": 1, "DW4 - 50% first 2, 75% 3rd, 100% 4th": 2, "Costs XP": 4, "Random": 7}}, "Bonk Damage": {"byte": 18, "shift": 5, "mask": 7, "values": {"None": 0, "1 HP": 1, "2 HP": 2, "20 HP": 3, "Instakill": 4, "Random (0-80)": 5, "Current HP / 2": 6, "One of the above": 7}}, "Run Bank": {"byte": 11, "shift": 2, "mask": 3}, "Charlock Inn": {"byte": 15, "shift": 6, "mask": 3}, "Random Key Carry": {"byte": 19, "shift": 0, "mask": 3}, "Random Herb Carry": {"byte": 23, "shift": 2, "mask": 3}, "Crit Chance": {"byte": 17, "shift": 4, "mask": 7, "values": {"Never (0%)": 0, "Vanilla (1/32)": 1, "Double (1/16)": 2, "Always (100%)": 3, "Random (1-32)/32": 4, "AG/256": 5, "One of the above": 6}}, "DL1 Crits": {"byte": 17, "shift": 2, "mask": 3}, "DL2 Crits": {"byte": 17, "shift": 0, "mask": 3}, "Inn Prices": {"byte": 15, "shift": 2, "mask": 3, "values": {"Vanilla": 0, "Shuffled": 1, "Random (1-255 G)": 2, "One of the above": 3}}, "Key Prices": {"byte": 15, "shift": 0, "mask": 3, "values": {"Vanilla": 0, "Shuffled": 1, "Random (1-255 G)": 2, "One of the above": 3}}, "Magic Herbs": {"byte": 16, "shift": 0, "mask": 3}, "Flute Is For": {"byte": 18, "shift": 1, "mask": 3, "values": {"Golem": 0, "All but DL2": 1, "All": 2, "One of the above": 3}}, "Random Princess Location": {"byte": 21, "shift": 0, "mask": 3}, "Gold Chest Contents": {"byte": 21, "shift": 2, "mask": 7, "values": {"5-20 G": 1, "120 G": 2, "500-755 G": 0, "560-815 G": 4, "Random (1-2000 G)": 3, "One of the above": 5}}, "Winter Theme": {"byte": 22, "shift": 0, "mask": 1}, "Normal Flute Speed": {"byte": 22, "shift": 5, "mask": 1}, "Randomize Flute Music": {"byte": 16, "shift": 5, "mask": 1}, "Discardable Flute": {"byte": 18, "shift": 3, "mask": 3}, "Hints": {"byte": 22, "shift": 3, "mask": 1, "values": {"Unchanged": 0, "Corrected": 1}}, "Summer Sale Tristate Chance": {"byte": 20, "shift": 4, "mask": 3, "values": {"12.5%": 1, "25%": 2, "50%": 0, "75%": 3}}, "Disable Red Flashes": {"byte": 17, "shift": 7, "mask": 1}, "Only Healmore": {"byte": 15, "shift": 4, "mask": 3}, "Level 1 Radiant": {"byte": 18, "shift": 0, "mask": 1}, "Level 1 Repel": {"byte": 22, "shift": 6, "mask": 1}, "Unguarded Overworld Search Spot": {"byte": 22, "shift": 7, "mask": 1}, "Normalized Monster XP/Gold": {"byte": 22, "shift": 1, "mask": 3}, "Don't Mute Jingles": {"byte": 16, "shift": 4, "mask": 1}, "NPC Guillotine": {"byte": 24, "shift": 7, "mask": 1}, "Masked Overworld Locations": {"byte": 24, "shift": 5, "mask": 3}, "Build Options": {"byte": 24, "shift": 2, "mask": 7, "values": {"Unchanged": 0, "Vanilla": 1, "No builds": 2, "All builds": 3, "One of the above": 4}}, "Random Spell Costs": {"byte": 23, "shift": 0, "mask": 3}, "Random Town Entrances": {"byte": 24, "shift": 0, "mask": 3}, "Quick Spell": {"byte": 11, "shift": 0, "mask": 1}};
+const State = {
+  v:{}, bankLevel:0, bankCap:9, pack:null, rom:null, seed:'', listeners:[],
+  init(){ TABS.forEach(t=>t.items.forEach(it=>{ this.v[it[0]] = 0; }));
+    ['wrap','speed'].forEach(()=>{}); this.applyPreset(PRESETS[0], true); this.newSeed(); },
+  all(){ return TABS.flatMap(t=>t.items); },
+  find(id){ return this.all().find(i=>i[0]===id); },
+  set(id,val){ this.v[id]=val; this.emit(id); },
+  /* Personal settings stay on through presets, as in the old web UI. They don't change the checksum. */
+  keepPersonal(fn){
+    const on=PERSONAL.filter(id=>this.v[id]), sprite=this.v.sprite;
+    fn(); on.forEach(id=>{ this.v[id]=1; }); this.v.sprite=sprite; this.emit('*');
+  },
+  applyPreset(p, quiet){
+    this.all().forEach(it=>{ this.v[it[0]]=0; });
+    this.bankLevel=0; this.bankCap=9;
+    if(p.flags){ this.setFlags(p.flags); return; }
+    (p.on||[]).forEach(i=>this.v[i]=1); (p.rnd||[]).forEach(i=>this.v[i]=2);
+    Object.entries(p.sel||{}).forEach(([k,v])=>{ if(k==='bankLevel') this.bankLevel=v; else this.v[k]=v; });
+    Object.entries(p.num||{}).forEach(([k,v])=>{ this[k]=v; });
+    if(!quiet) this.emit('*');
+  },
+  newSeed(){ this.seed = String(Math.floor(Math.random()*9e12)+1e12); this.emit('seed'); },
+  /* The real flag string: same bytes as the randomizer reads. */
+  flags(){
+    const bytes=new Uint8Array(25);
+    this.all().forEach(it=>{ const m=FLAG_MAP[it[1]]; if(!m) return;
+      const x=this.v[it[0]]|0;
+      const val=m.values ? (m.values[it[4][x]]||0) : x;
+      bytes[m.byte]|=val<<m.shift; });
+    const rate=this.v.encounters|0;
+    bytes[3]|=(rate>>1)&1; bytes[6]|=rate&1;
+    bytes[12]=(this.bankCap===9?0:this.bankCap&0x7f)|((this.bankLevel&2)<<6);
+    bytes[14]|=this.bankLevel&1;
+    let out='',bits=0,n=0;
+    bytes.forEach(b=>{ bits=(bits<<8)|b; n+=8; while(n>=5){ out+=FLAG_CHARS[(bits>>(n-5))&31]; n-=5; } bits&=(1<<n)-1; });
+    return out;
+  },
+  setFlags(text){
+    let bits=0,n=0; const bytes=[];
+    for(const c of text.toUpperCase()){ const i=FLAG_CHARS.indexOf(c); if(i<0) return false;
+      bits=(bits<<5)|i; n+=5; if(n>=8){ bytes.push((bits>>(n-8))&255); n-=8; bits&=(1<<n)-1; } }
+    if(bytes.length!==25) return false;
+    this.all().forEach(it=>{ const m=FLAG_MAP[it[1]]; if(!m) return;
+      if(m.values){ const raw=(bytes[m.byte]>>m.shift)&m.mask, name=Object.keys(m.values).find(k=>m.values[k]===raw);
+        const i=it[4].indexOf(name); if(i<0) this.oddFlags=true; this.v[it[0]]=i<0?0:i; }
+      else this.v[it[0]]=(bytes[m.byte]>>m.shift)&m.mask; });
+    this.v.encounters=((bytes[3]&1)<<1)|(bytes[6]&1);
+    this.bankCap=(bytes[12]&0x7f)||9;
+    this.bankLevel=((bytes[12]&0x80)>>6)|(bytes[14]&1);
+    this.emit('*'); return true;
+  },
+  activeCount(){ return this.all().filter(isChanged).length; },
+  on(fn){ this.listeners.push(fn); },
+  emit(id){ this.listeners.forEach(f=>f(id)); }
+};
+
+/* ---------- helpers ---------- */
+function el(tag, attrs, ...kids){
+  const e=document.createElement(tag);
+  for(const k in (attrs||{})){ const v=attrs[k]; if(v==null||v===false) continue;
+    if(k==='class') e.className=v; else if(k==='text') e.textContent=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v); else e.setAttribute(k,v===true?'':v); }
+  kids.flat().forEach(k=>{ if(k==null) return; e.append(k.nodeType?k:document.createTextNode(k)); });
+  return e;
+}
+let UID=0;
+const MARKS = window.MARKS || ['OFF','ON','RND'];
+const STATE_WORDS = ['off','on','random'];
+
+/* Whether an option differs from its normal setting. For a dropdown that's its first choice, except Crit Chance. */
+const SELECT_NORMAL={crit:1};
+function isChanged(it){ const x=State.v[it[0]]|0; if(it[3]==='pack') return false;
+  if(it[3]!==S) return !!x;
+  if(it[0]==='sumsalechance'&&State.v.sale!==2) return false;
+  return x!==(SELECT_NORMAL[it[0]]||0); }
+/* Tri-state toggle: button with role=checkbox, aria-checked true/false/mixed. */
+function triBtn(it){
+  const id=it[0], isTri = it[3]===T;
+  const b=el('button',{type:'button',class:'tog',role:'checkbox','data-id':id});
+  function paint(){ const x=State.v[id]|0; b.dataset.state=x; b.setAttribute('aria-checked', x===2?'mixed':(x===1?'true':'false'));
+    b.innerHTML=''; b.append(el('span',{class:'mark','aria-hidden':'true',text:(window.MARKS||MARKS)[x]}), el('span',{class:'sr',id:'st-'+id,text:' '+STATE_WORDS[x]})); }
+  b.addEventListener('click',()=>{ const x=State.v[id]|0; State.set(id, isTri ? (x+1)%3 : (x?0:1)); });
+  b.addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); b.click(); } });
+  State.on(i=>{ if(i===id||i==='*') paint(); }); paint(); return b;
+}
+function bankControls(){
+  const wrap=el('div',{class:'bankbox'});
+  const uid='b'+(++UID);
+  const lvl=el('select',{id:uid+'l','aria-describedby':uid+'n'}, BANK_LEVELS.map((l,i)=>el('option',{value:i,text:l.name})));
+  const cap=el('input',{id:uid+'c',type:'number',min:1,max:99,step:1,inputmode:'numeric'});
+  const rng=el('input',{type:'range',min:1,max:99,'aria-label':'Bank cap slider'});
+  const note=el('p',{id:uid+'n',class:'banknote'});
+  const tbl=el('div',{class:'tiers',role:'group','aria-label':'Kills needed per escape'});
+  function paint(){ lvl.value=State.bankLevel; cap.value=State.bankCap; rng.value=State.bankCap;
+    note.textContent=BANK_LEVELS[State.bankLevel].note; tbl.innerHTML=''; hideTier();
+    BANK_LEVELS[State.bankLevel].tiers.forEach((k,i)=>tbl.append(el('span',{class:'tier',tabindex:0,'aria-label':'Tier '+(i+1)+', '+k+' kills: '+TIER_MONSTERS[i].join(', '),onmouseenter:e=>showTier(e.currentTarget,i),onmouseleave:hideTier,onfocus:e=>showTier(e.currentTarget,i),onblur:hideTier},el('b',{text:'T'+(i+1)}),' '+k+' kills')));
+    wrap.style.display = State.v.bank ? '' : 'none'; }
+  lvl.addEventListener('change',()=>{ State.bankLevel=+lvl.value; State.emit('bank'); });
+  const setCap=v=>{ v=Math.max(1,Math.min(99,Math.round(+v||9))); State.bankCap=v; State.emit('bank'); };
+  cap.addEventListener('change',()=>setCap(cap.value)); rng.addEventListener('input',()=>setCap(rng.value));
+  wrap.append(el('label',{for:uid+'l',class:'sublab',text:'Earn level'}),lvl,
+    el('label',{for:uid+'c',class:'sublab',text:'Bank cap (1-99, default 9)'}),el('span',{class:'caprow'},rng,cap),note,tbl);
+  State.on(i=>{ if(i==='bank'||i==='*') paint(); }); paint(); return wrap;
+}
+/* Where music can be chosen. Tags match common/custom_music.c. */
+const MUSIC_SLOTS={
+  'Locations':[
+    ['Title',['Title']],['Overworld',['Overworld']],['Town',['Town']],['Castle & Throne Room',['Castle']],
+    ['Hauksness',['Hauksness']],['Old Man Cave',['OldManCave']],
+    ['Dungeon Floor 1',['Floor1','Dungeon','Cave']],['Dungeon Floor 2',['Floor2','Dungeon','Cave']],['Dungeon Floor 3',['Floor3','Dungeon','Cave']],
+    ['Dungeon Floor 4',['Floor4','Dungeon','Cave']],['Dungeon Floor 5',['Floor5','Dungeon','Cave']],['Dungeon Floor 6',['Floor6','Dungeon','Cave']],
+    ['Dungeon Floor 7',['Floor7','Dungeon','Cave']],['Dragonlord Room',['DragonlordRoom']],['Battle',['Battle']],['Last Battle',['LastBattle']]],
+  'Jingles':[
+    ['Silver Harp',['SilverHarp']],['Fairy Flute',['FairyFlute']],['Rainbow Bridge',['RainbowBridge']],['Death',['Death','Dying','PlayerDeath']],
+    ['Inn',['Inn']],['Gwaelin',['Gwaelin']],['Cursed',['Cursed']],['Victory',['Victory']],['Level Up',['LevelUp']],['Original Credits',['Ending']],['Stat Scroll',['Credits','Ending']]]
+};
+/* JSON5 reader: comments, unquoted keys, single quotes, trailing commas */
+function parseJSON5(t){ let i=0;
+  const ws=()=>{ for(;;){ const c=t[i]; if(c===' '||c==='\t'||c==='\n'||c==='\r'||c==='\uFEFF') i++;
+    else if(c==='/'&&t[i+1]==='/'){ i=t.indexOf('\n',i); if(i<0) i=t.length; }
+    else if(c==='/'&&t[i+1]==='*'){ i=t.indexOf('*/',i)+2; if(i<2) throw 0; } else return; } };
+  const str=()=>{ const q=t[i++]; let s=''; for(;;){ if(i>=t.length) throw 0; const c=t[i++]; if(c===q) return s;
+    if(c==='\\'){ const e=t[i++]; s+=({n:'\n',t:'\t',r:'\r'})[e]||(e==='u'?String.fromCharCode(parseInt(t.substr((i+=4)-4,4),16)):e); } else s+=c; } };
+  const val=()=>{ ws(); const c=t[i];
+    if(c==='{'){ i++; const o={}; for(;;){ ws(); if(t[i]==='}'){ i++; return o; }
+      let k; if(t[i]==='"'||t[i]==="'") k=str(); else { const m=i; while(/[\w$]/.test(t[i]||'')) i++; if(m===i) throw 0; k=t.slice(m,i); }
+      ws(); if(t[i++]!==':') throw 0; o[k]=val(); ws(); if(t[i]===','){ i++; } else if(t[i]!=='}') throw 0; } }
+    if(c==='['){ i++; const a=[]; for(;;){ ws(); if(t[i]===']'){ i++; return a; } a.push(val()); ws(); if(t[i]===','){ i++; } else if(t[i]!==']') throw 0; } }
+    if(c==='"'||c==="'") return str();
+    const m=i; while(i<t.length&&!/[\s,\]}]/.test(t[i])) i++; const w=t.slice(m,i); if(!w) throw 0;
+    if(w==='true') return true; if(w==='false') return false; if(w==='null') return null; const n=Number(w); if(isNaN(n)) throw 0; return n; };
+  const v=val(); ws(); if(i<t.length) throw 0; return v; }
+/* Only songs the randomizer can load: see read_item in common/custom_music.c. */
+function packItems(j){ const out=[];
+  const add=(it,g)=>{ if(it&&it.title&&it.data&&!it.songs&&!((g&&g.title?g.title+': ':'')+it.title).includes('SFX')) out.push({it,g}); };
+  (j.single||[]).forEach(it=>add(it));
+  (j.groups||[]).forEach(g=>(g.items||[]).forEach(it=>add(it,g)));
+  return out; }
+function songsFromPack(text){
+  return packItems(parseJSON5(text)).map(({it,g})=>({name:(g&&g.title?g.title+' - ':'')+it.title,uses:Array.isArray(it.uses)?it.uses:[]})); }
+/* The randomizer takes a scene's song from its tag, so each choice goes to it as a copy of
+   the song with only that slot's tag. A slot with no copy keeps the game's music.
+   The same seed makes the same random choices. */
+function chosenPack(seed){
+  const j=parseJSON5(State.pack.text), items=packItems(j), songs=State.pack.songs, assign=State.assign||{};
+  let r=(Number(BigInt(seed)&0xffffffffn)^0x6d757369)>>>0;
+  const rnd=n=>{ r=(Math.imul(r,1664525)+1013904223)>>>0; return Math.floor(r/4294967296*n); };
+  const used=new Set(), all=songs.map((_,i)=>i);
+  const choose=list=>{ const on=list.filter(i=>items[i].it.enabled!==false), a=on.length?on:list, fresh=a.filter(i=>!used.has(i)), p=fresh.length?fresh:a, c=p[rnd(p.length)]; used.add(c); return c; };
+  let dungeon=null, shared;
+  const slots=Object.entries(MUSIC_SLOTS).flatMap(([group,list])=>list.map(([name,tags0])=>{
+    const floor=tags0[0].startsWith('Floor'), same=floor&&sameFloors(), first=same?list.find(x=>x[0]==='Dungeon Floor 1'):null;
+    const tags=first?first[1]:tags0, v=assign[slotKey(group,first?first[0]:name)]; let song=null;
+    if(same&&shared!==undefined&&v==='random') song=shared;
+    else if(v==='random'){ const own=all.filter(i=>hasTag(songs[i],floor?[tags[0]]:tags));
+      if(own.length) song=choose(own);
+      else if(floor){ if(dungeon===null){ const d=all.filter(i=>hasTag(songs[i],tags)); dungeon=d.length?choose(d):-1; } if(dungeon>=0) song=dungeon; } }
+    else if(v!=null&&v!==''&&songs[+v]) song=+v;
+    if(same&&v==='random'&&shared===undefined) shared=song;
+    return {name,tag:tags0[0],floor,song}; }));
+  /* With every floor set, the most used song becomes the one Dungeon song, saving a copy per floor. */
+  const floors=slots.filter(x=>x.floor), out={single:[],groups:[]}; let main=-1, count=0;
+  if(floors.every(x=>x.song!==null)){ const n={}; floors.forEach(x=>{ n[x.song]=(n[x.song]||0)+1; });
+    main=+Object.keys(n).sort((a,b)=>n[b]-n[a])[0]; }
+  const add=(song,tag)=>{ const {it,g}=items[song], copy={...it,uses:[tag],enabled:tag!=='Ending'}; count++; /* The credits take any Ending song, but enabled songs first, so this leaves it for the original credits. */
+    if(g) out.groups.push({...g,items:[copy]}); else out.single.push(copy); };
+  if(main>=0) add(main,'Dungeon');
+  slots.forEach(x=>{ if(x.song!==null&&!(x.floor&&x.song===main)) add(x.song,x.tag); });
+  return {text:JSON.stringify(out),count};
+}
+/* The ROM and music pack are kept in this browser's own storage, and never leave it. */
+const FileStore={
+  open(){ return new Promise((ok,no)=>{ const r=indexedDB.open('dwrandomizer',1);
+    r.onupgradeneeded=()=>r.result.createObjectStore('files'); r.onsuccess=()=>ok(r.result); r.onerror=()=>no(r.error); }); },
+  async run(mode,fn){ const db=await this.open();
+    return new Promise((ok,no)=>{ const t=db.transaction('files',mode), q=fn(t.objectStore('files'));
+      t.oncomplete=()=>{ db.close(); ok(q.result); }; t.onerror=t.onabort=()=>{ db.close(); no(t.error); }; }); },
+  async get(k){ try{ return await this.run('readonly',s=>s.get(k)); }catch(e){ return null; } },
+  async put(k,v){ try{ await this.run('readwrite',s=>s.put(v,k)); return true; }catch(e){ return false; } },
+  async del(k){ try{ await this.run('readwrite',s=>s.delete(k)); return true; }catch(e){ return false; } }
+};
+function rememberPack(p){ if(p&&p.text) FileStore.put('pack',{name:p.name,text:p.text}); else FileStore.del('pack'); }
+const PICKS_KEY='dwrMusicPicks';
+/* A new pack starts on its tagged songs. Slots with none keep the game's music. */
+function setPack(p){ State.pack=p; State.assign={};
+  if(p) Object.entries(MUSIC_SLOTS).forEach(([group,list])=>list.forEach(([name,tags])=>{ if(p.songs.some(s=>hasTag(s,tags))) State.assign[slotKey(group,name)]='random'; }));
+  try{ const v=JSON.parse(localStorage.getItem(PICKS_KEY)); if(p&&v&&v.name===p.name) State.assign=v.assign||{}; }catch(e){}
+  State.emit('pack'); }
+function savePicks(){ try{ if(State.pack) localStorage.setItem(PICKS_KEY,JSON.stringify({name:State.pack.name,assign:State.assign||{}})); }catch(e){} }
+const slotKey=(group,name)=>group+'/'+name;
+/* One track for dungeon floors 1-7 is on by default, and the choice is kept in this browser. */
+const FLOORS_KEY='dwrSameFloors';
+const sameFloors=()=>State.sameFloors!==false;
+const isFloorN=name=>/^Dungeon Floor [2-7]$/.test(name);
+try{ if(localStorage.getItem(FLOORS_KEY)==='0') State.sameFloors=false; }catch(e){}
+const hasTag=(song,tags)=>song.uses.some(u=>tags.some(t=>t.toLowerCase()===String(u).toLowerCase()));
+function assignedCount(){ return Object.entries(State.assign||{}).filter(([k,v])=>v!==''&&!(sameFloors()&&isFloorN(k.split('/')[1]))).length; }
+function trackBox(){
+  const box=el('div',{class:'trackbox'});
+  const only=el('input',{type:'checkbox',id:'taggedonly'}); only.checked=State.taggedOnly!==false;
+  only.addEventListener('change',()=>{ State.taggedOnly=only.checked; paint(); });
+  const same=el('input',{type:'checkbox',id:'samefloors'}); same.checked=sameFloors();
+  same.addEventListener('change',()=>{ State.sameFloors=same.checked; try{ localStorage.setItem(FLOORS_KEY,same.checked?'1':'0'); }catch(e){} paint(); State.emit('assign'); });
+  const cols=el('div',{class:'trackcols'});
+  function fill(sel,group,slot){ const songs=State.pack?State.pack.songs:[], key=slotKey(group,slot[0]), cur=(State.assign||{})[key]??'';
+    const tagged=[],other=[]; songs.forEach((s,i)=>(hasTag(s,slot[1])?tagged:other).push(i));
+    const opt=i=>el('option',{value:i,text:songs[i].name});
+    sel.innerHTML=''; sel.append(el('option',{value:'',text:'Game default'}));
+    if(tagged.length) sel.append(el('option',{value:'random',text:'Random tagged'}));
+    if(State.taggedOnly!==false){ tagged.forEach(i=>sel.append(opt(i)));
+      if(cur!==''&&cur!=='random'&&other.includes(+cur)) sel.append(el('option',{value:cur,text:songs[+cur].name+' (not tagged)'})); }
+    else { if(tagged.length) sel.append(el('optgroup',{label:'Tagged'},tagged.map(opt))); if(other.length) sel.append(el('optgroup',{label:'Other tracks'},other.map(opt))); }
+    sel.value=cur; sel.disabled=!songs.length;
+    return tagged.length; }
+  function paint(){ cols.innerHTML='';
+    Object.entries(MUSIC_SLOTS).forEach(([group,slots])=>{ const col=el('div',{class:'trackcol'},el('span',{class:'sublab',text:group}));
+      slots.forEach(slot=>{ if(sameFloors()&&isFloorN(slot[0])) return;
+        const label=sameFloors()&&slot[0]==='Dungeon Floor 1'?'Dungeon Floors 1-7':slot[0];
+        const id='t'+(++UID), sel=el('select',{id}), n=fill(sel,group,slot);
+        sel.addEventListener('change',()=>{ const key=slotKey(group,slot[0]); if(!State.assign) State.assign={}; if(sel.value==='') delete State.assign[key]; else State.assign[key]=sel.value; savePicks(); State.emit('assign'); });
+        col.append(el('div',{class:'trackrow'},el('label',{for:id,text:label}),sel,el('small',{class:'tagn',title:'Tagged tracks for this slot','aria-label':n+' tagged tracks',text:State.pack?String(n):''}))); });
+      cols.append(col); }); }
+  box.append(el('label',{class:'onlytag',for:'taggedonly'},only,' Only show tagged tracks'),
+    el('label',{class:'onlytag',for:'samefloors'},same,' Same track for dungeon floors 1-7'),cols,
+    el('p',{class:'packstat',text:'A slot with no tagged tracks only offers Game default. Untick Only show tagged tracks to use any track there. With every dungeon floor set, Dragonlord Room and Hauksness on Game default play the main dungeon track. Original Credits needs Stat Scroll set too, or its track plays over the stat scroll instead.'}));
+  State.on(i=>{ if(i==='pack') paint(); }); paint(); return box;
+}
+function packControls(){
+  const uid='p'+(++UID);
+  const wrap=el('div',{class:'packbox'});
+  const inp=el('input',{type:'file',id:uid,accept:'.json5,.json','aria-describedby':uid+'s'});
+  const status=el('p',{id:uid+'s',class:'packstat',role:'status'});
+  function paint(){ const p=State.pack;
+    status.textContent=p?'Loaded '+p.songs.length+' tracks from "'+p.name+'".':'No pack loaded. Game music plays as normal.'; }
+  inp.addEventListener('change',async()=>{ const f=inp.files[0]; if(!f) return;
+    try{ const songs=songsFromPack(await f.text()); if(!songs.length) throw 0; const pk={name:f.name,songs,text:await f.text()}; setPack(pk); rememberPack(pk); }
+    catch(e){ setPack(null); rememberPack(null); status.textContent='"'+f.name+'" could not be read as a music pack.'; } });
+  const clr=el('button',{type:'button',class:'mini',text:'Clear',onclick:()=>{ inp.value=''; setPack(null); rememberPack(null); }});
+  wrap.append(el('label',{for:uid,class:'sublab',text:'Pack file (.json5)'}),el('span',{class:'caprow'},inp,clr),status,trackBox());
+  State.on(i=>{ if(i==='pack'||i==='*') paint(); }); paint(); return wrap;
+}
+function selectCtl(it){
+  const uid='s'+(++UID);
+  const s=el('select',{id:uid},it[4].map((o,i)=>el('option',{value:i,text:o})));
+  s.value=State.v[it[0]]|0; s.addEventListener('change',()=>State.set(it[0],+s.value));
+  State.on(i=>{ if(i===it[0]||i==='*') s.value=State.v[it[0]]|0; }); s.dataset.for=it[0]; return s;
+}
+/* Standard control: returns {root, label, input, desc}. Pages style .opt, .name, .desc, .tog, .mark */
+/* Options that do nothing unless another option is on or random. */
+const NEEDS={mapsize:'map',biome:'map',safestart:'map',onlyhealmore:'spells'};
+function needsOff(id){ return NEEDS[id]&&!(State.v[NEEDS[id]]|0); }
+const LEGEND='[ ] off  [x] on  [?] random';
+const REMIX_IDS=['bank','biome','encounters','keyherb','noshake','pack','quickspell','safestart'];
+function control(it, opts){
+  opts=opts||{}; const [id,name,desc,kind,extra]=it; const uid='c'+(++UID);
+  const root=el('div',{class:'opt k-'+(kind===S?'select':kind==='pack'?'pack':'toggle'),'data-id':id});
+  const d=el('p',{class:'desc',id:uid+'d',text:desc});
+  let input;
+  if(kind===S){ input=selectCtl(it); input.id=uid; input.setAttribute('aria-describedby',uid+'d');
+    root.append(el('label',{class:'name',for:uid,text:name}),input,d); }
+  else if(kind==='pack'){ root.append(el('span',{class:'name',text:name}),d,packControls()); }
+  else { input=triBtn(it); input.id=uid; input.setAttribute('aria-labelledby',uid+'n st-'+id); input.setAttribute('aria-describedby',uid+'d');
+    root.append(input,el('label',{class:'name',id:uid+'n',for:uid,text:name,onclick:e=>{e.preventDefault();input.click();input.focus();}}),d);
+    if(extra==='bank') root.append(bankControls()); }
+  if(id==='biome'){ const h=el('p',{class:'desc hint'});
+    const upd=()=>{ const b=State.v.biome|0; h.textContent=(b===1||b===2||b===4)?'Tip: long walks over desert and swamp feel better with Encounter Rate set to Low or Medium.':''; h.hidden=!h.textContent; };
+    State.on(i=>{ if(i==='biome'||i==='*') upd(); }); upd(); root.append(h); }
+  root.title = REMIX_IDS.includes(id) ? 'REMIX: added in this version, so these flags only work here.' : opts.tip ? desc : '';
+  if(NEEDS[id]){ const dep=()=>{ const off=needsOff(id); root.classList.toggle('needsoff',off); if(input) input.disabled=off; };
+    State.on(i=>{ if(i===NEEDS[id]||i===id||i==='*') dep(); }); dep(); }
+  return root;
+}
+function tabById(id){ return TABS.find(t=>t.id===id); }
+function matches(it,q){ q=q.toLowerCase(); return !q||it[1].toLowerCase().includes(q)||it[2].toLowerCase().includes(q)||(Array.isArray(it[4])&&it[4].some(o=>String(o).toLowerCase().includes(q))); }
+
+/* Shared chrome pieces */
+function flagsBlock(){
+  const fi=el('input',{id:'flags',type:'text',maxlength:40,'aria-label':'Flags',value:State.flags()});
+  fi.addEventListener('change',()=>{ let ok; State.oddFlags=false; State.keepPersonal(()=>{ ok=State.setFlags(fi.value.trim()); }); if(!ok) fi.value=State.flags(); State.say(ok?(State.oddFlags?'Some values in those flags were not recognized, so those options went back to their first choice.':''):'Those flags are not valid, so your flags did not change. Flags are 40 letters and digits (A-Z, 2-7).'); });
+  const sd=el('input',{id:'seed',type:'text',inputmode:'numeric',maxlength:20,'aria-label':'Seed',value:State.seed});
+  sd.addEventListener('change',()=>{ let v=sd.value.replace(/\D/g,''); if(v) v=(BigInt(v)>18446744073709551615n?18446744073709551615n:BigInt(v)).toString(); if(!v){ State.newSeed(); State.say&&State.say('A seed is a number, so a new random one was chosen.'); return; } State.seed=v; sd.value=v; State.emit('seed'); });
+  const rnd=el('button',{type:'button',class:'btn',text:'Random Seed',onclick:()=>State.newSeed()});
+  const sum=el('input',{id:'checksum',type:'text',readonly:true,'aria-label':'Checksum',placeholder:'None yet'});
+  const cp=el('button',{type:'button',class:'btn',text:'Copy',disabled:true,title:'Copies the link, flags, seed and checksum',onclick:async()=>{ const text='Dragon Warrior Randomizer - TheGobOne Remix\nFlags: '+State.flags()+'\nSeed: '+State.seed+'\nChecksum: '+sum.value+'\n'+location.href.split('#')[0]+'#f='+State.flags()+'&s='+State.seed; let ok=true;
+    try{ await navigator.clipboard.writeText(text); }catch(e){ const t=document.createElement('textarea'); t.value=text; document.body.append(t); t.select(); try{ ok=document.execCommand('copy'); }catch(x){ ok=false; } t.remove(); }
+    cp.textContent=ok?'Copied!':'Press Ctrl+C'; setTimeout(()=>{ cp.textContent='Copy'; },1500); }});
+  /* A checksum only belongs to the flags and seed it was made from. */
+  State.showChecksum=v=>{ sum.value=v; cp.disabled=!v; };
+  State.on(i=>{ fi.value=State.flags(); sd.value=State.seed; if(i!=='pack'&&i!=='rom'){ State.showChecksum(''); State.clearDone&&State.clearDone(); } });
+  return {flags:fi,seed:sd,rnd,copy:cp,sum};
+}
+/* Header and minimum size dwr_init expects. */
+function romProblem(b){ return b.length>=81936&&b[0]===0x4e&&b[1]===0x45&&b[2]===0x53&&b[3]===0x1a?'':'That file is not an uncompressed Dragon Warrior ROM (.nes, at least 81,936 bytes).'; }
+function romBlock(){
+  const uid='rom'+(++UID);
+  const inp=el('input',{type:'file',id:uid,accept:'.nes',class:'romfile'});
+  const st=el('span',{class:'romstat',role:'status',text:'No ROM loaded. Choose your uncompressed Dragon Warrior ROM.'});
+  const none=st.textContent;
+  const forget=el('button',{type:'button',class:'mini romforget',text:'Forget',onclick:()=>{ State.rom=null; inp.value=''; FileStore.del('rom'); paint(); State.emit('rom'); }});
+  function paint(note){ const r=State.rom; forget.hidden=!r;
+    st.textContent=r?'Loaded: '+r.name+' ('+(note||'stays in your browser')+')':none; }
+  inp.addEventListener('change',async()=>{ const f=inp.files[0]; if(!f) return;
+    const bytes=new Uint8Array(await f.arrayBuffer()), bad=romProblem(bytes);
+    if(bad){ inp.value=''; st.textContent=bad; return; }
+    State.rom={name:f.name,bytes};
+    paint((await FileStore.put('rom',State.rom))?'remembered in this browser':'this browser would not remember it'); State.emit('rom'); });
+  FileStore.get('rom').then(r=>{ if(r&&!State.rom&&!romProblem(r.bytes)){ State.rom=r; paint('remembered in this browser'); State.emit('rom'); } });
+  paint();
+  const lab=el('label',{for:uid,class:'sr',text:'ROM file (.nes)'});
+  return {input:inp,status:st,label:lab,forget};
+}
+/* Flags that add code to the ROM, largest first. Sizes from the find_free_space calls in common/dwr.c. */
+const SPACE_FLAGS=['bank','warp','hurtdoors','build','encounters','keyherb','radish','runmech','lvlrefill','returnesc','guillotine','unbreakable'];
+function spaceMessage(){ const on=SPACE_FLAGS.filter(id=>State.v[id]).map(id=>State.find(id)[1]);
+  if(State.pack) on.splice(1,0,'Custom Music Pack');
+  return 'Not enough ROM space for these flags. '+(on.length?'Try turning off one of: '+on.slice(0,5).join(', ')+'.':'Try turning some flags off.'); }
+/* One full build in the browser. The button downloads it, and the space check only measures it. */
+function buildOnce(){
+  const seed=BigInt(State.seed||'0').toString(), flags=State.flags(), out_name='DWRando.'+seed+'.'+flags+'.nes';
+  const sprite=State.find('sprite')[4][State.v.sprite|0]||'Random';
+  FS.writeFile('/input.nes',State.rom.bytes);
+  Module.ccall('custom_music_clear',null,[],[]);
+  const picks=State.pack?chosenPack(seed):{count:0};
+  if(picks.count){
+    FS.writeFile('/pack.json5',picks.text);
+    if(!Module.ccall('custom_music_load','number',['string'],['/pack.json5'])) throw new Error('That music pack could not be read.');
+  }
+  const log=window.dwrLog=[];
+  let sum=Module.ccall('dwr_randomize','bigint',['string','bigint','string','string','string'],['/input.nes',BigInt(seed),flags,sprite,'/']);
+  if(sum<0n) sum+=18446744073709551616n;
+  let data=null;
+  if(sum!==0n){ data=FS.readFile('/'+out_name); FS.unlink('/'+out_name); }
+  return {seed,flags,out_name,picks,log,sum,data};
+}
+function failMessage(log){
+  const has=t=>log.some(x=>x.includes(t));
+  if(has('not a Dragon Warrior ROM')) return "That file is not a Dragon Warrior ROM. Choose your uncompressed Dragon Warrior ROM.";
+  if(has('Could not draw a map')){ const b=State.find('biome')[4][State.v.biome|0], z=State.find('mapsize')[4][State.v.mapsize|0];
+    return 'Could not draw a map for this seed with Biome '+b+' and Map Size '+z+'. This is rare. Try another seed first, then Normal map size or the original Continent.'; }
+  if(has('Out of room')) return spaceMessage();
+  return 'Something went wrong while randomizing. Your browser console may say more.'; }
+function goBlock(out){
+  const o=out||el('p',{class:'result',role:'status'});
+  State.say=t=>{ o.textContent=t; };
+  State.clearDone=()=>{ if(/^ROM downloaded/.test(o.textContent)) o.textContent=''; };
+  const b=el('button',{type:'button',class:'btn go',text:'Randomize',onclick:async()=>{
+    if(!State.rom){ o.textContent=''; const f=document.querySelector('.romfile'), st=document.querySelector('.romstat'); if(st){ st.classList.add('romalert'); if(f) f.addEventListener('change',()=>st.classList.remove('romalert'),{once:true}); } if(f) f.focus(); return; }
+    if(!wasmReady){ o.textContent='Still loading the randomizer. Try again in a moment.'; return; }
+    b.disabled=true; o.textContent='Randomizing...';
+    await new Promise(r=>setTimeout(r,20));
+    try{
+      const r=buildOnce(); const {picks,log,sum,out_name}=r;
+      if(sum===0n) throw new Error(failMessage(log));
+      const data=r.data;
+      const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:'application/octet-stream'}));
+      a.download=out_name; window.lastRom={name:out_name,size:data.length}; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+      State.showChecksum(sum.toString(16).padStart(16,'0')); const last=log.slice(log.map(t=>t.includes('Out of room')).lastIndexOf(true)+1);
+      const noCredits=last.some(t=>t.includes('No room for the credits song')), placed=last.filter(t=>/\(\d+ bytes, bank \d\)/.test(t)).length-(noCredits?1:0);
+      const music=last.some(t=>t.includes('keeping the original music'))?' The music pack did not fit, so the game music plays.':
+        placed<picks.count?' '+(picks.count-placed)+' of '+picks.count+' music picks did not fit, so those play the game music.'+(noCredits?' That includes the credits song.':''):'';
+      o.textContent='ROM downloaded: '+out_name+'.'+music;
+    }catch(e){ o.textContent=e.message||'Something went wrong while randomizing.'; }
+    b.disabled=false; }});
+  return {button:b,result:o};
+}
+/* Saved presets stay in this browser. */
+const PRESET_KEY='dwrSavedPresets';
+function savedPresets(){ try{ const v=JSON.parse(localStorage.getItem(PRESET_KEY)); return Array.isArray(v)?v:[]; }catch(e){ return []; } }
+function storePresets(list){ try{ localStorage.setItem(PRESET_KEY,JSON.stringify(list)); return true; }catch(e){ return false; } }
+function presetArea(){
+  const grid=el('div',{class:'presetgrid'}), root=el('div',{class:'presetarea'},grid);
+  const name=el('input',{type:'text',maxlength:20,class:'presetname','aria-label':'New preset name',placeholder:'Preset name'});
+  const msg=el('span',{class:'presetmsg',role:'status'});
+  function paint(){
+    grid.replaceChildren(...presetButtons('mini'),...savedPresets().map(p=>el('span',{class:'savedpreset'},
+      el('button',{type:'button',class:'mini preset',title:p.flags,text:p.name,onclick:()=>State.keepPersonal(()=>State.setFlags(p.flags))}),
+      el('button',{type:'button',class:'mini presetdel','aria-label':'Delete preset '+p.name,text:'X',onclick:()=>{
+        if(!window.confirm('Delete preset "'+p.name+'"?')) return;
+        msg.textContent=storePresets(savedPresets().filter(x=>x.name!==p.name))?'Deleted '+p.name+'.':'Could not delete it.'; paint(); }}))));
+  }
+  function save(){
+    const n=name.value.trim().slice(0,20);
+    if(!n){ msg.textContent='Name it first.'; return; }
+    if(PRESETS.some(p=>p.name.toLowerCase()===n.toLowerCase())){ msg.textContent='That name is built in.'; return; }
+    const list=savedPresets().filter(x=>x.name.toLowerCase()!==n.toLowerCase());
+    list.push({name:n,flags:State.flags()});
+    msg.textContent=storePresets(list)?'Saved '+n+'.':'This browser would not save it.';
+    name.value=''; paint();
+  }
+  name.addEventListener('keydown',e=>{ if(e.key==='Enter') save(); });
+  root.append(el('div',{class:'presetsave'},name,el('button',{type:'button',class:'mini',text:'Save',onclick:save}),msg));
+  paint();
+  return root;
+}
+function presetButtons(cls){
+  return PRESETS.map(p=>el('button',{type:'button',class:cls||'btn preset',onclick:()=>State.keepPersonal(()=>State.applyPreset(p)),title:p.blurb},p.name));
+}
+function summaryList(){
+  const ul=el('ul',{class:'sumlist'});
+  function paint(){ ul.innerHTML='';
+    State.all().forEach(it=>{ if(!isChanged(it)||needsOff(it[0])) return; const x=State.v[it[0]]|0;
+      if(it[3]===S){ ul.append(el('li',null,it[1]+': '+it[4][x])); return; }
+      ul.append(el('li',null,it[1],(x===2?' (random)':''),it[4]==='bank'?' ['+BANK_LEVELS[State.bankLevel].name+', cap '+State.bankCap+']':'')); });
+    if(State.pack) ul.append(el('li',null,'Music pack: '+State.pack.name+(assignedCount()?' ('+assignedCount()+' chosen)':'')));
+    if(!ul.children.length) ul.append(el('li',{text:'Nothing on yet.'})); }
+  State.on(paint); paint(); return ul;
+}
+State.init();
+/* Comfort settings protect the player, so they survive a reload. */
+const COMFORT=['noflash','nored','noshake'], COMFORT_KEY='dwrComfort';
+try{ const v=JSON.parse(localStorage.getItem(COMFORT_KEY)); COMFORT.forEach(id=>{ if(v&&v[id]) State.v[id]=1; }); }catch(e){}
+/* The address carries the flags and seed, so copying it shares the setup. */
+try{ const q=new URLSearchParams(location.hash.slice(1)), f=q.get('f'), sd=q.get('s');
+  if(f) State.keepPersonal(()=>{ State.setFlags(f.trim().toUpperCase()); });
+  if(sd&&/^\d{1,20}$/.test(sd)) State.seed=sd; }catch(e){}
+State.on(()=>{ try{ history.replaceState(null,'','#f='+State.flags()+'&s='+State.seed); }catch(e){} });
+State.on(()=>{ try{ localStorage.setItem(COMFORT_KEY,JSON.stringify(Object.fromEntries(COMFORT.map(id=>[id,State.v[id]?1:0])))); }catch(e){} });
+FileStore.get('pack').then(p=>{ if(p&&!State.pack){ try{ const songs=songsFromPack(p.text); if(songs.length) setPack({name:p.name,songs,text:p.text}); }catch(e){} } });
+
+/* Accessible tabs: roving tabindex, arrows/Home/End, aria-selected. orient: 'h' or 'v' */
+function makeTabs(list, panel, tabs, render, orient, label){
+  list.setAttribute('role','tablist'); list.setAttribute('aria-label',label||'Categories');
+  if(orient==='v') list.setAttribute('aria-orientation','vertical');
+  const btns={}; let cur=null;
+  const prev = orient==='v'?'ArrowUp':'ArrowLeft', next = orient==='v'?'ArrowDown':'ArrowRight';
+  function select(id, focus){
+    cur=id; tabs.forEach(t=>{ const b=btns[t.id]; const on=t.id===id; b.setAttribute('aria-selected',on); b.tabIndex=on?0:-1; b.classList.toggle('active',on); });
+    panel.setAttribute('role','tabpanel'); panel.setAttribute('aria-labelledby','tab-'+id); panel.innerHTML='';
+    render(tabs.find(t=>t.id===id), panel); if(focus) btns[id].focus();
+  }
+  tabs.forEach((t,i)=>{
+    const b=el('button',{type:'button',class:'tab',role:'tab',id:'tab-'+t.id,'data-id':t.id});
+    b.append(...(t.contents?t.contents(t):[document.createTextNode(t.label)]));
+    b.addEventListener('click',()=>select(t.id));
+    b.addEventListener('keydown',e=>{ let n=null; const k=e.key;
+      if(k===next) n=(i+1)%tabs.length; else if(k===prev) n=(i-1+tabs.length)%tabs.length; else if(k==='Home') n=0; else if(k==='End') n=tabs.length-1;
+      if(n!=null){ e.preventDefault(); select(tabs[n].id,true); } });
+    btns[t.id]=b; if(t.head) list.append(el('div',{class:'menuhead',role:'presentation',text:t.head})); list.append(b);
+  });
+  return {select, btns, current:()=>cur};
+}
+/* Count of active (non-default) items in a tab */
+function tabCount(t){ return t.items.filter(isChanged).length + (t.items.some(it=>it[0]==='pack')&&State.pack?1:0); }
+function liveBadge(t){ const s=el('span',{class:'count'}); const p=()=>{ s.textContent=tabCount(t); s.setAttribute('aria-label',tabCount(t)+' on'); }; State.on(p); p(); return s; }
+function backLink(){ return document.createComment(''); }
+
+const app=document.getElementById('app');
+const scr=el('div',{class:'screen'});
+const fb=flagsBlock(), rb=romBlock(), gb=goBlock();
+/* Sprite preview, using the images in sprites/ */
+/* Site color. It's kept in this browser and has no effect on the game. */
+const COLORS=[['Blue','#00008a'],['Green','#0a5a1e'],['Red','#7a0f0f'],['Purple','#4a0a7a'],['Black','#111111']];
+const COLOR_KEY='dwrSiteColor';
+function hexRgb(h){ return [1,3,5].map(i=>parseInt(h.substr(i,2),16)); }
+function rgbHex(c){ return '#'+c.map(v=>Math.round(v).toString(16).padStart(2,'0')).join(''); }
+function contrastWithWhite(c){ const l=c.map(v=>{ v/=255; return v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4); });
+  return 1.05/(.2126*l[0]+.7152*l[1]+.0722*l[2]+.05); }
+/* White text has to stay readable, so pale colors get darkened until it is. */
+function readable(h){ let c=hexRgb(h); while(contrastWithWhite(c)<7) c=c.map(v=>v*.95); return rgbHex(c); }
+function applyColor(h){ const safe=readable(h), c=hexRgb(safe), mix=t=>rgbHex(c.map(v=>v+(255-v)*t)), r=document.documentElement.style;
+  r.setProperty('--blue',safe); r.setProperty('--line',mix(.35)); r.setProperty('--soft',mix(.78)); return safe; }
+function loadColor(){ try{ const v=JSON.parse(localStorage.getItem(COLOR_KEY)); if(v&&/^#[0-9a-f]{6}$/i.test(v.hex)) return v; }catch(e){} return {name:'Blue',hex:COLORS[0][1]}; }
+function saveColor(v){ try{ localStorage.setItem(COLOR_KEY,JSON.stringify(v)); }catch(e){} }
+function colorRow(){
+  const cur=loadColor(); applyColor(cur.hex);
+  const sel=el('select',{'aria-label':'Site color'},[...COLORS.map(c=>el('option',{value:c[0],text:c[0]})),el('option',{value:'Custom',text:'Custom'})]);
+  const pick=el('input',{type:'color','aria-label':'Custom site color',value:cur.hex,class:'colorpick'});
+  sel.value=cur.name;
+  const show=()=>{ pick.hidden=sel.value!=='Custom'; };
+  const set=(name,hex)=>{ const safe=applyColor(hex); pick.value=safe; saveColor({name,hex:safe}); show(); };
+  sel.addEventListener('change',()=>{ const c=COLORS.find(x=>x[0]===sel.value); set(sel.value,c?c[1]:pick.value); });
+  pick.addEventListener('input',()=>{ applyColor(pick.value); });
+  pick.addEventListener('change',()=>set('Custom',pick.value));
+  show();
+  return el('section',{class:'win colorwin'},el('h2',{text:'Site Color'}),el('div',{class:'colorrow'},sel,pick));
+}
+/* Walking frames come from a ROM built with that sprite, so they're exactly what the game shows. */
+const NES_COLORS='7C7C7C0000FC0000BC4428BC940084A80020A81000881400503000007800006800005800004058000000000000000000BCBCBC0078F80058F86844FCD800CCE40058F83800E45C10AC7C0000B80000A80000A844008888000000000000000000F8F8F83CBCFC6888FC9878F8F878F8F85898F87858FCA044F8B800B8F81858D85458F89800E8D8787878000000000000FCFCFCA4E4FCB8B8F8D8B8F8F8B8F8F8A4C0F0D0B0FCE0A8F8D878D8F878B8F8B8B8F8D800FCFCF8D8F8000000000000';
+const nesColor=i=>'#'+NES_COLORS.substr((i&63)*6,6);
+const HERO_FRAMES={};
+function buildHeroFrames(name){
+  if(HERO_FRAMES[name]) return HERO_FRAMES[name];
+  const flags='IVIAAVCEKACAAAAAAAAAAEAUAAQBAAAAABYCAAAA', file='/DWRando.1.'+flags+'.nes';
+  FS.writeFile('/input.nes',State.rom.bytes);
+  Module.ccall('custom_music_clear',null,[],[]);
+  const sum=Module.ccall('dwr_randomize','bigint',['string','bigint','string','string','string'],['/input.nes',1n,flags,name,'/']);
+  if(sum===0n) return null;
+  const rom=FS.readFile(file); FS.unlink(file);
+  const content=16, chr=16+0xc000+0x10000+0x4000+0x2000;
+  /* The hero's front-facing row: two frames of four (tile, attribute) pairs. */
+  const row=content+0x15b4, frames=[0,1].map(f=>{ const cv=document.createElement('canvas'); cv.width=cv.height=16; const g=cv.getContext('2d');
+    for(let q=0;q<4;q++){ const t=rom[row+f*8+q*2], at=rom[row+f*8+q*2+1], pal=content+0x1a8b+(at&3)*3, d=chr+t*16;
+      for(let y=0;y<8;y++){ const yy=at&0x80?7-y:y;
+        for(let x=0;x<8;x++){ const b=at&0x40?x:7-x, c=((rom[d+yy]>>b)&1)|(((rom[d+yy+8]>>b)&1)<<1);
+          if(c){ g.fillStyle=nesColor(rom[pal+c-1]); g.fillRect((q%2)*8+x,(q>>1)*8+y,1,1); } } } }
+    return cv; });
+  return HERO_FRAMES[name]=frames;
+}
+function heroWin(){
+  const list=State.all().find(it=>it[0]==='sprite')[4];
+  const img=el('img',{alt:''}); const q=el('span',{class:'heroq',text:'?'});
+  const walk=el('canvas',{class:'herowalk',width:16,height:16}); walk.hidden=true;
+  const pic=el('div',{class:'heropic'},img,q,walk);
+  const s=el('select',{'aria-label':'Player sprite'},list.map((o,i)=>el('option',{value:i,text:o})));
+  s.addEventListener('change',()=>State.set('sprite',+s.value));
+  const step=d=>State.set('sprite',((State.v.sprite|0)+d+list.length)%list.length);
+  const prev=el('button',{type:'button',class:'mini','aria-label':'Previous sprite',text:'<',onclick:()=>step(-1)});
+  const next=el('button',{type:'button',class:'mini','aria-label':'Next sprite',text:'>',onclick:()=>step(1)});
+  const paint=()=>{ const i=State.v.sprite|0; s.value=i; const r=i===0; img.hidden=r; q.hidden=!r;
+    if(!r){ img.src='sprites/'+encodeURIComponent(list[i])+'.png'; img.alt=list[i]; } };
+  const anim=el('input',{type:'checkbox',id:'heroanim'}), note=el('span',{class:'animnote',role:'status'});
+  try{ anim.checked=localStorage.getItem('dwrHeroAnimate')==='1'; }catch(e){}
+  let timer=null, shown=null;
+  function stop(){ clearInterval(timer); timer=null; shown=null; walk.hidden=true; }
+  function animate(){
+    const i=State.v.sprite|0, name=list[i];
+    if(!anim.checked){ note.textContent=''; stop(); paint(); return; }
+    if(matchMedia('(prefers-reduced-motion:reduce)').matches){ note.textContent='Motion is reduced'; stop(); paint(); return; }
+    if(!i){ note.textContent='Pick a sprite'; stop(); return; }
+    if(!State.rom){ note.textContent='Needs your ROM'; stop(); return; }
+    if(!wasmReady){ note.textContent='Loading'; stop(); return; }
+    if(shown===name) return;
+    stop(); note.textContent='';
+    setTimeout(()=>{
+      let fr=null; try{ fr=buildHeroFrames(name); }catch(e){}
+      if(!fr){ note.textContent='Could not draw it'; return; }
+      if((list[State.v.sprite|0])!==name||!anim.checked) return;
+      const g=walk.getContext('2d'); let n=0; shown=name;
+      const draw=()=>{ g.clearRect(0,0,16,16); g.drawImage(fr[n],0,0); n=1-n; };
+      draw(); img.hidden=true; walk.hidden=false; timer=setInterval(draw,500);
+    },20);
+  }
+  anim.addEventListener('change',()=>{ try{ localStorage.setItem('dwrHeroAnimate',anim.checked?'1':'0'); }catch(e){} animate(); });
+  State.on(i=>{ paint(); if(shown&&!walk.hidden) img.hidden=true; if(i==='sprite'||i==='*'||i==='rom') animate(); });
+  paint();
+  State.heroAnimate=animate;
+  const animRow=el('label',{class:'animrow'},anim,el('span',{text:'Animate'}),note);
+  return el('section',{class:'win herowin'},el('h2',{text:'Hero'}),pic,el('div',{class:'herosel'},prev,s,next),animRow);
+}
+scr.append(backLink(),
+ el('section',{class:'win title'},el('h1',{text:'DRAGON WARRIOR RANDOMIZER - THEGOBONE REMIX'}),el('p',{text:'A command window for a new quest. Choose a command with the arrow keys.'})),
+ el('section',{class:'win'},el('h2',{text:'Quest'}),
+   el('div',{class:'row'},el('span',{text:'ROM'}),rb.label,rb.input,rb.forget,rb.status),
+   el('div',{class:'idrow'},el('div',{class:'idfields'},el('div',{class:'row'},el('label',{for:'flags',text:'Flags'}),fb.flags),
+   el('div',{class:'row'},el('label',{for:'seed',text:'Seed'}),fb.seed,fb.rnd),
+   el('div',{class:'row'},el('label',{for:'checksum',text:'Checksum'}),fb.sum,fb.copy,gb.button),gb.result),
+   el('div',{class:'idpresets'},el('span',{text:'Presets'}),presetArea()))));
+const main=el('div',{class:'main'});
+const cmd=el('nav',{class:'win cmd','aria-label':'Command menu'});
+cmd.append(el('h2',{text:'Command'}));
+const tabList=el('div',{class:'cmd'});
+const panel=el('section',{class:'win panel'});
+const tabs=TABS.map(t=>({id:t.id,label:t.label,head:t.head,contents:()=>[document.createTextNode(t.label),liveBadge(t)]}));
+const tabsApi=makeTabs(tabList,panel,tabs,(t,p)=>{ const tab=tabById(t.id);
+  p.append(el('h2',{text:tab.long}),el('p',{class:'blurb',text:tab.blurb}),el('p',{class:'legend',text:LEGEND}),el('div',{class:'opts'},tab.sections.flatMap(s=>[
+    s.title?el('h3',{class:'optsec',text:s.title}):null,
+    s.note?el('p',{class:'secnote',text:s.note}):null,
+    ...s.ids.map(id=>control(State.find(id)))].filter(Boolean)))); },'v','Settings categories');
+tabsApi.select(TABS[0].id);
+cmd.append(tabList);
+cmd.append(el('button',{type:'button',class:'mini skipopts',text:'Skip to options',onclick:()=>{ const f=panel.querySelector('.opts button,.opts input,.opts select'); if(f) f.focus(); }}));
+/* Search: shows every matching setting from all categories in the main panel. */
+function searchWin(){
+  const inp=el('input',{type:'search',id:'flagsearch',placeholder:'Search flags  ( / )','aria-label':'Search flags',autocomplete:'off',maxlength:40});
+  const note=el('p',{class:'searchnote',role:'status'});
+  const chg=el('input',{type:'checkbox',id:'searchchanged'}), chgRow=el('label',{class:'animrow',for:'searchchanged',title:'Show only the flags you have changed'},chg,el('span',{text:'Changed'}));
+  function show(){ const q=inp.value.trim(), only=chg.checked;
+    if(!q&&!only){ note.textContent=''; tabsApi.select(tabsApi.current()||TABS[0].id); return; }
+    const hits=TABS.map(t=>({t,items:t.items.filter(it=>matches(it,q)&&(!only||isChanged(it)))})).filter(x=>x.items.length), n=hits.reduce((a,x)=>a+x.items.length,0);
+    note.textContent=n+(n===1?' match':' matches');
+    panel.setAttribute('role','tabpanel'); panel.removeAttribute('aria-labelledby'); panel.innerHTML='';
+    tabs.forEach(t=>{ tabsApi.btns[t.id].classList.remove('active'); tabsApi.btns[t.id].setAttribute('aria-selected','false'); });
+    panel.append(el('h2',{text:'Search'}),el('p',{class:'blurb',text:n?(q?n+(n===1?' flag matches "':' flags match "')+q+'".':n+(n===1?' flag is changed.':' flags are changed.')):(q?'No flag matches "'+q+'". Try a shorter word.':'Nothing is changed yet.')}),
+      el('p',{class:'legend',text:LEGEND}),
+      el('div',{class:'opts'},hits.flatMap(x=>[el('h3',{class:'optsec',text:x.t.long}),...x.t.sections.filter(s=>s.note&&s.ids.some(id=>x.items.some(it=>it[0]===id))).map(s=>el('p',{class:'secnote',text:s.note})),...x.items.map(it=>control(it))]))); }
+  inp.addEventListener('input',show); chg.addEventListener('change',show);
+  document.addEventListener('keydown',e=>{ if(e.key==='/'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){ e.preventDefault(); inp.focus(); inp.select(); } });
+  inp.addEventListener('keydown',e=>{ if(e.key==='Escape'&&(inp.value||chg.checked)){ e.preventDefault(); inp.value=''; chg.checked=false; show(); } });
+  /* Choosing a category ends the search. */
+  tabList.addEventListener('click',()=>{ inp.value=''; chg.checked=false; note.textContent=''; });
+  tabList.addEventListener('keydown',()=>{ inp.value=''; chg.checked=false; note.textContent=''; });
+  return el('section',{class:'win searchwin'},el('h2',{text:'Search'}),chgRow,inp,note);
+}
+const spaceLine=el('p',{class:'spaceline',role:'status'});
+let spaceTimer=null;
+/* Bytes still free in the main program bank. Runs of 6 or more blank bytes count. */
+function freeBytes(rom){ let free=0,run=0; for(let i=0x10010+0xc422;i<0x10010+0xfff0;i++){ if(rom[i]===0xff) run++; else { if(run>=6) free+=run; run=0; } } return run>=6?free+run:free; }
+function checkSpace(){ spaceTimer=null;
+  if(!State.rom||!wasmReady){ spaceLine.textContent=''; return; }
+  try{ const r=buildOnce(); spaceLine.textContent=r.data?'ROM space: '+freeBytes(r.data)+' bytes spare':(r.log.some(t=>t.includes('Out of room'))?'ROM space: will not fit. Turn off a flag.':'Build check: '+failMessage(r.log)); }
+  catch(e){ spaceLine.textContent=''; } }
+State.on(i=>{ if(i==='seed') return; clearTimeout(spaceTimer);
+  spaceLine.textContent=State.rom&&wasmReady?'ROM space: checking...':''; spaceTimer=setTimeout(checkSpace,1000); });
+const sum=el('section',{class:'win sumwin'},el('h2',{text:'Status'}),spaceLine,summaryList());
+main.append(el('div',{class:'leftcol'},cmd,searchWin(),el('div',{class:'herostack'},heroWin(),colorRow())),panel,el('div',{class:'rightcol'},sum));
+scr.append(main);
+app.append(scr);
+
+</script>
+</body>
+</html>

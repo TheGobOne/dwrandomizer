@@ -9,8 +9,10 @@
 #include "build.h"
 #include "dwr_types.h"
 
-#define DWR_VERSION "UNOFFICIAL - JUEF v3.0.3.20"
+#define DWR_VERSION "TheGobOne Remix v1.0"
 #define VERSION DWR_VERSION
+/* The title screen font has no lower case. */
+#define DWR_EDITION "THEGOBONE REMIX V1.0"
 
 #define DEFAULT_FLAGS "IVIAAVCEKACAAAAAAAAAAEAUAAQBAAAAABYCAAAA"
 #define CHEST_COUNT 31
@@ -25,6 +27,16 @@
 #define RANDOM_XP_REQS(x)         (x->flags[ 1] & 0x03)
 #define HEAL_HURT_B4_MORE(x)      (x->flags[ 2] & 0xc0)
 #define STAIR_SHUFFLE(x)          (x->flags[ 2] & 0x0c)
+
+#define RUN_BANK(x)               (x->flags[11] & 0x0c)
+#define KEY_HERB_COUNTER(x)       (x->flags[ 8] & 0x10)
+#define QUICK_SPELL(x)            (x->flags[11] & 0x01)
+/* 0 default, 1 low, 2 medium, 3 high. These bits sit alone in their pairs, so they are never maybe flags. */
+#define ENCOUNTER_RATE(x)         (((x->flags[3] & 0x01) << 1) | (x->flags[6] & 0x01))
+/* 0 means the default cap of 9 */
+#define RUN_BANK_CAP(x)           (x->flags[12] & 0x7f)
+/* 0 normal, 1 easy, 2 strict, 3 very strict */
+#define RUN_BANK_LEVEL(x)         (((x->flags[12] & 0x80) >> 6) | (x->flags[14] & 0x01))
 
 #define MENU_WRAP(x)              (x->flags[ 3] & 0xc0)
 #define DEATH_NECKLACE(x)         (x->flags[ 3] & 0x30)
@@ -75,6 +87,7 @@
 #define DEATH_COUNTER(x)          (x->flags[14] & 0x10)
 #define CUSTOM_SPELLS(x)          (x->flags[14] & 0x08)
 #define SKIP_VANILLA_CREDITS(x)   (x->flags[14] & 0x04)
+#define NO_SCREEN_SHAKE(x)        (x->flags[14] & 0x02)
 
 #define INN_IN_CHARLOCK(x)        ((x->flags[15] & 0xc0) >> 6) // 2
 #define ONLY_HEALMORE(x)          ((x->flags[15] & 0x30) >> 4) // 2
@@ -147,7 +160,12 @@ extern "C" {
 uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
         const char *sprite_name, const char* output_dir);
 uint16_t set_text(dw_rom *rom, const size_t address, char *text);
+/* Bank 1's free space ends here (not inclusive): see notes/free_space.txt. */
+#define BANK_1_FREE_END 0x7fd8
+/* Ask dwr_randomize to write a .spoiler.txt next to the ROM. */
+void dwr_set_spoiler(BOOL enabled);
 uint16_t find_free_space(uint8_t *content, uint16_t start, uint8_t n);
+uint16_t find_free_space_in(uint8_t *content, uint16_t start, uint16_t end, uint8_t n);
 void check_free_space(uint8_t *content, uint16_t start);
 void print_rom_data(uint8_t *content, uint16_t start, uint8_t n);
 
