@@ -288,8 +288,8 @@ input[type=file]{min-width:0;max-width:100%}
 @media (min-width:1000px) and (min-height:500px){
  .leftcol{display:flex;flex-direction:column;overflow:hidden auto;padding-top:.7rem;margin-top:-.7rem;height:calc(100% + .7rem)!important}
  .leftcol>*{flex:none}
- .leftcol>.herostack{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
- .herostack>.herowin{flex:1 1 auto}
+ .leftcol>.herostack{flex:none;display:flex;flex-direction:column;min-height:0}
+ .herostack>.herowin{flex:none}
  .herostack>.colorwin{flex:none}
  .leftcol>nav.cmd{overflow:visible}
  nav.cmd>.cmd{flex:none;overflow:visible}
@@ -307,7 +307,9 @@ input[type=file]{min-width:0;max-width:100%}
 .searchwin input[type=checkbox]{width:auto;min-height:0;flex:none}
 .searchwin{position:relative}
 .searchnote:empty{display:none}
-.searchwin .animrow{position:absolute;top:-.55rem;right:.5rem;margin:0;padding:0 .25rem;background:var(--blue);white-space:nowrap}
+.searchrow{display:flex;gap:1rem;margin-top:.25rem}
+.onlyrow{display:flex;flex-wrap:wrap;gap:0 2rem}
+.searchwin .animrow{margin:0;white-space:nowrap}
 .searchnote{margin:.2rem 0 0;color:var(--muted);min-height:1em}
 </style>
 </head>
@@ -585,8 +587,8 @@ function trackBox(){
         sel.addEventListener('change',()=>{ const key=slotKey(group,slot[0]); if(!State.assign) State.assign={}; if(sel.value==='') delete State.assign[key]; else State.assign[key]=sel.value; savePicks(); State.emit('assign'); });
         col.append(el('div',{class:'trackrow'},el('label',{for:id,text:label}),sel,el('small',{class:'tagn',title:'Tagged tracks for this slot','aria-label':n+' tagged tracks',text:State.pack?String(n):''}))); });
       cols.append(col); }); }
-  box.append(el('label',{class:'onlytag',for:'taggedonly'},only,' Only show tagged tracks'),
-    el('label',{class:'onlytag',for:'samefloors'},same,' Same track for dungeon floors 1-7'),cols,
+  box.append(el('div',{class:'onlyrow'},el('label',{class:'onlytag',for:'taggedonly'},only,' Only show tagged tracks'),
+    el('label',{class:'onlytag',for:'samefloors'},same,' Same track for dungeon floors 1-7')),cols,
     el('p',{class:'packstat',text:'A slot with no tagged tracks only offers Game default. Untick Only show tagged tracks to use any track there. With every dungeon floor set, Dragonlord Room and Hauksness on Game default play the main dungeon track. Original Credits needs Stat Scroll set too, or its track plays over the stat scroll instead.'}));
   State.on(i=>{ if(i==='pack') paint(); }); paint(); return box;
 }
@@ -695,7 +697,7 @@ function buildOnce(){
   if(sum<0n) sum+=18446744073709551616n;
   let data=null;
   if(sum!==0n){ data=FS.readFile('/'+out_name); FS.unlink('/'+out_name); }
-  return {seed,flags,out_name,picks,log,sum,data};
+  return {seed,flags,out_name:'DWR.'+seed+'.'+flags+'.nes',picks,log,sum,data};
 }
 function failMessage(log){
   const has=t=>log.some(x=>x.includes(t));
@@ -774,12 +776,15 @@ State.init();
 /* Comfort settings protect the player, so they survive a reload. */
 const COMFORT=['noflash','nored','noshake'], COMFORT_KEY='dwrComfort';
 try{ const v=JSON.parse(localStorage.getItem(COMFORT_KEY)); COMFORT.forEach(id=>{ if(v&&v[id]) State.v[id]=1; }); }catch(e){}
+/* The chosen hero sprite survives a reload too, saved by name so list changes can't swap it. */
+try{ const i=State.find('sprite')[4].indexOf(localStorage.getItem('dwrSprite')); if(i>0) State.v.sprite=i; }catch(e){}
 /* The address carries the flags and seed, so copying it shares the setup. */
 try{ const q=new URLSearchParams(location.hash.slice(1)), f=q.get('f'), sd=q.get('s');
   if(f) State.keepPersonal(()=>{ State.setFlags(f.trim().toUpperCase()); });
   if(sd&&/^\d{1,20}$/.test(sd)) State.seed=sd; }catch(e){}
 State.on(()=>{ try{ history.replaceState(null,'','#f='+State.flags()+'&s='+State.seed); }catch(e){} });
 State.on(()=>{ try{ localStorage.setItem(COMFORT_KEY,JSON.stringify(Object.fromEntries(COMFORT.map(id=>[id,State.v[id]?1:0])))); }catch(e){} });
+State.on(()=>{ try{ localStorage.setItem('dwrSprite',State.find('sprite')[4][State.v.sprite|0]||'Random'); }catch(e){} });
 FileStore.get('pack').then(p=>{ if(p&&!State.pack){ try{ const songs=songsFromPack(p.text); if(songs.length) setPack({name:p.name,songs,text:p.text}); }catch(e){} } });
 
 /* Accessible tabs: roving tabindex, arrows/Home/End, aria-selected. orient: 'h' or 'v' */
@@ -929,22 +934,23 @@ function searchWin(){
   const inp=el('input',{type:'search',id:'flagsearch',placeholder:'Search flags  ( / )','aria-label':'Search flags',autocomplete:'off',maxlength:40});
   const note=el('p',{class:'searchnote',role:'status'});
   const chg=el('input',{type:'checkbox',id:'searchchanged'}), chgRow=el('label',{class:'animrow',for:'searchchanged',title:'Show only the flags you have changed'},chg,el('span',{text:'Changed'}));
-  function show(){ const q=inp.value.trim(), only=chg.checked;
-    if(!q&&!only){ note.textContent=''; tabsApi.select(tabsApi.current()||TABS[0].id); return; }
-    const hits=TABS.map(t=>({t,items:t.items.filter(it=>matches(it,q)&&(!only||isChanged(it)))})).filter(x=>x.items.length), n=hits.reduce((a,x)=>a+x.items.length,0);
+  const rmx=el('input',{type:'checkbox',id:'searchremix'}), rmxRow=el('label',{class:'animrow',for:'searchremix',title:'Show only the flags added in this version'},rmx,el('span',{text:'Remix'}));
+  function show(){ const q=inp.value.trim(), only=chg.checked, remix=rmx.checked;
+    if(!q&&!only&&!remix){ note.textContent=''; tabsApi.select(tabsApi.current()||TABS[0].id); return; }
+    const hits=TABS.map(t=>({t,items:t.items.filter(it=>matches(it,q)&&(!only||isChanged(it))&&(!remix||REMIX_IDS.includes(it[0])))})).filter(x=>x.items.length), n=hits.reduce((a,x)=>a+x.items.length,0);
     note.textContent=n+(n===1?' match':' matches');
     panel.setAttribute('role','tabpanel'); panel.removeAttribute('aria-labelledby'); panel.innerHTML='';
     tabs.forEach(t=>{ tabsApi.btns[t.id].classList.remove('active'); tabsApi.btns[t.id].setAttribute('aria-selected','false'); });
-    panel.append(el('h2',{text:'Search'}),el('p',{class:'blurb',text:n?(q?n+(n===1?' flag matches "':' flags match "')+q+'".':n+(n===1?' flag is changed.':' flags are changed.')):(q?'No flag matches "'+q+'". Try a shorter word.':'Nothing is changed yet.')}),
+    panel.append(el('h2',{text:'Search'}),el('p',{class:'blurb',text:n?(q?n+(n===1?' flag matches "':' flags match "')+q+'".':n+' '+(only&&remix?'changed Remix ':only?'changed ':'Remix ')+(n===1?'flag.':'flags.')):(q?'No flag matches "'+q+'". Try a shorter word.':only&&remix?'No Remix flag is changed yet.':'Nothing is changed yet.')}),
       el('p',{class:'legend',text:LEGEND}),
       el('div',{class:'opts'},hits.flatMap(x=>[el('h3',{class:'optsec',text:x.t.long}),...x.t.sections.filter(s=>s.note&&s.ids.some(id=>x.items.some(it=>it[0]===id))).map(s=>el('p',{class:'secnote',text:s.note})),...x.items.map(it=>control(it))]))); }
-  inp.addEventListener('input',show); chg.addEventListener('change',show);
+  inp.addEventListener('input',show); chg.addEventListener('change',show); rmx.addEventListener('change',show);
   document.addEventListener('keydown',e=>{ if(e.key==='/'&&!e.ctrlKey&&!e.metaKey&&!e.altKey&&!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)){ e.preventDefault(); inp.focus(); inp.select(); } });
-  inp.addEventListener('keydown',e=>{ if(e.key==='Escape'&&(inp.value||chg.checked)){ e.preventDefault(); inp.value=''; chg.checked=false; show(); } });
+  inp.addEventListener('keydown',e=>{ if(e.key==='Escape'&&(inp.value||chg.checked||rmx.checked)){ e.preventDefault(); inp.value=''; chg.checked=false; rmx.checked=false; show(); } });
   /* Choosing a category ends the search. */
-  tabList.addEventListener('click',()=>{ inp.value=''; chg.checked=false; note.textContent=''; });
-  tabList.addEventListener('keydown',()=>{ inp.value=''; chg.checked=false; note.textContent=''; });
-  return el('section',{class:'win searchwin'},el('h2',{text:'Search'}),chgRow,inp,note);
+  tabList.addEventListener('click',()=>{ inp.value=''; chg.checked=false; rmx.checked=false; note.textContent=''; });
+  tabList.addEventListener('keydown',()=>{ inp.value=''; chg.checked=false; rmx.checked=false; note.textContent=''; });
+  return el('section',{class:'win searchwin'},el('h2',{text:'Search'}),inp,el('div',{class:'searchrow'},chgRow,rmxRow),note);
 }
 const spaceLine=el('p',{class:'spaceline',role:'status'});
 let spaceTimer=null;

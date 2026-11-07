@@ -3,8 +3,8 @@
 from glob import glob
 from subprocess import run
 from os.path import dirname, basename, realpath, join, exists
-from os import chdir, remove, getcwd
-from distutils.spawn import find_executable
+from os import chdir, remove, getcwd, environ
+from shutil import which
 
 MUSIC_ADDR = 0x8000
 
@@ -13,10 +13,9 @@ class Music:
         self.filename = name
         self.name = name[:name.rfind('.')]
         print(f'Adding music {self.name}...')
-        self.asm6 = "/home/francois/Desktop/Perm stuff/Software/dwr_compilation/asm6f"#find_executable('asm6f') or find_executable('asm6')
+        self.asm6 = environ.get('ASM6F') or which('asm6f') or which('asm6')
         print(self.asm6)
-        self.famistudio = "/home/francois/Documents/Perm stuff/Software/FamiStudio/FamiStudio.dll"#find_executable('famistudio')
-        #self.famistudio = "/home/francois/Documents/Perm stuff/Software/FamiStudio413-LinuxAMD64/FamiStudio.dll"#find_executable('famistudio')
+        self.famistudio = environ['FAMISTUDIO_DLL']  # path to FamiStudio.dll
         self.music = self.dmc = b''
         self.addr = None
         self.assemble()

@@ -351,10 +351,10 @@ max_candidates:
         which = mt_rand(0, count-1);
         x = x_candidate[which];
         y = y_candidate[which];
-        if (tile_is_walkable(map->tiles[x][y-1])) {
+        if (y > 0 && tile_is_walkable(map->tiles[x][y-1])) {
             map->tiles[x][y] = map->tiles[x][y-1];
 
-        } else if (tile_is_walkable(map->tiles[x][y+1])) {
+        } else if (y < 119 && tile_is_walkable(map->tiles[x][y+1])) {
             map->tiles[x][y] = map->tiles[x][y+1];
         } else {
             map->tiles[x][y] = TILE_BRIDGE;
@@ -363,6 +363,9 @@ max_candidates:
     }
     return FALSE;
 }
+
+/* Set when a land mass has no free spot left, so the map is thrown away and drawn again. */
+static BOOL land_missing;
 
 /**
  * Finds a land area where something can be placed and will be accessible.
@@ -375,12 +378,13 @@ max_candidates:
  * @param y A pointer to a uint8_t which will be filled with the y coordinate
  * @param ignore_vanilla A boolean indicating this function should assume the
  *  RANDOM_MAP flag is on.
+ * @return TRUE if a spot was found. FALSE sets land_missing.
  */
-static void map_find_land(dw_map *map, int one, int two, uint8_t *x, uint8_t *y,
+static BOOL map_find_land(dw_map *map, int one, int two, uint8_t *x, uint8_t *y,
         BOOL ignore_vanilla)
 {
     uint8_t cont;
-    int spot_index, loop = 0;
+    int spot_index, loop = 0, tries = 0, start, i;
 
     for (;;) {
         if (!ignore_vanilla && !RANDOM_MAP(map) && loop < 200) {
@@ -394,7 +398,22 @@ static void map_find_land(dw_map *map, int one, int two, uint8_t *x, uint8_t *y,
         }
         cont = map->walkable[*x][*y];
         if (cont && (cont == one || cont == two))
-            return;
+            return TRUE;
+        /* A land mass that is gone or full would loop forever, so look through the whole map. */
+        if (++tries >= 20000) {
+            start = (int)mt_rand(0, 120 * 120 - 1);
+            for (i = 0; i < 120 * 120; i++) {
+                int at = (start + i) % (120 * 120);
+                *x = (uint8_t)(at % 120);
+                *y = (uint8_t)(at / 120);
+                cont = map->walkable[*x][*y];
+                if (cont && (cont == one || cont == two))
+                    return TRUE;
+            }
+            land_missing = TRUE;
+            *x = *y = 0;
+            return FALSE;
+        }
     }
 }
 
@@ -434,9 +453,17 @@ static dw_border_tile place(dw_map *map, dw_warp_index warp_idx, dw_tile tile,
 
     warp = &map->warps_from[warp_idx];
 
+    int spots = 0;
+
     do {
-        map_find_land(map, lm_one, lm_two, &x, &y, FALSE);
+        if (!map_find_land(map, lm_one, lm_two, &x, &y, FALSE))
+            return BORDER_GRASS;
         old_tile = map->tiles[x][y];
+        /* Every spot taken by another town or cave: the land is too crowded. */
+        if (++spots > 50000) {
+            land_missing = TRUE;
+            return BORDER_GRASS;
+        }
     } while (old_tile == TILE_CASTLE || old_tile == TILE_TOWN ||
              old_tile == TILE_CAVE);
 
@@ -469,8 +496,18 @@ static void place_charlock(dw_map *map, int largest, int next)
     } else {
         warp = &map->warps_from[WARP_CHARLOCK];
 
-        while(x < 7 || x > 118 || y < 3 || y > 116) {
-            map_find_land(map, largest, next, &x, &y, FALSE);
+        if (BIOME(map) == BIOME_CALDERA) {
+            /* The castle sits in the middle of the basin. */
+            x = 63;
+            y = 60;
+        } else {
+            int spots = 0;
+            while(x < 7 || x > 118 || y < 3 || y > 116) {
+                if (!map_find_land(map, largest, next, &x, &y, FALSE) || ++spots > 50000) {
+                    land_missing = TRUE;
+                    return;
+                }
+            }
         }
         warp->x = x-3;
         warp->y = y;
@@ -642,6 +679,8 @@ static inline void find_largest_lm(int *lm_sizes, int lm_count,
     int i;
 
     *largest = *next = 0;
+    if (!lm_count)
+        return;
     for(i=0; i < lm_count; i++) {
         if (!(*largest) || lm_sizes[i] > lm_sizes[(*largest)-1]) {
             *next = *largest;
@@ -651,7 +690,7 @@ static inline void find_largest_lm(int *lm_sizes, int lm_count,
         }
     }
 
-    if (lm_sizes[(*next)-1] < MIN_LM_SIZE) {
+    if (!*next || lm_sizes[(*next)-1] < MIN_LM_SIZE) {
         *next = *largest;
     }
 }
@@ -675,12 +714,16 @@ static int find_walkable_area(dw_map *map, int *lm_sizes, int *largest,
     for (y=0; y < 120; y++) {
         for (x=0; x < 120; x++) {
             if (!map->walkable[x][y] && tile_is_walkable(map->tiles[x][y])) {
+                /* Index 0 means "no land mass", so the count must not wrap. */
+                if (land_mass == 255)
+                    goto all_found;
                 lm_sizes[land_mass] = 
                         map_land_mass_2(map, x, y, land_mass+1);
                 land_mass++;
             }
         }
     }
+all_found:
     find_largest_lm(lm_sizes, land_mass, largest, next);
     return (int)land_mass;
 }
@@ -792,9 +835,13 @@ static BOOL place_landmarks(dw_map *map)
     /* find the 2 largest land masses */
     find_walkable_area(map, lm_sizes, &largest, &next);
 
-
+    land_missing = FALSE;
     warp = &map->warps_from[WARP_CHARLOCK];
     place_charlock(map, largest, next);
+    if (land_missing) {
+        printf("No room for Charlock, retrying...\n");
+        return FALSE;
+    }
     find_walkable_area(map, lm_sizes, &largest, &next);
     charlock_lm = map->walkable[warp->x+3][warp->y];
 
@@ -873,6 +920,17 @@ static BOOL place_landmarks(dw_map *map)
         tantegel_lm = place_tantegel(map, largest, next);
     }
 
+    if (RANDOM_MAP(map) && BIOME(map) == BIOME_CALDERA) {
+        /* Tantegel inside the basin would skip the whole journey to Charlock. */
+        const dw_warp *t = &map->warps_from[WARP_TANTEGEL];
+        const int dx = (int)t->x - 60, dy = (int)t->y - 60, r = map->size * 27 / 100 + 3;
+
+        if (dx * dx + dy * dy < r * r) {
+            printf("Tantegel is inside the caldera, retrying...\n");
+            return FALSE;
+        }
+    }
+
     if (need_rimuldar(map)) {
         /* rimuldar needs to be on the same land mass as tantegel (for keys) */
         rimuldar_lm1 = rimuldar_lm2 = tantegel_lm;
@@ -890,6 +948,10 @@ static BOOL place_landmarks(dw_map *map)
     map->meta[CANTLIN].border =
             place(map, WARP_CANTLIN, TILE_TOWN, largest, next);
 
+    if (land_missing) {
+        printf("No room for every town and cave, retrying...\n");
+        return FALSE;
+    }
     return TRUE;
 }
 
@@ -966,6 +1028,261 @@ static void check_keys(dw_rom *rom)
     }
 }
 
+/* Biomes use whole numbers only, so the CLI and the site always build the same map. */
+static int biome_isqrt(int n)
+{
+    int r = 0;
+
+    while ((r + 1) * (r + 1) <= n)
+        r++;
+    return r;
+}
+
+/* One step of a slow drift, used to roughen edges without hurting compression. */
+static int biome_drift(int value, int limit)
+{
+    value += (int)mt_rand(0, 2) - 1;
+    if (value > limit) value = limit;
+    if (value < -limit) value = -limit;
+    return value;
+}
+
+/* Fills the map with layered blobs, largest first, over a base tile. */
+static void biome_fill(dw_rom *rom, dw_tile *tiles, dw_tile base, int layers)
+{
+    int i, j;
+
+    memset(rom->map.tiles, base, 120 * 120);
+    for (i = 0; i < layers; i++) {
+        mt_shuffle(tiles, 16, sizeof(dw_tile));
+        for (j = 0; j < 16; j++)
+            map_fill(&rom->map, tiles[j], rom->map.size * (1 << (10 - i/2)));
+    }
+    map_smooth(&rom->map);
+}
+
+/* Cuts the land down to a rough rounded square with open water around it. */
+static void biome_coast(dw_map *map)
+{
+    int x, y, dy, a, left = 0, right = 0;
+    int half = map->size / 2 - 2;
+    int radius = map->size * 62 / 100;
+
+    for (y = 0; y < 120; y++) {
+        dy = y < 60 ? 60 - y : y - 60;
+        left = biome_drift(left, 4);
+        right = biome_drift(right, 4);
+        a = -1;
+        if (dy <= half && dy < radius) {
+            a = biome_isqrt(radius * radius - dy * dy);
+            if (a > half) a = half;
+        }
+        for (x = 0; x < 120; x++) {
+            if (a < 0 || x < 60 - a + left || x > 60 + a + right)
+                map->tiles[x][y] = TILE_WATER;
+        }
+    }
+}
+
+/* A mountain ring around a basin with two passes. Charlock goes in the middle. */
+static void biome_caldera(dw_map *map)
+{
+    int x, y, dy, t, dist, outer, inner, first, second;
+    int left = 0, right = 0;
+    int r_out = map->size * 27 / 100;
+    int r_in = r_out - 5;
+
+    /* The coast is already cut, so only water inside the land is changed here. */
+    for (y = 60 - r_out - 8; y <= 60 + r_out + 8; y++) {
+        for (x = 60 - r_out - 8; x <= 60 + r_out + 8; x++) {
+            dist = (x - 60) * (x - 60) + (y - 60) * (y - 60);
+            if (dist >= (r_out + 8) * (r_out + 8))
+                continue;
+            if (map->tiles[x][y] == TILE_WATER) {
+                map->tiles[x][y] = dist < r_in * r_in ? TILE_DESERT : TILE_GRASS;
+            } else if (dist < r_in * r_in && map->tiles[x][y] == TILE_MOUNTAIN) {
+                map->tiles[x][y] = TILE_HILL;
+            }
+        }
+    }
+    for (y = 60 - r_out; y <= 60 + r_out; y++) {
+        dy = y < 60 ? 60 - y : y - 60;
+        left = biome_drift(left, 2);
+        right = biome_drift(right, 2);
+        outer = biome_isqrt(r_out * r_out - dy * dy);
+        inner = dy < r_in ? biome_isqrt(r_in * r_in - dy * dy) : -1;
+        for (x = 60 - outer + left; x <= 60 + outer + right; x++) {
+            if (inner < 0 || x < 60 - inner + left || x > 60 + inner + right)
+                map->tiles[x][y] = TILE_MOUNTAIN;
+        }
+    }
+    /* Passes on two different sides. */
+    first = (int)mt_rand(0, 3);
+    second = (first + 1 + (int)mt_rand(0, 2)) % 4;
+    for (t = r_in - 4; t <= r_out + 4; t++) {
+        for (dist = 0; dist < 2; dist++) {
+            int side;
+            for (side = 0; side < 2; side++) {
+                int dir = side ? second : first;
+                if (dir == 0) map->tiles[60 + dist][60 - t] = TILE_GRASS;
+                if (dir == 1) map->tiles[60 + dist][60 + t] = TILE_GRASS;
+                if (dir == 2) map->tiles[60 - t][60 + dist] = TILE_GRASS;
+                if (dir == 3) map->tiles[60 + t][60 + dist] = TILE_GRASS;
+            }
+        }
+    }
+}
+
+/* Runs a one tile wide river across the land from one coast to the other. */
+static void biome_river(dw_map *map, BOOL vertical)
+{
+    int a, b, side, on_land = 0;
+    int half = map->size / 2 - 4;
+
+    a = 60 + (int)mt_rand(0, half) - half / 2;
+    b = 60 - map->size / 2;
+    if (b < 0) b = 0;
+    side = mt_rand(0, 1) ? 1 : -1;
+    while (b < 120 && a > 0 && a < 119) {
+        uint8_t *tile = vertical ? &map->tiles[a][b] : &map->tiles[b][a];
+        if (*tile == TILE_WATER) {
+            if (on_land > 8) return; /* reached the far coast */
+        } else {
+            on_land++;
+            *tile = TILE_WATER;
+        }
+        if (mt_rand(0, 9) < 3) {
+            if (mt_rand(0, 4) == 0) side = -side;
+            a += side;
+            /* stay connected when turning */
+            tile = vertical ? &map->tiles[a][b] : &map->tiles[b][a];
+            *tile = TILE_WATER;
+        }
+        b++;
+    }
+}
+
+/* Connects land masses across a one tile river in either direction. */
+static BOOL biome_add_bridge(dw_map *map)
+{
+    int x, y, count = 0, bx = 0, by = 0;
+
+    for (y = 1; y < 119; y++) {
+        for (x = 1; x < 119; x++) {
+            if (map->tiles[x][y] != TILE_WATER)
+                continue;
+            if (needs_bridge(map->walkable[x-1][y], map->walkable[x+1][y]) ||
+                    needs_bridge(map->walkable[x][y-1], map->walkable[x][y+1])) {
+                count++;
+                if (mt_rand(0, count - 1) == 0) {
+                    bx = x;
+                    by = y;
+                }
+            }
+        }
+    }
+    if (!count)
+        return FALSE;
+    map->tiles[bx][by] = TILE_BRIDGE;
+    return TRUE;
+}
+
+/**
+ * Draws the land for a biome, ready for the same checks as a normal map.
+ *
+ * @param rom The rom struct
+ */
+static void biome_terrain(dw_rom *rom)
+{
+    int i, lm_sizes[256], largest, next, layers;
+    dw_map *map = &rom->map;
+    dw_tile tiles[16] = {
+        TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_GRASS,
+        TILE_GRASS, TILE_TREES, TILE_TREES, TILE_TREES,
+        TILE_TREES, TILE_DESERT, TILE_DESERT, TILE_HILL,
+        TILE_HILL, TILE_MOUNTAIN, TILE_SWAMP, TILE_SWAMP
+    };
+
+    if (BIOME(rom) == BIOME_WASTELAND) {
+        static const dw_tile waste[16] = {
+            TILE_DESERT, TILE_DESERT, TILE_DESERT, TILE_DESERT,
+            TILE_DESERT, TILE_DESERT, TILE_DESERT, TILE_SWAMP,
+            TILE_SWAMP, TILE_SWAMP, TILE_HILL, TILE_HILL,
+            TILE_MOUNTAIN, TILE_MOUNTAIN, TILE_TREES, TILE_WATER
+        };
+        memcpy(tiles, waste, sizeof(tiles));
+    }
+    if (BIG_SWAMP(rom)) {
+        printf("Adding more swamp...\n");
+        tiles[0] = tiles[1] = tiles[4] = tiles[8] = tiles[9] = TILE_SWAMP;
+    }
+
+    layers = map->size / 15;
+    switch (BIOME(rom)) {
+        case BIOME_CALDERA:
+            printf("Drawing a caldera\n");
+            biome_fill(rom, tiles, TILE_GRASS, layers);
+            biome_coast(map);
+            biome_caldera(map);
+            break;
+        case BIOME_WASTELAND:
+            printf("Drawing a wasteland\n");
+            biome_fill(rom, tiles, TILE_DESERT, layers);
+            biome_coast(map);
+            find_walkable_area(map, lm_sizes, &largest, &next);
+            for (i = 0; i < map->size / 20; i++)
+                map_add_river(map);
+            break;
+        default:
+            printf("Drawing riverlands\n");
+            biome_fill(rom, tiles, TILE_GRASS, layers);
+            biome_coast(map);
+            for (i = 0; i < map->size / 40; i++)
+                biome_river(map, TRUE);
+            for (i = 0; i < map->size / 30; i++)
+                biome_river(map, FALSE);
+            break;
+    }
+}
+
+#define SAFE_START_RADIUS 3
+
+/**
+ * Turns swamp around Tantegel into grass, so the first steps are safe.
+ * Charlock keeps the swamp inside its moat.
+ *
+ * @param map The map struct
+ */
+static void safe_start(dw_map *map)
+{
+    const dw_warp *t = &map->warps_from[WARP_TANTEGEL];
+    const dw_warp *c = &map->warps_from[WARP_CHARLOCK];
+    static const struct { dw_warp_index warp; int town; } towns[] = {
+        {WARP_BRECCONARY, BRECCONARY}, {WARP_GARINHAM, GARINHAM}, {WARP_KOL, KOL},
+        {WARP_RIMULDAR, RIMULDAR}, {WARP_CANTLIN, CANTLIN}, {WARP_HAUKSNESS, HAUKSNESS}};
+    size_t i;
+    int x, y;
+
+    for (i = 0; i < sizeof(towns) / sizeof(towns[0]); i++) {
+        const dw_warp *w = &map->warps_from[towns[i].warp];
+        if (abs(w->x - t->x) <= SAFE_START_RADIUS && abs(w->y - t->y) <= SAFE_START_RADIUS
+                && map->meta[towns[i].town].border == BORDER_SWAMP)
+            map->meta[towns[i].town].border = BORDER_GRASS;
+    }
+    for (y = t->y - SAFE_START_RADIUS; y <= t->y + SAFE_START_RADIUS; y++) {
+        for (x = t->x - SAFE_START_RADIUS; x <= t->x + SAFE_START_RADIUS; x++) {
+            if (map_ob(x) || map_ob(y))
+                continue;
+            if (abs(x - c->x) <= 3 && abs(y - c->y) <= 3)
+                continue;
+            if (map->tiles[x][y] == TILE_SWAMP)
+                map->tiles[x][y] = TILE_GRASS;
+        }
+    }
+    if (map->meta[TANTEGEL].border == BORDER_SWAMP)
+        map->meta[TANTEGEL].border = BORDER_GRASS;
+}
+
 /**
  * Generates a new in-game map.
  *
@@ -975,7 +1292,7 @@ static void check_keys(dw_rom *rom)
 void map_generate_terrain(dw_rom *rom)
 {
     int i, j, x, y, lm_sizes[256], max_fill;
-    int largest, next, total_area;
+    int largest, next, total_area, map_tries = 0;
 
     check_keys(rom);
 
@@ -992,6 +1309,8 @@ void map_generate_terrain(dw_rom *rom)
     //rom->map.size /= 3;
 
 retry_map:
+    if (++map_tries > 2000)
+        dwr_give_up("Could not draw a map that works with these flags.");
     if (!RANDOM_MAP(rom)) {
 
         map_decode(&rom->map);
@@ -1007,40 +1326,52 @@ retry_map:
 
     } else {
 
-        dw_tile tiles[16] = {
-                TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_SWAMP,
-                TILE_DESERT, TILE_DESERT, TILE_HILL, TILE_MOUNTAIN,
-                TILE_TREES, TILE_TREES, TILE_TREES, TILE_MOUNTAIN,
-                TILE_WATER, TILE_WATER, TILE_WATER, TILE_SWAMP
-        };
+        if (BIOME(rom) != BIOME_CONTINENT) {
+            biome_terrain(rom);
+        } else {
+            dw_tile tiles[16] = {
+                    TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_SWAMP,
+                    TILE_DESERT, TILE_DESERT, TILE_HILL, TILE_MOUNTAIN,
+                    TILE_TREES, TILE_TREES, TILE_TREES, TILE_MOUNTAIN,
+                    TILE_WATER, TILE_WATER, TILE_WATER, TILE_SWAMP
+            };
 
-        if (BIG_SWAMP(rom)) {
-            printf("Adding more swamp...\n");
-            tiles[0] = tiles[1] = tiles[4] = tiles[8] = tiles[9] = TILE_SWAMP;
-        }
+            if (BIG_SWAMP(rom)) {
+                printf("Adding more swamp...\n");
+                tiles[0] = tiles[1] = tiles[4] = tiles[8] = tiles[9] = TILE_SWAMP;
+            }
 
-        /* first fill the map with water */
-        memset(rom->map.tiles, TILE_WATER, 120 * 120);
+            /* first fill the map with water */
+            memset(rom->map.tiles, TILE_WATER, 120 * 120);
 
-        /* now fill it in with some other tiles */
-        for (i = 0; i < rom->map.size / 10; i++) {
-            mt_shuffle(tiles, sizeof(tiles) / sizeof(dw_tile), sizeof(dw_tile));
-            /* size of the fill blob should decrease each iteration */
-            max_fill = rom->map.size * (1 << (10 - i/2));
-            for (j = 0; j < 16; j++) {
-                map_fill(&rom->map, tiles[j], max_fill);
+            /* now fill it in with some other tiles */
+            for (i = 0; i < rom->map.size / 10; i++) {
+                mt_shuffle(tiles, sizeof(tiles) / sizeof(dw_tile), sizeof(dw_tile));
+                /* size of the fill blob should decrease each iteration */
+                max_fill = rom->map.size * (1 << (10 - i/2));
+                for (j = 0; j < 16; j++) {
+                    map_fill(&rom->map, tiles[j], max_fill);
+                }
+            }
+
+            map_smooth(&rom->map);
+
+            find_walkable_area(&rom->map, lm_sizes, &largest, &next);
+
+            for (i=0; i < RIVER_COUNT; i++) {
+                map_add_river(&rom->map);
             }
         }
 
-        map_smooth(&rom->map);
-
-        find_walkable_area(&rom->map, lm_sizes, &largest, &next);
-
-        for (i=0; i < RIVER_COUNT; i++) {
-            map_add_river(&rom->map);
+        if (BIOME(rom) == BIOME_RIVERLANDS) {
+            /* Rivers cut the land, so bridge it first and then judge the size. */
+            find_walkable_area(&rom->map, lm_sizes, &largest, &next);
+            while (biome_add_bridge(&rom->map))
+                find_walkable_area(&rom->map, lm_sizes, &largest, &next);
         }
-
         find_walkable_area(&rom->map, lm_sizes, &largest, &next);
+        if (!largest)
+            goto retry_map;
         /* make sure the walkable area is large enough */
         total_area = lm_sizes[largest - 1];
         if (largest != next)
@@ -1051,8 +1382,10 @@ retry_map:
             goto retry_map;
         }
 
-        while (add_bridges(&rom->map)) {
-            find_walkable_area(&rom->map, lm_sizes, &largest, &next);
+        if (BIOME(rom) != BIOME_RIVERLANDS) {
+            while (add_bridges(&rom->map)) {
+                find_walkable_area(&rom->map, lm_sizes, &largest, &next);
+            }
         }
     }
 
@@ -1063,8 +1396,13 @@ retry_map:
 
     /* place the token */
     find_walkable_area(&rom->map, lm_sizes, &largest, &next);
-    map_find_land(&rom->map, largest, next, &rom->search_table->x[0],
-            &rom->search_table->y[0], TRUE);
+    land_missing = FALSE;
+    if (!map_find_land(&rom->map, largest, next, &rom->search_table->x[0],
+            &rom->search_table->y[0], TRUE))
+        goto retry_map;
+
+    if (SAFE_START(rom))
+        safe_start(&rom->map);
 
     if (!map_encode(&rom->map))
         goto retry_map;

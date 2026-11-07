@@ -674,6 +674,8 @@ void custom_music_apply(dw_rom *rom)
 
     if (!song_count)
         return;
+    for (i = 0; i < song_count; i++)
+        songs[i].bank = -1;
     printf("Adding custom music...\n");
 
     mt_init(rom->seed ^ 0x6d75736963ULL);
@@ -744,6 +746,27 @@ void custom_music_apply(dw_rom *rom)
             }
         }
     }
+    /* If the three hooks do not all fit, the original music stays. Better than a build that fails. */
+    {
+        static const uint8_t sizes[3] = {10, 71, 24};
+        int at[3], k, ok = TRUE;
+
+        for (k = 0; k < 3; k++) {
+            at[k] = dwr_try_free_space(rom->content, 0xc422, sizes[k]);
+            if (at[k] < 0) {
+                ok = FALSE;
+                break;
+            }
+            memset(&rom->content[at[k]], 0x00, sizes[k]); /* held while the others are looked up */
+        }
+        while (--k >= 0)
+            memset(&rom->content[at[k]], 0xff, sizes[k]);
+        if (!ok) {
+            printf("No room for the music hooks, keeping the original music.\n");
+            return;
+        }
+    }
+
     for (b = 0; b < 2; b++) {
         uint8_t *base = &rom->expansion[(banks[b] - 3) * 0x4000];
         memcpy(base + (FT_BASE - 0x8000), ft_image, sizeof(ft_image));
@@ -788,6 +811,16 @@ void custom_music_apply(dw_rom *rom)
             0x60);
     vpatch(rom, 0x41a0, 5, 0x20, LO8(rq), HI8(rq), 0xea, 0xea);
 
+    /* Each frame: the game's sound code, then the driver in its current bank. */
+    frame = find_free_space(rom->content, 0xc422, 24);
+    vpatch(rom, frame, 24,
+            0xa9, 0x01, 0x20, 0x96, 0xff, 0x20, 0x28, 0x80,
+            0xad, LO8(RAM_BANKSEL), HI8(RAM_BANKSEL), 0xf0, 0x03,
+            0xa9, 0x03, 0x2c, 0xa9, 0x06,    /* bank 3, or 6 when the selector is 0 (BIT skips the load) */
+            0x20, 0x96, 0xff,
+            0x4c, LO8(FT_WRAP), HI8(FT_WRAP));
+    vpatch(rom, 0xfee8, 8, 0x20, LO8(frame), HI8(frame), 0xea, 0xea, 0xea, 0xea, 0xea);
+
     /* Credits: ask for the tagged song and update the driver from their NMI. */
     if (event_song[0] >= 0) {
         const uint8_t start[14] = {0xa9, 0x01, 0xa2, 0x00, 0xa0, 0x80,
@@ -800,13 +833,21 @@ void custom_music_apply(dw_rom *rom)
         if (!memcmp(start_at, start, 14) && !memcmp(update_at, update, 3)) {
             /* Same bytes at the same address in banks 5 and 7, because the switch to
              * banks 6 and 7 happens while this code is running. */
-            static const uint8_t stub[51] = {
+            /* The two 5-bit mapper writes share one subroutine, at offset 32. Its address
+             * depends on where the stub lands, so it is filled in below. */
+            uint8_t stub[52] = {
+                /* Until the credits ask for their song the old one may be in the other
+                 * bank, where the driver would read junk. Stay silent until then. */
+                0xad, LO8(RAM_WANT), HI8(RAM_WANT), 0xc9, REQUEST_CREDITS, 0xf0, 0x06,
+                0xa9, 0x00, 0x8d, 0x15, 0x40, 0x60,
                 0xa9, 0x00, 0x8d, LO8(RAM_BANKSEL), HI8(RAM_BANKSEL),
                 0xa9, 0x06,
-                0x8d, 0xff, 0xff, 0x4a, 0x8d, 0xff, 0xff, 0x4a, 0x8d, 0xff, 0xff, 0x4a,
-                0x8d, 0xff, 0xff, 0x4a, 0x8d, 0xff, 0xff,
+                0x20, 0x00, 0x00,           /* JSR sw (filled in) */
                 0x20, LO8(FT_WRAP), HI8(FT_WRAP),
                 0xa9, 0x04,
+                0x20, 0x00, 0x00,           /* JSR sw (filled in) */
+                0x60,
+                /* sw: write A's low 5 bits to the mapper, one bit per write, lowest first */
                 0x8d, 0xff, 0xff, 0x4a, 0x8d, 0xff, 0xff, 0x4a, 0x8d, 0xff, 0xff, 0x4a,
                 0x8d, 0xff, 0xff, 0x4a, 0x8d, 0xff, 0xff,
                 0x60
@@ -822,8 +863,14 @@ void custom_music_apply(dw_rom *rom)
                     break;
             }
             if (u >= 0xff00 - sizeof(stub)) {
+                if (!dwr_packing())
+                    dwr_no_room();
                 printf("No room for the credits song, keeping the original credits music.\n");
             } else {
+                stub[21] = LO8(u + 32);
+                stub[22] = HI8(u + 32);
+                stub[29] = LO8(u + 32);
+                stub[30] = HI8(u + 32);
                 patch(rom, u, sizeof(stub), stub);
                 memcpy(bank5 + (u - 0xc000), stub, sizeof(stub));
                 memset(start_at, 0xea, 14);
@@ -840,13 +887,4 @@ void custom_music_apply(dw_rom *rom)
         }
     }
 
-    /* Each frame: the game's sound code, then the driver in its current bank. */
-    frame = find_free_space(rom->content, 0xc422, 27);
-    vpatch(rom, frame, 27,
-            0xa9, 0x01, 0x20, 0x96, 0xff, 0x20, 0x28, 0x80,
-            0xad, LO8(RAM_BANKSEL), HI8(RAM_BANKSEL), 0x29, 0x01, 0xf0, 0x04,
-            0xa9, 0x03, 0xd0, 0x02, 0xa9, 0x06,
-            0x20, 0x96, 0xff,
-            0x4c, LO8(FT_WRAP), HI8(FT_WRAP));
-    vpatch(rom, 0xfee8, 8, 0x20, LO8(frame), HI8(frame), 0xea, 0xea, 0xea, 0xea, 0xea);
 }

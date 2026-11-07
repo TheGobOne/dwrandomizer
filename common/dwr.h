@@ -27,9 +27,17 @@
 #define RANDOM_XP_REQS(x)         (x->flags[ 1] & 0x03)
 #define HEAL_HURT_B4_MORE(x)      (x->flags[ 2] & 0xc0)
 #define STAIR_SHUFFLE(x)          (x->flags[ 2] & 0x0c)
+/* 0 continent, 1 caldera, 2 wasteland, 3 riverlands. Two maybe pairs, so "random" is both set to maybe. */
+#define BIOME(x)                  (((x->flags[2] & 0x10) >> 3) | (x->flags[2] & 0x01))
+#define BIOME_CONTINENT 0
+#define BIOME_CALDERA 1
+#define BIOME_WASTELAND 2
+#define BIOME_RIVERLANDS 3
 
 #define RUN_BANK(x)               (x->flags[11] & 0x0c)
 #define KEY_HERB_COUNTER(x)       (x->flags[ 8] & 0x10)
+/* The other half of the Key & Herb pair. update_flags keeps it out of the maybe step. */
+#define SAFE_START(x)             (x->flags[ 8] & 0x20)
 #define QUICK_SPELL(x)            (x->flags[11] & 0x01)
 /* 0 default, 1 low, 2 medium, 3 high. These bits sit alone in their pairs, so they are never maybe flags. */
 #define ENCOUNTER_RATE(x)         (((x->flags[3] & 0x01) << 1) | (x->flags[6] & 0x01))
@@ -167,6 +175,10 @@ void dwr_set_spoiler(BOOL enabled);
 uint16_t find_free_space(uint8_t *content, uint16_t start, uint8_t n);
 uint16_t find_free_space_in(uint8_t *content, uint16_t start, uint16_t end, uint8_t n);
 void check_free_space(uint8_t *content, uint16_t start);
+void dwr_no_room(void);
+int dwr_try_free_space(uint8_t *content, uint16_t start, uint8_t n);
+void dwr_give_up(const char *why);
+BOOL dwr_packing(void);
 void print_rom_data(uint8_t *content, uint16_t start, uint8_t n);
 
 #ifdef __cplusplus

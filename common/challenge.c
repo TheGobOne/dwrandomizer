@@ -120,10 +120,11 @@ void no_numbers(dw_rom *rom)
 void damage_bonks(dw_rom *rom)
 {
     uint8_t damage = 0, sound = 0x8f;
-    uint16_t newcode = find_free_space(rom->content, 0xc422, 48);
+    uint16_t newcode;
 
     if (!DAMAGE_BONKS(rom))
         return;
+    newcode = find_free_space(rom->content, 0xc422, 48);
 
     if(DAMAGE_BONKS(rom) <= 2)
         damage = DAMAGE_BONKS(rom);

@@ -13,6 +13,6 @@ struct music_data {
 };
 
 void add_music(dw_rom* rom, int track);
-const extern size_t track_count;
+extern const size_t track_count;
 
 #endif

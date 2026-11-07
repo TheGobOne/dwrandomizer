@@ -39,6 +39,20 @@ L = {m[2]: int(m[1], 16) for m in re.finditer(r'al (\w+) \.(\w+)', open('drv.lbl
 D = open('drv.bin', 'rb').read()
 W = 0x8100 + len(D)
 
+# ZP-SWAP-BEGIN
+# The driver shares $D0-$FD with the game, and this swap runs every frame, so it is written out
+# without loops: about 1,020 cycles instead of about 2,030, for about 700 more bytes.
+# Scratch bytes are rebuilt by the driver each frame, so only the game's values are kept for them.
+ZP_SCRATCH = list(range(0xd0, 0xdc)) + list(range(0xde, 0xe5))
+ZP_KEPT = [0xdc, 0xdd] + list(range(0xe5, 0xfe))
+# Nothing to do while the game's own music plays and no new song is wanted, so skip the swap too.
+swap_in = ' lda WANT\n cmp CUR\n bne full\n lda SONG\n bpl full\n lda $03bf\n cmp #$5a\n bne full\n rts\nfull:\n'
+swap_in += ''.join(f' lda ${a:02x}\n sta ${0x6b00 + a - 0xd0:04x}\n' for a in ZP_SCRATCH)
+swap_in += ''.join(f' lda ${a:02x}\n sta ${0x6b00 + a - 0xd0:04x}\n lda ${0x6b40 + a - 0xd0:04x}\n sta ${a:02x}\n' for a in ZP_KEPT)
+swap_out = ''.join(f' lda ${a:02x}\n sta ${0x6b40 + a - 0xd0:04x}\n lda ${0x6b00 + a - 0xd0:04x}\n sta ${a:02x}\n' for a in ZP_KEPT)
+swap_out += ''.join(f' lda ${0x6b00 + a - 0xd0:04x}\n sta ${a:02x}\n' for a in ZP_SCRATCH)
+# ZP-SWAP-END
+
 open('wrap.asm', 'w').write(f'''
 INIT={L['ft_music_init']}
 PLAY={L['ft_music_play']}
@@ -57,14 +71,7 @@ FA=$6bff
 wrap:
  lda $fa
  sta FA
- ldx #$2d
-s1: lda $d0,x
- sta $6b00,x
- lda $6b40,x
- sta $d0,x
- dex
- bpl s1
- lda $03bf
+{swap_in} lda $03bf
  cmp #$5a
  beq ok
  lda #$5a
@@ -144,14 +151,7 @@ idle:
 pl:
  jsr PLAY
 out:
- ldx #$2d
-s2: lda $d0,x
- sta $6b40,x
- lda $6b00,x
- sta $d0,x
- dex
- bpl s2
- rts
+{swap_out} rts
 map: .dsb 32,$ff
 lo: .dsb 24,0
 hi: .dsb 24,0

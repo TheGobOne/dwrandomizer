@@ -528,12 +528,13 @@ chest_placement_retry:
          /* don't mess with these */
         if (map == TANTEGEL_THRONE_ROOM || map == NORTHERN_SHRINE)
             continue;
-        while (chest_at(rom, chest_spots[j][1], chest_spots[j][2], i+3)) {
+        while (j < sizeof(chest_spots) / 3 && chest_at(rom, chest_spots[j][1], chest_spots[j][2], i+3)) {
             j++;
         }
-        bin = chest_bin(chest_spots[j][0]);
+        bin = j < sizeof(chest_spots) / 3 ? chest_bin(chest_spots[j][0]) : -1;
         while (bin >= 0 && chest_bins[bin] > 8) {
-            bin = chest_bin(chest_spots[++j][0]);
+            ++j;
+            bin = j < sizeof(chest_spots) / 3 ? chest_bin(chest_spots[j][0]) : -1;
         }
         if (j >= sizeof(chest_spots) / 3) {
             /* this should never happen, but just in case */

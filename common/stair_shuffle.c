@@ -64,7 +64,7 @@ static void code_patches(dw_rom *rom)
         0xf0, 0x04,       /*             beq +                               */
         0xc9, 0x0f,       /*             cmp #15                             */
         0x90, 0xa8,       /*             bcc b3_da55                         */
-        0xae, 0x2f, 0x66, /*         +   ldx $6680                           */
+        0xae, 0x2f, 0x66, /*         +   ldx $662f                           */
         0xa9,  0x02,      /*             lda #$02                            */
         0x4c, 0xe2, 0xd9, /*             jmp b3_d9e2                         */
                           /*                                                 */
@@ -74,7 +74,7 @@ static void code_patches(dw_rom *rom)
         0xf0, 0x07,       /*             beq +                               */
         0xc9, 0x0f,       /*             cmp #15                             */
         0xb0, 0x03,       /*             bcs +                               */
-        0x8e, 0x2f, 0x66, /*             stx $6680                           */
+        0x8e, 0x2f, 0x66, /*             stx $662f                           */
         0xbd, 0x61, 0xf4, /*         +   lda tab_warp_to,x                   */
         0x60,             /*             rts                                 */
                           /*                                                 */
@@ -182,8 +182,6 @@ static void follow_warp(dungeon_map *map, uint8_t x, uint8_t y, BOOL have_keys)
  */
 static void map_dungeon(dungeon_map *map, uint8_t x, uint8_t y, BOOL have_keys)
 {
-    dw_warp warp;
-
     if (!map)
         return;
 
@@ -308,7 +306,7 @@ static dw_dungeon_tile translate_town_tile(dw_town_tile tile)
         case TOWN_TILE_COUNTER:
             return DUNGEON_TILE_BLOCK;
     }
-
+    return DUNGEON_TILE_BLOCK;
 }
 
 /**
@@ -320,7 +318,6 @@ static dw_dungeon_tile translate_town_tile(dw_town_tile tile)
 static void unpack_town_map(dw_rom *rom, dungeon_map *map)
 {
     size_t x, y;
-    uint8_t tmp;
     size_t start_addr = ((*(uint16_t*)(&rom->map.meta[map->index].pointer))
             & 0x7fff);
     uint8_t *start = &rom->content[start_addr];
@@ -433,7 +430,7 @@ static BOOL all_chests_accessible()
     for (i=0; indexes[i]; i++) {
         map = &maps[i];
         for (x=0; x < map->width; x++) {
-            for (y=0; y < map->width; y++) {
+            for (y=0; y < map->height; y++) {
                 if (map->tiles[x][y] == DUNGEON_TILE_CHEST)
                     return FALSE;
             }
@@ -518,11 +515,8 @@ static void mark_chests(dw_rom *rom, uint8_t flag)
  */
 static void chest_paths(dw_rom *rom)
 {
-    dungeon_map *map;
-
     printf("Mapping Dungeons...\n");
 
-    map = get_map(ERDRICKS_CAVE);
     clear_all_flags();
     map_dungeon(get_map(ERDRICKS_CAVE), 0, 0, FALSE);
     mark_chests(rom, KEY_IN_TABLET);
@@ -585,7 +579,10 @@ void stair_shuffle(dw_rom *rom)
         write_back_warps(rom);
     }
     chest_paths(rom);
-
+    free(maps);
+    free(warps_from);
+    maps = NULL;
+    warps_from = warps_to = NULL;
 }
 
 #if 0

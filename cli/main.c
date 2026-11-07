@@ -12,6 +12,16 @@
 #include "sprites.h"
 
 
+/* Reads on or off, and stops on anything else. */
+static int on_off(const char *option, const char *value)
+{
+    if (strcmp(value, "on") && strcmp(value, "off")) {
+        fprintf(stderr, "%s must be on or off\n", option);
+        exit(1);
+    }
+    return !strcmp(value, "on");
+}
+
 static void print_usage(const char *command, char *default_flags)
 {
     size_t i;
@@ -24,6 +34,15 @@ static void print_usage(const char *command, char *default_flags)
     printf("If flags are not specified, the flags \"%s\" will be used\n",
             default_flags);
     printf("If the seed is not specified, a random seed will be chosen\n");
+    printf("\n");
+    printf("Options, before the rom file:\n");
+    printf("  --music <pack.json5>\n");
+    printf("  --encounters default|low|medium|high\n");
+    printf("  --spoiler on|off\n");
+    printf("  --key-herb on|off\n");
+    printf("  --quick-spell on|off\n");
+    printf("  --bank-cap 1-99\n");
+    printf("  --bank-level normal|easy|strict|verystrict\n");
     printf("\n");
     printf("Sprite should be one of: ");
     for(i=0; i < sprite_count(); i++) {
@@ -54,15 +73,19 @@ int main(int argc, char **argv)
             if (!custom_music_load(argv[2]))
                 exit(1);
         } else if (!strcmp(argv[1], "--encounters")) {
-            for (encounters = 3; encounters > 0; encounters--)
+            for (encounters = 0; encounters < 4; encounters++)
                 if (!strcmp(argv[2], encounter_rates[encounters]))
                     break;
+            if (encounters == 4) {
+                fprintf(stderr, "--encounters must be default, low, medium or high\n");
+                exit(1);
+            }
         } else if (!strcmp(argv[1], "--spoiler")) {
-            dwr_set_spoiler(!strcmp(argv[2], "on"));
+            dwr_set_spoiler(on_off(argv[1], argv[2]));
         } else if (!strcmp(argv[1], "--key-herb")) {
-            key_herb = !strcmp(argv[2], "on");
+            key_herb = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--quick-spell")) {
-            quick_spell = !strcmp(argv[2], "on");
+            quick_spell = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--bank-cap")) {
             bank_cap = atoi(argv[2]);
             if (bank_cap < 1 || bank_cap > 99) {
