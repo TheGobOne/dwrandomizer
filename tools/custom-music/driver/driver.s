@@ -307,6 +307,7 @@ var_Wavetables:			.res 2						; FDS waves
 .endif
 
 .if .defined(CHANNEL_CONTROL)
+var_EveryTick:	.res 1
 var_Channels:			.res 1						; Channel enable/disable
 .endif
 var_AllChannels:        .res 1						;;; ;; ; moved from N163

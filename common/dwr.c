@@ -71,12 +71,14 @@ static void update_flags(dw_rom *rom)
     const uint8_t safe_start = rom->flags[8] & 0x20;
     const uint8_t free_charlock_flag = rom->flags[11] & 0x02;
     const uint8_t auto_return_flag = rom->flags[3] & 0x02;
+    const uint8_t responsive_flag = rom->flags[6] & 0x02;
 
     /* As the high half of a pair this bit would read as "maybe" for Key & Herb. */
     rom->flags[8] &= ~0x20;
     /* The same goes for these: as the high half of a pair they would turn the low half into a maybe flag. */
     rom->flags[11] &= ~0x02;
     rom->flags[3] &= ~0x02;
+    rom->flags[6] &= ~0x02;
     /* mcgrew's last 2 bytes do not contain maybe flags. */
     /* flags[12] holds the Run Bank cap, not maybe flags. */
     for (i=0; i < 12; i++) {
@@ -86,6 +88,7 @@ static void update_flags(dw_rom *rom)
     rom->flags[8] |= safe_start;
     rom->flags[11] |= free_charlock_flag;
     rom->flags[3] |= auto_return_flag;
+    rom->flags[6] |= responsive_flag;
     /* Free Charlock cannot go with these: Short Charlock, Easy Charlock (exclusive), and Three's Company, Cursed Princess,
      * Radish Finish and Disguised Dragonlord, which depend on the Dragonlord and the ending he gives.
      * Open Charlock is fine beside it. */
@@ -3974,7 +3977,7 @@ void random_princess_location(dw_rom *rom)
 
 static uint16_t run_bank_win_code = 0;
 
-/* Which of Free Charlock (1) and Auto Return (2) went into this ROM. Their code lives outside the part of the
+/* Which of Free Charlock (1), Auto Return (2) and Responsive Controls (4) went into this ROM. Their code lives outside the part of the
  * ROM the checksum reads, so it is mixed in by hand. Two racers then match only if both have the same ones. */
 static uint8_t gameplay_patches = 0;
 
@@ -4001,6 +4004,78 @@ static void auto_return(dw_rom *rom)
     /* Was: ldx #$12 : lda #$02 : jmp $d9e2 (leave by the Charlock warp). */
     vpatch(rom, 0xea03, 7, 0x4c, 0x00, 0xdb, 0xea, 0xea, 0xea, 0xea);
     gameplay_patches |= 2;
+}
+
+/**
+ * Makes the field controls answer at once.
+ *
+ * The game only starts a step when its 16-frame counter $4F is 0, and opens the command window or pauses when
+ * it is 1, so a press while standing waits up to 15 frames and a short tap can be missed. NPCs move on that
+ * counter too, so a step started out of time lets the hero walk through one.
+ *
+ * On the overworld, which has no NPCs, a new press clears the counter, so it answers at once. Anywhere else
+ * a new press is kept until the counter comes round. Clearing only on a new press keeps held buttons in the
+ * game's own rhythm, such as walking into a wall. The buttons are also not read during a step, so a press
+ * made while walking is lost. Here the frame waits in a step read them, and the next read adds new presses.
+ *
+ * @param rom The rom struct
+ */
+static void responsive_controls(dw_rom *rom)
+{
+    const uint16_t state = 0x680c, buf = 0x680d, prev = 0x680e, pend = 0x680f;
+    const uint8_t READING = 0xa5, DONE = 0x5a; /* other values, as in fresh RAM, mean nothing is saved */
+    uint16_t read_hook, frame_hook, step_end;
+    size_t i;
+
+    if (!RESPONSIVE_CONTROLS(rom))
+        return;
+    printf("Making the controls responsive...\n");
+    read_hook = find_free_space(rom->content, 0xc422, 109);
+    vpatch(rom, read_hook, 109,
+        0xad, LO(prev), HI(prev), 0x49, 0xff, 0x25, 0x47, 0x29, 0xf9, 0x85, 0x46, /* new presses, not B or Select */
+        0xa5, 0x47, 0x8d, LO(prev), HI(prev),
+        0xad, LO(state), HI(state), 0xc9, DONE, 0xd0, 0x09,   /* a finished step: add what it saved */
+        0xad, LO(buf), HI(buf), 0x29, 0xf9, 0x05, 0x47, 0x85, 0x47,
+        0xa9, 0x00, 0x8d, LO(state), HI(state),
+        0xa5, 0x45, 0xc9, 0x01, 0xd0, 0x0a,                   /* the overworld? */
+        0xa5, 0x46, 0xf0, 0x06, 0xa9, 0x00, 0x85, 0x4f, 0xf0, 0x1d,
+        0xa5, 0x46, 0x0d, LO(pend), HI(pend), 0x8d, LO(pend), HI(pend), /* elsewhere keep it until its time */
+        0x05, 0x47, 0x85, 0x47,
+        0xa5, 0x4f, 0x29, 0x0f, 0xf0, 0x06,
+        0xa5, 0x47, 0x29, 0x09, 0xf0, 0x05,                   /* A and Start wait in their own loops */
+        0xa9, 0x00, 0x8d, LO(pend), HI(pend),
+        0xa5, 0x47, 0x29, 0x09, 0xd0, 0x10,
+        0xa5, 0x47, 0x29, 0xf0, 0xf0, 0x0a,                   /* only a direction starts a step */
+        0xa9, 0x00, 0x8d, LO(buf), HI(buf),
+        0xa9, READING, 0x8d, LO(state), HI(state),
+        0xa5, 0x47, 0x29, 0x08, 0x60);                        /* the code this replaced */
+    frame_hook = find_free_space(rom->content, 0xc422, 59);
+    vpatch(rom, frame_hook, 59,
+        0x08, /* callers count on the carry surviving a frame wait */
+        0xad, LO(state), HI(state), 0xc9, READING, 0xd0, 0x2e,
+        0x98, 0x48,
+        0xa9, 0x01, 0x8d, 0x16, 0x40, 0xa9, 0x00, 0x8d, 0x16, 0x40,
+        0xa0, 0x08,
+        0xad, 0x16, 0x40, 0x29, 0x03, 0xc9, 0x01, 0x66, 0x46, 0x88, 0xd0, 0xf4,
+        0xad, LO(prev), HI(prev), 0x49, 0xff, 0x25, 0x46,     /* newly pressed */
+        0x0d, LO(buf), HI(buf), 0x8d, LO(buf), HI(buf),
+        0xa5, 0x46, 0x8d, LO(prev), HI(prev),
+        0x68, 0xa8,
+        0x28, 0x4c, 0x74, 0xff, 0xea); /* The real frame wait: NMI only runs its work from there. The nop keeps $FF from looking free. */
+    step_end = find_free_space(rom->content, 0xc422, 8);
+    vpatch(rom, step_end, 8, 0xa9, DONE, 0x8d, LO(state), HI(state), 0x4c, 0x19, 0xb2);
+    vpatch(rom, 0xcaa2, 4, 0x20, LO(read_hook), HI(read_hook), 0xea);
+    /* The frame waits in the four step routines, so nothing else pays for reading the buttons, as it would
+     * while booting and in menus if $FF74 itself were hooked. */
+    for (i = 0x3252; i < 0x36da; i++) {
+        if (rom->content[i] == 0x20 && rom->content[i + 1] == 0x74 && rom->content[i + 2] == 0xff)
+            vpatch(rom, i + 1, 2, LO(frame_hook), HI(frame_hook));
+    }
+    vpatch(rom, 0xcaf0 + 1, 2, LO(step_end), HI(step_end));
+    vpatch(rom, 0xcb04 + 1, 2, LO(step_end), HI(step_end));
+    vpatch(rom, 0xcb18 + 1, 2, LO(step_end), HI(step_end));
+    vpatch(rom, 0xcb2a + 1, 2, LO(step_end), HI(step_end));
+    gameplay_patches |= 4;
 }
 
 /**
@@ -4075,87 +4150,6 @@ static void free_charlock(dw_rom *rom)
     vpatch(rom, 0xca56, 4, 0x4c, LO(c), HI(c), 0xea);
 }
 
-/**
- * With menu wrapping on, the name entry cursor wraps at all four edges too.
- * The hooks live in the fixed bank, because bank 1 can be full. Runs last, so it only uses room nothing
- * else needed, and is left out if there is none. The up and down hooks keep whatever dwr_menu_wrap and
- * run_bank left at the addresses they replace.
- *
- * Window $0B is the name screen: $D8 column, $D9 row, $64F2 and $64F3 the cursor's tile position.
- * The bottom row has 6 letters, then BACK at column 6 and END at column 9.
- *
- * @param rom The rom struct
- */
-static void name_entry_wrap(dw_rom *rom)
-{
-    uint16_t c;
-    uint8_t old[4];
-    int room;
-
-    if (!MENU_WRAP(rom))
-        return;
-    room = dwr_try_free_space(rom->content, 0xc422, 148);
-    if (room < 0) {
-        printf("No room for name screen wrapping, leaving it out.\n");
-        return;
-    }
-
-    /* Up from the top row, using the game's own column fix for the bottom row. */
-    memcpy(old, &rom->content[0x69e0], 4);
-    c = (uint16_t)room;
-    vpatch(rom, c, 40,
-        0xad, 0xdc, 0x64, 0xc9, 0x0b, 0xd0, 0x1a,  /* window $0B, or the old code */
-        0xa5, 0xd9, 0xd0, 0x16,                    /* top row, or the old code */
-        0x20, 0x30, 0xab,                          /* erase the cursor */
-        0xa9, 0x04, 0x85, 0xd9, 0x20, 0x3f, 0xab,  /* row 4, then fix the column */
-        0xa9, 0x05, 0x85, 0xd9,
-        0xa9, 0x0c, 0x8d, 0xf3, 0x64,
-        0x4c, 0x35, 0xab,                          /* draw it */
-        old[0], old[1], old[2], old[3],
-        0x4c, 0xe4, 0xa9);
-    vpatch(rom, 0x69e0, 4, 0x4c, LO(c), HI(c), 0xea);
-
-    /* Down from the bottom row. Columns 6 and 9 exist on the top row too. */
-    memcpy(old, &rom->content[0x6a0b], 3);
-    c = (uint16_t)(room + 40);
-    vpatch(rom, c, 34,
-        0xad, 0xdc, 0x64, 0xc9, 0x0b, 0xd0, 0x15,
-        0xa5, 0xd9, 0xc9, 0x05, 0xd0, 0x0f,
-        0x20, 0x30, 0xab,
-        0xa9, 0x00, 0x85, 0xd9,
-        0xa9, 0x02, 0x8d, 0xf3, 0x64,
-        0x4c, 0x35, 0xab,
-        old[0], old[1], old[2],
-        0x4c, 0x0e, 0xaa);
-    vpatch(rom, 0x6a0b, 3, 0x4c, LO(c), HI(c));
-
-    /* Left from the first column: column 10, or END on the bottom row. */
-    c = (uint16_t)(room + 74);
-    vpatch(rom, c, 40,
-        0xa5, 0xd8, 0xf0, 0x03, 0x4c, 0x77, 0xaa,
-        0xad, 0xdc, 0x64, 0xc9, 0x0b, 0xd0, 0x19,
-        0x20, 0x30, 0xab,
-        0xa2, 0x0a, 0xa9, 0x15,
-        0xa4, 0xd9, 0xc0, 0x05, 0xd0, 0x04,
-        0xa2, 0x09, 0xa9, 0x13,
-        0x86, 0xd8, 0x8d, 0xf2, 0x64,
-        0x4c, 0x35, 0xab,
-        0x60);
-    vpatch(rom, 0x6a73, 4, 0x4c, LO(c), HI(c), 0xea);
-
-    /* Right from the last column, or from END on the bottom row: back to column 0. */
-    c = (uint16_t)(room + 114);
-    vpatch(rom, c, 34,
-        0xae, 0x06, 0x65, 0xca, 0xe4, 0xd8, 0xf0, 0x03, 0x4c, 0x01, 0xab,
-        0xad, 0xdc, 0x64, 0xc9, 0x0b, 0xd0, 0x0f,
-        0x20, 0x30, 0xab,                          /* offset 18: from END */
-        0xa9, 0x00, 0x85, 0xd8,
-        0xa9, 0x01, 0x8d, 0xf2, 0x64,
-        0x4c, 0x35, 0xab,
-        0x60);
-    vpatch(rom, 0x6af9, 6, 0x4c, LO(c), HI(c), 0x4c, LO(c + 18), HI(c + 18));
-    vpatch(rom, 0x6aed, 1, 0x0e);                  /* END's branch now lands on that second jump */
-}
 
 /**
  * Run Bank: each win banks one guaranteed escape (max 99), shown and spent
@@ -4873,6 +4867,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     /* Gameplay, so it gets its room before the music does. Then the same flags always give the same game. */
     free_charlock(rom);
     auto_return(rom);
+    responsive_controls(rom);
 }
 
 
@@ -5111,7 +5106,6 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
     sprite(rom, sprite_name);
     invisible_npcs(rom); // in case the custom sprite also changed NPCS.
     noir_mode(rom);
-    name_entry_wrap(rom);
 
 
     no_space_handler = NULL;

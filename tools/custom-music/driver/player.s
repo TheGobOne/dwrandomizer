@@ -18,18 +18,21 @@ ft_music_play:
 	; Run delayed channels
 	ldx #$00
 @ChanLoop:
-	CH_LOOP_START @ChanLoopEpilog
 	lda var_ch_Delay, x
 	beq @SkipDelay
 	dec var_ch_Delay, x
 	bne @SkipDelay
-	jsr ft_read_pattern					; Read the delayed note
-	jmp @ChanLoopEpilog		; ;; ;;;
+	stx var_currentChannel
+	jsr ft_read_pattern
+	ldx var_currentChannel
+	jmp @ChanLoopEpilog
 @SkipDelay:
-	lda #$00							;;; ;; ; Clear note trigger flag
-	sta var_ch_Trigger, x				; ;; ;;;
+	lda #$00
+	sta var_ch_Trigger, x
 @ChanLoopEpilog:
-	CH_LOOP_END @ChanLoop
+	inx
+	cpx #CHANNELS
+	bne @ChanLoop
 
 	; Speed division
 	lda var_Tempo_Accum + 1
@@ -80,7 +83,17 @@ ft_do_row_update:
 	; Read one row from all patterns
 	ldx #$00
 ft_read_channels:
-	CH_LOOP_START ft_read_channels_epilog
+	lda var_ch_Delay, x
+	bne ft_read_slow
+	lda var_ch_NoteDelay, x
+	beq ft_read_slow
+	dec var_ch_NoteDelay, x
+	inx
+	cpx #CHANNELS
+	bne ft_read_channels
+	jmp ft_read_channels_done
+ft_read_slow:
+	stx var_currentChannel
 	lda var_ch_Delay, x
 	beq :+
 	lda #$00
@@ -89,6 +102,7 @@ ft_read_channels:
 :	jsr ft_read_pattern					; Get new notes
 ft_read_channels_epilog:
 	CH_LOOP_END ft_read_channels
+ft_read_channels_done:
 
 	; Should jump?
 	lda var_Jump
@@ -134,7 +148,12 @@ ft_read_channels_epilog:
 @NoPatternEnd:
 	jsr ft_restore_speed				; Reset frame divider counter
 ft_skip_row_update:
-	; Speed division
+	lda var_EveryTick
+	beq :+
+	lda var_Tempo_Accum
+	ora var_Tempo_Accum + 1
+	beq ft_after_speed
+:
 	sec
 	lda var_Tempo_Accum					; Decrement speed counter
 	sbc var_Tempo_Count
@@ -142,10 +161,21 @@ ft_skip_row_update:
 	lda var_Tempo_Accum + 1
 	sbc var_Tempo_Count + 1
 	sta var_Tempo_Accum + 1
+ft_after_speed:
 
 	ldx #$00
 ft_loop_fx_state:
-	CH_LOOP_START ft_loop_fx_state_epilog
+	lda var_ch_NoteCut, x
+	ora var_ch_NoteRelease, x
+	ora var_ch_Transpose, x
+	ora var_ch_VolDelay, x
+	bne :+
+	inx
+	cpx #CHANNELS
+	bne ft_loop_fx_state
+	jmp ft_fx_all_done
+:
+	stx var_currentChannel
 	; Note cut effect (Sxx)
 	lda var_ch_NoteCut, x
 	beq @BeginRelease
@@ -244,6 +274,7 @@ ft_loop_fx_state:
 :
 ft_loop_fx_state_epilog:
 	CH_LOOP_END ft_loop_fx_state		; ;; ;;;
+ft_fx_all_done:
 
 	; Update channel instruments and effects
 	ldx #$00
@@ -259,19 +290,29 @@ ft_loop_channels:
 .endif
 	beq ft_update_apu
 
-	; Do channel effects, like portamento and vibrato
+	lda var_ch_VolSlide, x
+	ora var_ch_Effect, x
+	beq :+
 	jsr ft_run_effects
+:
 
 	; Instrument sequences
 	lda var_ch_Note, x
 	beq :+
 	jsr ft_run_instrument				; Update instruments
+	jmp :++
+:	lda var_ch_VibratoSpeed, x
+	ora var_ch_TremoloSpeed, x
+	beq ft_after_period
 :	jsr	ft_calc_period
+ft_after_period:
 
 	;;; ;; ; Decrement volume delay counter after everything else is done
 	; preferred behaviour for delayed effects?
 	lda var_ch_VolDelay, x
-	and #$0F
+	bne :+
+	jmp ft_loop_channels_epilog
+:	and #$0F
 	bne :+
 	lda var_ch_VolDelay, x
 	and #$F0
@@ -1729,7 +1770,13 @@ ft_fetch_speed:
 
 ; Reload speed division counter
 ft_restore_speed:
-	lda var_Tempo				;;; ;; ;
+	lda var_EveryTick
+	beq :+
+	lda var_Tempo_Accum
+	ora var_Tempo_Accum + 1
+	bne :+
+	rts
+:	lda var_Tempo				;;; ;; ;
 	bne :+
 	sta var_Tempo_Accum + 1
 	jsr ft_fetch_speed
@@ -1828,6 +1875,23 @@ ft_calculate_speed:
 	lda EXT + 1
 	sta var_Tempo_Modulus + 1
 @EndCalc:						;;; ;; ;
+	ldy #$00
+	lda var_Tempo
+	beq @NotEvery
+	lda var_GroovePointer
+	bne @NotEvery
+	lda var_Tempo_Modulus
+	ora var_Tempo_Modulus + 1
+	bne @NotEvery
+	lda var_Tempo_Count
+	cmp var_Tempo_Dec
+	bne @NotEvery
+	lda var_Tempo_Count + 1
+	cmp var_Tempo_Dec + 1
+	bne @NotEvery
+	iny
+@NotEvery:
+	sty var_EveryTick
 	pla
 	tay
 

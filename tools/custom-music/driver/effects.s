@@ -335,8 +335,15 @@ ft_calc_period:
 @Skip:
 
 	; apply vibrato and tremolo
+	lda var_ch_VibratoSpeed, x
+	beq :+
 	jsr ft_vibrato
-	jsr ft_tremolo
+:	lda var_ch_TremoloSpeed, x
+	bne :+
+	sta var_ch_TremoloResult, x
+	beq :++
+:	jsr ft_tremolo
+:
 
 .if .defined(USE_LINEARPITCH)		;;; ;; ;
 	; apply linear pitch
@@ -461,8 +468,11 @@ ft_calc_period:
 @EndHarmonic:
 
 
-	; CChannelHandler::LimitRawPeriod()
-	jmp ft_limit_final_freq_raw
+	lda var_ch_PeriodCalcHi, x
+	cmp #$07
+	bcs :+
+	rts
+:	jmp ft_limit_final_freq_raw
 	; we're done here
 	; in the case of CChannelHandlerVRC7::CalculatePeriod() and
 	; CChannelHandlerN163::CalculatePeriod(), the freq bitshifts will be applied
