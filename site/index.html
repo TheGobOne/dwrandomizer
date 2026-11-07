@@ -744,15 +744,17 @@ function selectCtl(it){
 /* Standard control: returns {root, label, input, desc}. Pages style .opt, .name, .desc, .tog, .mark */
 /* Options that do nothing unless another option is on or random. */
 const NEEDS={mapsize:'map',biome:'map',safestart:'map',onlyhealmore:'spells'};
-function needsOff(id){ return (NEEDS[id]&&!(State.v[NEEDS[id]]|0))||(CONFLICT_WITH[id]&&(State.v[CONFLICT_WITH[id]]|0)); }
+function needsOff(id){ return (NEEDS[id]&&!(State.v[NEEDS[id]]|0))||(CONFLICT_WITH[id]&&CONFLICT_WITH[id].some(o=>State.v[o]|0)); }
 const LEGEND='[ ] off  [x] on  [?] random  (click to cycle)';
 const NEEDS_NAME={map:'Random Map',spells:'Random Spell Learning'};
 const REMIX_IDS=['autoreturn','bank','biome','encounters','freecharlock','keyherb','noshake','pack','quickspell','safestart'];
-/* These cannot be on with Free Charlock: Short and Easy Charlock are exclusive with it, and the rest depend on the
-   Dragonlord or on the ending he gives. Checking Free Charlock turns them off and disables them. */
-const CONFLICT_WITH={shortcharlock:'freecharlock',easycharlock:'freecharlock',three:'freecharlock',cursed:'freecharlock',radish:'freecharlock',disguised:'freecharlock'};
+/* An option cannot be on while any option listed for it is on. Free Charlock is exclusive with Short and Easy Charlock,
+   and the rest depend on the Dragonlord or on the ending he gives. Run Mechanics replaces the run rate code that
+   Easy Charlock changes (Random counts as on). Turning the listed option on turns the other off and disables it. */
+const CONFLICT_WITH={shortcharlock:['freecharlock'],easycharlock:['freecharlock','runmech'],three:['freecharlock'],cursed:['freecharlock'],radish:['freecharlock'],disguised:['freecharlock']};
+const CONFLICT_NAME={freecharlock:'Free Charlock',runmech:'Run Mechanics'};
 State.on(i=>{ const v=State.v;
-  if((i==='freecharlock'||i==='*')&&v.freecharlock) Object.keys(CONFLICT_WITH).forEach(o=>{ if(v[o]){ v[o]=0; State.emit(o); } }); });
+  Object.keys(CONFLICT_WITH).forEach(o=>{ if(v[o]&&CONFLICT_WITH[o].some(b=>(i===b||i==='*')&&(v[b]|0))){ v[o]=0; State.emit(o); } }); });
 function control(it, opts){
   opts=opts||{}; const [id,name,desc,kind,extra]=it; const uid='c'+(++UID);
   const root=el('div',{class:'opt k-'+(kind===S?'select':kind==='pack'?'pack':'toggle'),'data-id':id});
@@ -768,9 +770,10 @@ function control(it, opts){
     const upd=()=>{ const b=State.v.biome|0; h.textContent=(b===1||b===2||b===4)?'Tip: long walks over desert and swamp feel better with Encounter Rate set to Low or Medium.':''; h.hidden=!h.textContent; };
     State.on(i=>{ if(i==='biome'||i==='*') upd(); }); upd(); root.append(h); }
   root.title = REMIX_IDS.includes(id) ? 'REMIX: added in this version, so these flags only work here.' : opts.tip ? desc : '';
-  if(NEEDS[id]||CONFLICT_WITH[id]){ const tag=el('span',{class:'needtag',text:NEEDS[id]?'Needs '+NEEDS_NAME[NEEDS[id]]:'Off while Free Charlock is on'}); root.querySelector('.name').append(tag);
-    const dep=()=>{ const off=needsOff(id); root.classList.toggle('needsoff',off); tag.hidden=!off; if(input) input.disabled=off; };
-    State.on(i=>{ if(i===NEEDS[id]||i===CONFLICT_WITH[id]||i===id||i==='*') dep(); }); dep(); }
+  if(NEEDS[id]||CONFLICT_WITH[id]){ const tag=el('span',{class:'needtag',text:NEEDS[id]?'Needs '+NEEDS_NAME[NEEDS[id]]:''}); root.querySelector('.name').append(tag);
+    const dep=()=>{ const off=needsOff(id); root.classList.toggle('needsoff',off); tag.hidden=!off; if(input) input.disabled=off;
+      if(off&&CONFLICT_WITH[id]&&!NEEDS[id]){ const by=CONFLICT_WITH[id].find(o=>State.v[o]|0); tag.textContent='Off while '+CONFLICT_NAME[by]+' is on'; } };
+    State.on(i=>{ if(i===NEEDS[id]||(CONFLICT_WITH[id]&&CONFLICT_WITH[id].includes(i))||i===id||i==='*') dep(); }); dep(); }
   return root;
 }
 function tabById(id){ return TABS.find(t=>t.id===id); }

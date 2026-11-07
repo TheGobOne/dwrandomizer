@@ -96,6 +96,10 @@ static void update_flags(dw_rom *rom)
         rom->flags[16] &= (uint8_t)~0x0c;
         rom->flags[20] &= (uint8_t)~0xc0;
     }
+    /* Run Mechanics replaces the run rate code that Easy Charlock changes, so Easy Charlock would do nothing.
+     * Random counts as on, the same as on the site. */
+    if (DWX_RUN_MECHANICS(rom))
+        rom->flags[10] &= (uint8_t)~0xc0;
     if (RANDOM_MAP_SIZE(rom) == 0xc0) {
         rom->flags[13] &= 0x3f;
         rom->flags[13] |= mt_rand(0, 2) << 6;
@@ -3970,6 +3974,19 @@ void random_princess_location(dw_rom *rom)
 
 static uint16_t run_bank_win_code = 0;
 
+/* Which of Free Charlock (1) and Auto Return (2) went into this ROM. Their code lives outside the part of the
+ * ROM the checksum reads, so it is mixed in by hand. Two racers then match only if both have the same ones. */
+static uint8_t gameplay_patches = 0;
+
+static uint64_t rom_checksum(dw_rom *rom)
+{
+    uint64_t crc = crc64(0, rom->content, 0x10000);
+
+    if (gameplay_patches)
+        crc = crc64(crc, &gameplay_patches, 1);
+    return crc;
+}
+
 /**
  * After the Dragonlord's second form dies, the game would put the hero back on the overworld at Charlock.
  * With Auto Return on it takes the tail of the Return spell instead, which puts the hero in front of Tantegel.
@@ -3983,6 +4000,7 @@ static void auto_return(dw_rom *rom)
     printf("Returning automatically after the Dragonlord...\n");
     /* Was: ldx #$12 : lda #$02 : jmp $d9e2 (leave by the Charlock warp). */
     vpatch(rom, 0xea03, 7, 0x4c, 0x00, 0xdb, 0xea, 0xea, 0xea, 0xea);
+    gameplay_patches |= 2;
 }
 
 /**
@@ -4021,9 +4039,10 @@ static void free_charlock(dw_rom *rom)
         memset(&rom->content[c], 0xff, 57);
     }
     if (c < 0 || w < 0) {
-        printf("No room for Free Charlock, leaving it out.\n");
-        return;
+        printf("No room for Free Charlock.\n");
+        dwr_no_room();
     }
+    gameplay_patches |= 1;
     printf("Freeing Charlock...\n");
     if (walk_size) {
         /* Walking off a map looks for the warp leading to it, and the entrance no longer leads here.
@@ -4754,6 +4773,7 @@ void instant_name_print(dw_rom *rom)
  */
 void apply_stuff_to_rom(dw_rom *rom)
 {
+    gameplay_patches = 0;
 
     /* Clear the unused code so we can make sure it's unused */
 #ifdef CLEAR_ALL_UNUSED_DATA
@@ -4850,6 +4870,9 @@ void apply_stuff_to_rom(dw_rom *rom)
     forfeit_trigger(rom);
     stat_build_choices(rom);
     not_sharing_the_world(rom);
+    /* Gameplay, so it gets its room before the music does. Then the same flags always give the same game. */
+    free_charlock(rom);
+    auto_return(rom);
 }
 
 
@@ -4971,7 +4994,7 @@ static uint64_t without_winter_once(const char* input_file, uint64_t seed, char 
     apply_stuff_to_rom(rom);
     no_space_handler = outer_handler;
 
-    crc = crc64(0, rom->content, 0x10000);
+    crc = rom_checksum(rom);
 
     // We don't care about the stuff that's done post-CRC
 
@@ -5053,7 +5076,7 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
 
     apply_stuff_to_rom(rom);
 
-    crc = crc64(0, rom->content, 0x10000);
+    crc = rom_checksum(rom);
     /* Music and the look of the game come after the checksum and can be packed on their own. */
     fit_best = fit_extras;
     fail_stage = 2;
@@ -5088,8 +5111,6 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
     sprite(rom, sprite_name);
     invisible_npcs(rom); // in case the custom sprite also changed NPCS.
     noir_mode(rom);
-    free_charlock(rom);
-    auto_return(rom);
     name_entry_wrap(rom);
 
 
