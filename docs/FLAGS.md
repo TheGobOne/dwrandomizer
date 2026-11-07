@@ -294,7 +294,7 @@ The amount of gold that gold chests hold can now be modified.
 
 #### Random Princess Location ####
 
-Gwaelin might not be in her usual Swamp Cave today. Look for her in [one of these](https://juef.free.nf/dwr/random_princess_location/) locations (or in her vanilla spot). **Beware:** if `Stair Shuffle` is on, the randomizer will ***not*** check if the princess is accessible without going through Charlock. If you do turn both flags on, it is strongly recommended to also have `Open Charlock` on.
+Gwaelin might not be in her usual Swamp Cave today. Look for her in [one of these](https://juef.free.nf/dwr/random_princess_location/) locations (or in her vanilla spot). If `Stair Shuffle` is on, she is only placed where she can be reached without going through Charlock.
 
 
 #### Normal Flute Speed ####

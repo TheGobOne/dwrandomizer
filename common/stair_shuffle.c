@@ -516,6 +516,39 @@ static void write_back_warps(dw_rom *rom)
     }
 }
 
+/* Which shuffled dungeon tiles can be walked to without going through Charlock. */
+static BOOL reachable[64][30][30];
+
+static void remember_reachable(void)
+{
+    dungeon_map *map;
+    size_t x, y;
+
+    memset(reachable, 0, sizeof(reachable));
+    clear_all_flags();
+    map_dungeon(get_map(GARINS_GRAVE_1), 6, 11, TRUE);
+    map_dungeon(get_map(MOUNTAIN_CAVE), 6, 5, TRUE);
+    map_dungeon(get_map(ERDRICKS_CAVE), 0, 0, TRUE);
+    for (map = maps; map->index; map++) {
+        for (x = 0; x < map->width; x++) {
+            for (y = 0; y < map->height; y++)
+                reachable[map->index][x][y] = (map->tiles[x][y] & 8) != 0;
+        }
+    }
+    clear_all_flags();
+}
+
+/**
+ * Whether a dungeon tile can be reached without going through Charlock, after stair_shuffle has run.
+ * Maps that are not shuffled keep their own entrance, so they always can.
+ */
+BOOL stair_tile_reachable(dw_map_index map, uint8_t x, uint8_t y)
+{
+    if (!indexes_contains(indexes, map))
+        return TRUE;
+    return reachable[map][x][y];
+}
+
 /**
  * Shuffles all dungeon stairs and checks that all conditions are met.
  */
@@ -530,6 +563,7 @@ void stair_shuffle(dw_rom *rom)
         write_back_warps(rom);
     }
     chest_paths(rom);
+    remember_reachable();
     free(maps);
     free(warps_from);
     maps = NULL;

@@ -3946,7 +3946,12 @@ void random_princess_location(dw_rom *rom)
         GARINS_GRAVE_3,  17, 4,  19, 5,  19, 7,  99, 99,
         GARINS_GRAVE_4,  3,  3,  3,  2,  5,  1,  2,  3
     };
-    int i = mt_rand(0, sizeof(locations)/(9*sizeof(uint8_t))-1);
+    int i;
+
+    /* Shuffled stairs can cut a spot off. The Swamp Cave is not shuffled, so this always ends. */
+    do {
+        i = mt_rand(0, sizeof(locations)/(9*sizeof(uint8_t))-1);
+    } while (!stair_tile_reachable(locations[i][0], locations[i][5], locations[i][6]));
 
     set_dungeon_tile(rom, locations[0][0], locations[0][1], locations[0][2], 2); // Remove original Gwaelin
     set_dungeon_tile(rom, locations[i][0], locations[i][1], locations[i][2], 6); // Create brand new Gwaelin
@@ -4031,6 +4036,8 @@ static void free_charlock(dw_rom *rom)
             0x4c, 0x2c, 0xb2);
         vpatch(rom, 0x3228, 4, 0x4c, LO(w), HI(w), 0xea);
     }
+    /* Arrive facing him. The game looks up the facing for each entrance by its warp number. */
+    vpatch(rom, 0x9914 - 0x8000 + (uint16_t)found, 1, DIR_LEFT);
     rom->map.warps_to[found].map = CHARLOCK_THRONE_ROOM;
     rom->map.warps_to[found].x = x;
     rom->map.warps_to[found].y = y;
@@ -4938,33 +4945,39 @@ static int fail_stage = 0; /* 1 before the checksum, 2 after it */
 static uint64_t without_winter_once(const char* input_file, uint64_t seed, char *flags)
 {
     uint64_t crc = 0;
-    dw_rom rom;
+    /* On the heap: too big for the web build's stack. */
+    dw_rom *rom = malloc(sizeof(dw_rom));
     jmp_buf on_no_space;
     jmp_buf *outer_handler = no_space_handler;
 
+    if (!rom)
+        return 0;
     mt_init(seed);
-    if (!dwr_init(&rom, input_file, flags)) {
+    if (!dwr_init(rom, input_file, flags)) {
+        free(rom);
         return 0;
     }
-    rom.seed = seed;
+    rom->seed = seed;
 
     if (setjmp(on_no_space)) {
         no_space_handler = outer_handler;
-        free(rom.header);
-        free(rom.expansion);
+        free(rom->header);
+        free(rom->expansion);
+        free(rom);
         return 0;
     }
     no_space_handler = &on_no_space;
 
-    apply_stuff_to_rom(&rom);
+    apply_stuff_to_rom(rom);
     no_space_handler = outer_handler;
 
-    crc = crc64(0, rom.content, 0x10000);
+    crc = crc64(0, rom->content, 0x10000);
 
     // We don't care about the stuff that's done post-CRC
 
-    free(rom.header);
-    free(rom.expansion);
+    free(rom->header);
+    free(rom->expansion);
+    free(rom);
     return crc;
 }
 
