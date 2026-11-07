@@ -51,6 +51,8 @@
 #define MENU_WRAP(x)              (x->flags[ 3] & 0xc0)
 /* The other half of the Encounter Rate pair. update_flags keeps it out of the maybe step. */
 #define AUTO_RETURN(x)            (x->flags[ 3] & 0x02)
+/* Alone in its pair too: update_flags keeps it out of the maybe handling. */
+#define RESPONSIVE_CONTROLS(x)    (x->flags[ 6] & 0x02)
 #define DEATH_NECKLACE(x)         (x->flags[ 3] & 0x30)
 #define TORCH_IN_BATTLE(x)        (x->flags[ 3] & 0x0c)
 #define REPEL_IN_DUNGEONS(x)      (x->flags[ 4] & 0xc0)

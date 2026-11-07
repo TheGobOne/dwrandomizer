@@ -66,6 +66,11 @@ The meter also removes the original game's hidden checkerboard on grass, where n
 When the Dragonlord's second form dies, Return is cast for you and you arrive in front of Tantegel, or at your Return to Town point if that flag is on, instead of standing at Charlock. Command line: `--auto-return on`.
 
 
+#### Responsive Controls ####
+
+On the overworld, walking, the command window and pause answer a press at once instead of waiting up to 15 frames. In towns and dungeons a short press is kept until the game can act on it, because NPCs move in time with that wait. A button newly pressed during a step is kept for when the step ends. Very full ROMs may not build with it on. It is part of the checksum. Command line: `--responsive-controls on`.
+
+
 #### Free Charlock ####
 
 Entering Charlock from the overworld puts you beside the Dragonlord and starts the fight, with no dialogue. Run away and you stay in his room; the fight starts by itself again only after you leave and come back. Short Charlock, Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. On a very full ROM the build stops, as it does for other flags that need space. It is part of the checksum, along with Auto Return. Command line: `--free-charlock on`.
@@ -85,10 +90,12 @@ Keeps the screen still when you take damage.
 
 Pick a pack in the Custom Music Pack option on the website, or pass `--music pack.json5` on the command line. Packs hold FamiTracker modules and play through the Dn-FamiTracker driver. Up to 24 songs and about 17 KB fit, and songs that don't fit are skipped. A scene with no tagged song keeps its default music. Sound effects can't be replaced.
 
-Scene tags: `Title`, `Castle`, `Town`, `Overworld`, `Dungeon`, `Cave`, `Battle`, `LastBattle`, `DragonlordRoom`, `Hauksness`, `OldManCave`, `Floor1` to `Floor7`.
-Floors, `DragonlordRoom` and `Hauksness` use the `Dungeon` song if they have no song of their own.
+Scene tags: `Title`, `Tantegel`, `Town`, `Overworld`, `Charlock`, `Cave`, `Encounter`, `Dragonlord`, `CharlockFinalFloor`, `Hauksness`.
+One `Charlock` song plays on all seven floors of Charlock, to save music space. `CharlockFinalFloor` and `Hauksness` use it if they have no song of their own. `Cave` plays in Erdrick's Cave, the mountain cave, Garin's Grave and the swamp cave; without a `Cave` song those keep the game's own floor music. The old man caves (the Tantegel basement and the shrines) have no song of their own: whatever was playing keeps playing, so the overworld song from an overworld tile, or the town or cave song when the cave is joined to one.
 
-Event tags: `Credits` (stat scroll), `Ending` (original credits, or the stat scroll if Skip Original Credits is on or the pack has two), `SilverHarp`, `FairyFlute`, `RainbowBridge`, `Death`, `Inn`, `Gwaelin`, `Cursed`, `Victory`, `LevelUp`. A song with an event tag is used only for that event.
+Event tags: `StatScroll` (stat scroll), `OriginalCredits` (original credits, or the stat scroll if the pack has two; with Skip Original Credits on the stat scroll plays only its own `StatScroll` track), `SilverHarp`, `FairyFlute`, `RainbowBridge`, `Death`, `Inn`, `Gwaelin`, `Cursed`, `Victory`, `LevelUp`. A song with an event tag is used only for that event.
+
+On the website, Custom Jingles shows how long the game's own jingle runs (for example the Inn jingle is 2.63 s) and how long each track is, to 0.01 s, so you can pick one of the same length. Tracks that never stop are marked "loops". A jingle slot on Random picks a track close to the game's length, and prefers tracks that stop on their own.
 
 
 ## Inherited from the fork ##

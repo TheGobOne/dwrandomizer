@@ -28,16 +28,17 @@
 #define FIRST_JINGLE 0x10 /* requests from here on are events */
 /* Sizes of the three fixed-bank hooks. */
 #define HOOK_YS_SIZE 10
-#define HOOK_RQ_SIZE 71
+#define HOOK_RQ_SIZE 90
 #define HOOK_FRAME_SIZE 24
 #define REQUEST_BATTLE_RESUME 0x18
 #define REQUEST_CREDITS 0x1f
 #define REQUEST_HAUKSNESS 0x1c
 #define MAP_HAUKSNESS 3
-#define REQUEST_OLD_MAN_CAVE 0x1d
+#define REQUEST_CAVE 0x1d /* dungeon floor music in a cave, not Charlock */
 #define MAX_PLACED 24
 #define RAM_JINGLE 0x6bfa
 #define RAM_WANT 0x6bfc
+#define RAM_CUR 0x6bfd
 #define RAM_BANKSEL 0x6bf9
 #define RAM_DELAY 0x6bf8
 
@@ -307,9 +308,8 @@ static void swap_squares(uint8_t *d)
 /* Songs with these tags only play for that event. */
 static const char *const reserved_tags[] = {
     "SilverHarp", "FairyFlute", "RainbowBridge", "Death", "Dying", "PlayerDeath", "Inn",
-    "Gwaelin", "Cursed", "Victory", "LevelUp", "Ending", "Credits",
-    "DragonlordRoom", "Hauksness", "OldManCave", "Floor1", "Floor2", "Floor3", "Floor4", "Floor5",
-    "Floor6", "Floor7", NULL
+    "Gwaelin", "Cursed", "Victory", "LevelUp", "OriginalCredits", "StatScroll",
+    "CharlockFinalFloor", "DragonlordRoom", "Hauksness", NULL
 };
 
 static BOOL same_tag(const char *a, const char *b)
@@ -577,15 +577,16 @@ typedef struct {
     const char *primary[4];
 } scene_t;
 
-enum { SC_OVERWORLD, SC_BATTLE, SC_DUNGEON, SC_TOWN, SC_CASTLE, SC_LAST_BATTLE, SC_TITLE, SCENE_COUNT };
+enum { SC_OVERWORLD, SC_BATTLE, SC_CHARLOCK, SC_CAVE, SC_TOWN, SC_CASTLE, SC_LAST_BATTLE, SC_TITLE, SCENE_COUNT };
 
 static const scene_t scenes[SCENE_COUNT] = {
     {"Overworld",   {"Overworld"}},
-    {"Battle",      {"Battle"}},
-    {"Dungeon",     {"Dungeon", "Cave"}},
+    {"Encounter",      {"Encounter"}},
+    {"Charlock",    {"Charlock", "Dungeon"}},
+    {"Cave",        {"Cave"}},
     {"Town",        {"Town"}},
-    {"Castle",      {"Castle"}},
-    {"Last battle", {"LastBattle"}},
+    {"Tantegel",      {"Tantegel"}},
+    {"Dragonlord", {"Dragonlord"}},
     {"Title",       {"Title"}},
 };
 
@@ -596,7 +597,7 @@ static int scene_for_request(int id)
     if (id == 2 || id == 3) return SC_CASTLE;
     if (id == 4) return SC_TOWN;
     if (id == 5) return SC_OVERWORLD;
-    if (id >= 6 && id <= 0x0d) return SC_DUNGEON;
+    if (id >= 6 && id <= 0x0d) return SC_CHARLOCK;
     if (id == 0x0e) return SC_BATTLE;
     return SC_LAST_BATTLE;
 }
@@ -670,13 +671,12 @@ typedef struct {
     const char *tags[4];
 } event_t;
 
-#define EVENT_COUNT 21
+#define EVENT_COUNT 13
 static const event_t events[EVENT_COUNT] = {
-    {"Credits",     REQUEST_CREDITS, {"Credits", "Ending"}},
-    {"Ending",      0x10, {"Ending"}},
-    {"Dragonlord",  0x0d, {"DragonlordRoom"}},
+    {"Credits",     REQUEST_CREDITS, {"StatScroll", "OriginalCredits"}},
+    {"Ending",      0x10, {"OriginalCredits"}},
+    {"Final floor", 0x0d, {"CharlockFinalFloor", "DragonlordRoom"}},
     {"Hauksness",   REQUEST_HAUKSNESS, {"Hauksness"}},
-    {"Old man cave", REQUEST_OLD_MAN_CAVE, {"OldManCave"}},
     {"Silver harp", 0x11, {"SilverHarp"}},
     {"Fairy flute", 0x12, {"FairyFlute"}},
     {"Bridge",      0x13, {"RainbowBridge"}},
@@ -686,14 +686,6 @@ static const event_t events[EVENT_COUNT] = {
     {"Cursed",      0x17, {"Cursed"}},
     {"Victory",     0x19, {"Victory"}},
     {"Level up",    0x1a, {"LevelUp"}},
-    /* Last, so floors only use space nothing else needed. */
-    {"Floor 1",     0x06, {"Floor1"}},
-    {"Floor 2",     0x07, {"Floor2"}},
-    {"Floor 3",     0x08, {"Floor3"}},
-    {"Floor 4",     0x09, {"Floor4"}},
-    {"Floor 5",     0x0a, {"Floor5"}},
-    {"Floor 6",     0x0b, {"Floor6"}},
-    {"Floor 7",     0x0c, {"Floor7"}},
 };
 
 /* ------------------------------------------------------------ choosing like the site */
@@ -718,19 +710,19 @@ typedef struct {
 } pick_slot_t;
 
 static const pick_slot_t pick_slots[] = {
-    {{"Title"}, TRUE}, {{"Overworld"}, TRUE}, {{"Town"}, TRUE}, {{"Castle"}, TRUE},
-    {{"Hauksness"}, TRUE}, {{"OldManCave"}, TRUE},
-    {{"Floor1", "Dungeon", "Cave"}, TRUE},
-    {{"DragonlordRoom"}, TRUE}, {{"Battle"}, TRUE}, {{"LastBattle"}, TRUE},
-    {{"Ending"}, FALSE}, {{"Credits", "Ending"}, FALSE},
+    {{"Title"}, TRUE}, {{"Overworld"}, TRUE}, {{"Town"}, TRUE}, {{"Tantegel"}, TRUE},
+    {{"Hauksness"}, TRUE},
+    {{"Charlock", "Dungeon"}, TRUE}, {{"Cave"}, TRUE},
+    {{"CharlockFinalFloor", "DragonlordRoom"}, TRUE}, {{"Encounter"}, TRUE}, {{"Dragonlord"}, TRUE},
+    {{"OriginalCredits"}, FALSE}, {{"StatScroll", "OriginalCredits"}, FALSE},
 };
 #define PICK_SLOTS ((int)(sizeof(pick_slots) / sizeof(pick_slots[0])))
-#define FLOOR_SLOT 6
+#define PICK_ORDER_COUNT 12
 
-static const char *const pick_place_order[] = {"Credits", "Overworld", "Battle", "Dungeon", "Town", "Castle",
-    "LastBattle", "Title", "Ending", "DragonlordRoom", "Hauksness", "OldManCave"};
-static const char *const pick_fill_order[] = {"Title", "Overworld", "Town", "Floor1", "Battle", "Castle",
-    "LastBattle", "Credits", "Ending", "DragonlordRoom", "Hauksness", "OldManCave"};
+static const char *const pick_place_order[] = {"StatScroll", "Overworld", "Encounter", "Charlock", "Cave", "Town",
+    "Tantegel", "Dragonlord", "Title", "OriginalCredits", "CharlockFinalFloor", "Hauksness"};
+static const char *const pick_fill_order[] = {"Title", "Overworld", "Town", "Charlock", "Cave", "Encounter",
+    "Tantegel", "Dragonlord", "StatScroll", "OriginalCredits", "CharlockFinalFloor", "Hauksness"};
 
 static int order_of(const char *const *list, int n, const char *tag)
 {
@@ -808,14 +800,11 @@ typedef struct {
 static uint32_t pick_rng;
 static pick_entry_t pick_placed[MAX_PLACED + 1];
 static int pick_placed_count;
-static BOOL pick_skip_credits;
 static char *pick_used, *pick_stops;
 
-static int pick_rank(const char *tag, BOOL ending_first)
+static int pick_rank(const char *tag)
 {
-    if (ending_first && !strcmp(tag, "Ending"))
-        return -1;
-    return order_of(pick_place_order, 12, tag);
+    return order_of(pick_place_order, PICK_ORDER_COUNT, tag);
 }
 
 static BOOL pick_fits(const char *tag, size_t size)
@@ -823,19 +812,15 @@ static BOOL pick_fits(const char *tag, size_t size)
     pick_entry_t a[MAX_PLACED + 1];
     int n = pick_placed_count, i, j;
     size_t b[2] = {0, 0};
-    BOOL ending_first = pick_skip_credits;
 
     if (n + 1 > MAX_PLACED)
         return FALSE;
     memcpy(a, pick_placed, (size_t)n * sizeof(a[0]));
     a[n].tag = tag;
     a[n++].size = size;
-    for (i = 0; i < n; i++)
-        if (!strcmp(a[i].tag, "Credits"))
-            ending_first = FALSE;
     for (i = 1; i < n; i++) { /* stable, like the site's sort */
         pick_entry_t e = a[i];
-        for (j = i; j > 0 && pick_rank(a[j - 1].tag, ending_first) > pick_rank(e.tag, ending_first); j--)
+        for (j = i; j > 0 && pick_rank(a[j - 1].tag) > pick_rank(e.tag); j--)
             a[j] = a[j - 1];
         a[j] = e;
     }
@@ -857,15 +842,7 @@ static BOOL pick_loops(int i)
     return !pick_stops[i];
 }
 
-static BOOL is_dungeon_song(const song_t *s)
-{
-    static const char *const a[4] = {"Floor1", "Floor2", "Floor3", "Floor4"};
-    static const char *const b[4] = {"Floor5", "Floor6", "Floor7", "Dungeon"};
-    static const char *const c[4] = {"Cave"};
-    return pack_has(s, a) || pack_has(s, b) || pack_has(s, c);
-}
-
-/* list is NULL for every song. A negative left also limits it to dungeon songs. */
+/* list is NULL for every song. */
 static int pick_choose(const char *const *list, const char *tag, int left, BOOL location)
 {
     static int fit[MAX_SONGS], base[MAX_SONGS], on[MAX_SONGS], fresh[MAX_SONGS];
@@ -873,14 +850,9 @@ static int pick_choose(const char *const *list, const char *tag, int left, BOOL 
     int *a, *p;
     size_t used = 0;
     double share;
-    BOOL dungeon_only = left < 0;
 
-    if (left < 0)
-        left = -left;
     for (i = 0; i < pack_count; i++) {
         if (list && !pack_has(&pack[i], list))
-            continue;
-        if (dungeon_only && !is_dungeon_song(&pack[i]))
             continue;
         if (pack[i].size >= 256 && pick_fits(tag, pack[i].size) && (!location || pick_loops(i)))
             fit[nfit++] = i;
@@ -935,7 +907,6 @@ static void pick_like_site(dw_rom *rom)
     memset(pick_stops, -1, (size_t)pack_count);
     pick_rng = (uint32_t)(rom->seed & 0xffffffffu) ^ 0x6d757369u;
     pick_placed_count = 0;
-    pick_skip_credits = SKIP_VANILLA_CREDITS(rom) ? TRUE : FALSE;
 
     for (i = 0; i < PICK_SLOTS; i++) {
         chosen[i] = -1;
@@ -948,8 +919,8 @@ static void pick_like_site(dw_rom *rom)
     }
     for (i = 1; i < random_slots; i++) {
         int s = order[i];
-        int r = order_of(pick_fill_order, 12, pick_slots[s].tags[0]);
-        for (j = i; j > 0 && order_of(pick_fill_order, 12, pick_slots[order[j - 1]].tags[0]) > r; j--)
+        int r = order_of(pick_fill_order, PICK_ORDER_COUNT, pick_slots[s].tags[0]);
+        for (j = i; j > 0 && order_of(pick_fill_order, PICK_ORDER_COUNT, pick_slots[order[j - 1]].tags[0]) > r; j--)
             order[j] = order[j - 1];
         order[j] = s;
     }
@@ -957,24 +928,13 @@ static void pick_like_site(dw_rom *rom)
     for (i = 0; i < random_slots; i++) {
         int s = order[i], c = -1;
         const pick_slot_t *slot = &pick_slots[s];
-        if (s == FLOOR_SLOT) {
-            static const char *const floor1[4] = {"Floor1"};
-            BOOL own = FALSE;
-            for (j = 0; j < pack_count; j++)
-                own = own || pack_has(&pack[j], floor1);
-            if (own)
-                c = pick_choose(floor1, "Dungeon", left, TRUE);
-            if (c < 0)
-                c = pick_choose(NULL, "Dungeon", -left, TRUE);
-        } else {
-            BOOL own = FALSE;
-            for (j = 0; j < pack_count; j++)
-                own = own || pack_has(&pack[j], slot->tags);
-            if (own)
-                c = pick_choose(slot->tags, slot->tags[0], left, slot->location);
-            if (c < 0 && slot->location)
-                c = pick_choose(NULL, slot->tags[0], left, TRUE);
-        }
+        BOOL own = FALSE;
+        for (j = 0; j < pack_count; j++)
+            own = own || pack_has(&pack[j], slot->tags);
+        if (own)
+            c = pick_choose(slot->tags, slot->tags[0], left, slot->location);
+        if (c < 0 && slot->location)
+            c = pick_choose(NULL, slot->tags[0], left, TRUE);
         chosen[s] = c;
         left--;
     }
@@ -985,11 +945,8 @@ static void pick_like_site(dw_rom *rom)
     song_count = 0;
     {
         int slot_order[PICK_SLOTS];
-        k = 0;
-        slot_order[k++] = FLOOR_SLOT;
         for (i = 0; i < PICK_SLOTS; i++)
-            if (i != FLOOR_SLOT)
-                slot_order[k++] = i;
+            slot_order[i] = i;
         for (pass = 0; pass < 2; pass++) {
             for (k = 0; k < PICK_SLOTS; k++) {
                 int s = slot_order[k];
@@ -998,13 +955,91 @@ static void pick_like_site(dw_rom *rom)
                     continue;
                 copy = &songs[song_count++];
                 *copy = pack[chosen[s]];
-                snprintf(copy->uses[0], 24, "%s", s == FLOOR_SLOT ? "Dungeon" : pick_slots[s].tags[0]);
+                snprintf(copy->uses[0], 24, "%s", pick_slots[s].tags[0]);
                 copy->use_count = 1;
-                copy->enabled = strcmp(copy->uses[0], "Ending") != 0;
+                copy->enabled = strcmp(copy->uses[0], "OriginalCredits") != 0;
                 copy->bank = -1;
             }
         }
     }
+}
+
+/* Run the driver from the game's own wait loop (at $FF74) instead of only from the NMI.
+ * The NMI counts a pending tick. The wait runs one tick and drops any others: a frame the game was too
+ * busy to wait in skips its music step instead of making the next frame later still.
+ * The tick runs right after the NMI, never just before it: the game's NMI resets the console if it lands
+ * on a bank switch while the game waits, and the next NMI is a whole frame away.
+ * Code that never calls the wait (three frames without it) gets its ticks from the NMI. */
+#define MW_PEND 0x6bf2
+#define MW_RUNNING 0x6bf3
+#define MW_INWAIT 0x6bf4
+#define MW_TH 3
+#define MW_BANKSEL RAM_BANKSEL
+static void music_wait_loop(dw_rom *rom, uint16_t frame)
+{
+    static const uint8_t wait_in[9] = {0xa9, 0x01, 0x85, 0x02, 0xa5, 0x02, 0xd0, 0xfc, 0x60};
+    static const uint8_t overrun_in[3] = {0x20, 0x2d, 0xff};
+    uint8_t *k = rom->content;
+    uint8_t c[48], c2[14], code[128];
+    uint16_t h2, chk, w;
+    int n = 0, beq, spin;
+
+    if (memcmp(k + 0xff74, wait_in, 9) || memcmp(k + 0xfe55, overrun_in, 3)) {
+        printf("Music wait loop not recognized, keeping the frame music.\n");
+        return;
+    }
+
+    /* 1. NMI side: count the tick, and run one here only when the game has not waited for a while and
+     * the driver is not running. */
+    c[n++] = 0xee; c[n++] = LO8(MW_PEND); c[n++] = HI8(MW_PEND);
+    c[n++] = 0xad; c[n++] = LO8(MW_PEND); c[n++] = HI8(MW_PEND);
+    c[n++] = 0xc9; c[n++] = MW_TH; c[n++] = 0xb0; c[n++] = 1; c[n++] = 0x60;
+    c[n++] = 0xad; c[n++] = LO8(MW_RUNNING); c[n++] = HI8(MW_RUNNING); c[n++] = 0xf0; c[n++] = 1; c[n++] = 0x60;
+    c[n++] = 0xce; c[n++] = LO8(MW_PEND); c[n++] = HI8(MW_PEND);
+    /* The hook's tail starts with the 3-byte lda of the bank selector, which the jump to here replaces:
+     * do that load here, then carry on at the rest of the tail. This saves copying the tail. */
+    c[n++] = 0xad; c[n++] = LO8(RAM_BANKSEL); c[n++] = HI8(RAM_BANKSEL);
+    c[n++] = 0x4c; c[n++] = LO8(frame + 11); c[n++] = HI8(frame + 11);
+    h2 = find_free_space(k, 0xc422, n);
+    patch(rom, h2, n, c);
+    patch(rom, frame + 8, 3, (uint8_t[]){0x4c, LO8(h2), HI8(h2)});
+
+    /* 2. Overrun path of the NMI: while the game waits for a frame, take the full path. */
+    n = 0;
+    c2[n++] = 0xad; c2[n++] = LO8(MW_INWAIT); c2[n++] = HI8(MW_INWAIT);
+    c2[n++] = 0xf0; c2[n++] = 3;
+    c2[n++] = 0x4c; c2[n++] = 0x7f; c2[n++] = 0xfe;
+    c2[n++] = 0x20; c2[n++] = 0x2d; c2[n++] = 0xff;
+    c2[n++] = 0x4c; c2[n++] = 0x58; c2[n++] = 0xfe;
+    chk = find_free_space(k, 0xc422, n);
+    patch(rom, chk, n, c2);
+    patch(rom, 0xfe55, 3, (uint8_t[]){0x4c, LO8(chk), HI8(chk)});
+
+    /* 3. The wait itself: wait for the frame, then run one pending tick and drop any others. */
+    n = 0;
+#define EMIT(...) do { const uint8_t e_[] = {__VA_ARGS__}; memcpy(code + n, e_, sizeof(e_)); n += sizeof(e_); } while (0)
+    EMIT(0xa9, 0x01, 0x85, 0x02, 0x8d, LO8(MW_INWAIT), HI8(MW_INWAIT));  /* lda #1; sta $02; sta INWAIT */
+    EMIT(0xa5, 0x02, 0xd0, 0xfc);                                       /* spin: lda $02; bne spin */
+    EMIT(0xa9, 0x00, 0x8d, LO8(MW_INWAIT), HI8(MW_INWAIT));             /* lda #0; sta INWAIT */
+    EMIT(0xad, LO8(MW_PEND), HI8(MW_PEND));                             /* lda PEND */
+    beq = n; EMIT(0xf0, 0);                                             /* beq done */
+    EMIT(0x08, 0x8a, 0x48, 0x98, 0x48);                                 /* php txa pha tya pha */
+    EMIT(0xad, 0x04, 0x60, 0x48);                                       /* lda $6004; pha */
+    EMIT(0xa9, 0x01, 0x8d, LO8(MW_RUNNING), HI8(MW_RUNNING));           /* lda #1; sta RUNNING */
+    EMIT(0xa9, 0x00, 0x8d, LO8(MW_PEND), HI8(MW_PEND));                 /* lda #0; sta PEND: one tick, drop the rest */
+    EMIT(0xad, LO8(MW_BANKSEL), HI8(MW_BANKSEL), 0xf0, 0x03, 0xa9, 0x03, 0x2c, 0xa9, 0x06);
+    EMIT(0x20, 0x91, 0xff);                                             /* jsr $ff91 (sets $6004) */
+    EMIT(0x20, LO8(FT_WRAP), HI8(FT_WRAP));                             /* jsr wrap */
+    EMIT(0xa9, 0x00, 0x8d, LO8(MW_RUNNING), HI8(MW_RUNNING));           /* lda #0; sta RUNNING */
+    EMIT(0x68, 0x20, 0x91, 0xff);                                       /* pla; jsr $ff91 */
+    EMIT(0x68, 0xa8, 0x68, 0xaa, 0x28);                                 /* pla tay pla tax plp */
+    spin = n;
+    code[beq + 1] = (uint8_t)(spin - (beq + 2));
+    EMIT(0xa9, 0x00, 0x60);                                             /* done: lda #0; rts (A=0, Z set, as before) */
+#undef EMIT
+    w = find_free_space(k, 0xc422, n);
+    patch(rom, w, n, code);
+    patch(rom, 0xff74, 3, (uint8_t[]){0x4c, LO8(w), HI8(w)});
 }
 
 void custom_music_apply(dw_rom *rom)
@@ -1030,12 +1065,12 @@ void custom_music_apply(dw_rom *rom)
     /* The credits run in 32 KB banking mode, where only bank 6 of the music banks
      * can be mapped, so their song is placed first. */
     {
-        /* A Credits song first. An Ending song only if the ending will not miss it: its
-         * scene is skipped, or the pack has another one. */
-        static const char *const credits_only[4] = {"Credits"};
+        /* A StatScroll song first. An OriginalCredits song only if the pack has another one for
+         * the ending. Skip Original Credits changes nothing: the stat scroll plays its own pick. */
+        static const char *const credits_only[4] = {"StatScroll"};
         int found = pick(credits_only, TRUE, next, TRUE);
         if (found < 0) found = pick(credits_only, FALSE, next, TRUE);
-        if (found < 0 && (SKIP_VANILLA_CREDITS(rom) || count_tagged(events[1].tags) >= 2)) {
+        if (found < 0 && count_tagged(events[1].tags) >= 2) {
             found = pick(events[1].tags, TRUE, next, TRUE);
             if (found < 0) found = pick(events[1].tags, FALSE, next, TRUE);
         }
@@ -1079,7 +1114,7 @@ void custom_music_apply(dw_rom *rom)
         map[id] = (uint8_t)chosen[scene_for_request(id)]; /* -1 becomes $ff: silence */
     map[REQUEST_BATTLE_RESUME] = map[0x0e];
     map[REQUEST_HAUKSNESS] = map[0x09];
-    map[REQUEST_OLD_MAN_CAVE] = map[0x03]; /* the basement and shrines use the castle's song */
+    map[REQUEST_CAVE] = (uint8_t)chosen[SC_CAVE]; /* -1: the game's own floor music */
     for (i = 0; i < EVENT_COUNT; i++)
         if (event_song[i] >= 0)
             map[events[i].request] = (uint8_t)event_song[i];
@@ -1148,7 +1183,7 @@ void custom_music_apply(dw_rom *rom)
     rq = find_free_space(rom->content, 0xc422, HOOK_RQ_SIZE);
     vpatch(rom, rq, HOOK_RQ_SIZE,
             0xa2, 0xff, 0x8e, 0x05, 0x60,         /* ldx #$ff, stx $6005 (replaced code) */
-            0xc9, 0x80, 0xb0, 0x3d,               /* cmp #$80, bcs done: sound effect */
+            0xc9, 0x80, 0xb0, 0x3e,               /* cmp #$80, bcs done: sound effect */
             0x8d, LO8(RAM_WANT), HI8(RAM_WANT),
             0xa2, 0x00, 0x8e, LO8(RAM_DELAY), HI8(RAM_DELAY),
             /* The game's music plays unless the driver starts a song for this request. */
@@ -1156,12 +1191,20 @@ void custom_music_apply(dw_rom *rom)
             0xa2, 0x30, 0x8e, 0x00, 0x40, 0x8e, 0x04, 0x40, 0x8e, 0x0c, 0x40,
             0xa2, 0x80, 0x8e, 0x08, 0x40,
             /* Map music requests shared between places: tell them apart by map. */
-            0xc9, 0x0e, 0xb0, 0x1c, 0xc9, 0x01, 0x90, 0x18,
+            0xc9, 0x0e, 0xb0, 0x1d, 0xc9, 0x01, 0x90, 0x19,
             0xa6, 0x45,
             0xe0, MAP_HAUKSNESS, 0xd0, 0x05,
-            0xa2, REQUEST_HAUKSNESS, 0x8e, LO8(RAM_WANT), HI8(RAM_WANT),
-            0xe0, TANTEGEL_BASEMENT, 0x90, 0x09, 0xe0, SOUTHERN_SHRINE + 1, 0xb0, 0x05,
-            0xa2, REQUEST_OLD_MAN_CAVE, 0x8e, LO8(RAM_WANT), HI8(RAM_WANT),
+            0xa9, REQUEST_HAUKSNESS, 0x8d, LO8(RAM_WANT), HI8(RAM_WANT), /* A, so X keeps the map */
+            /* Old man caves keep whatever was playing: the overworld song from an overworld tile,
+             * or the town or cave song when the cave is joined to a town or another cave. */
+            0xe0, TANTEGEL_BASEMENT, 0x90, 0x0b, 0xe0, SOUTHERN_SHRINE + 1, 0xb0, 0x07,
+            0xad, LO8(RAM_CUR), HI8(RAM_CUR), 0x8d, LO8(RAM_WANT), HI8(RAM_WANT),
+            0x60,
+            /* Floor music in Erdrick's Cave, the mountain cave, Garin's Grave or the swamp cave is the
+             * Cave song; Charlock keeps the floor requests. */
+            0xc9, 0x06, 0x90, 0x0d,
+            0xe0, SWAMP_CAVE, 0x90, 0x09, 0xe0, ERDRICKS_CAVE_2 + 1, 0xb0, 0x05,
+            0xa2, REQUEST_CAVE, 0x8e, LO8(RAM_WANT), HI8(RAM_WANT),
             0x60);
     vpatch(rom, 0x41a0, 5, 0x20, LO8(rq), HI8(rq), 0xea, 0xea);
 
@@ -1174,6 +1217,7 @@ void custom_music_apply(dw_rom *rom)
             0x20, 0x96, 0xff,
             0x4c, LO8(FT_WRAP), HI8(FT_WRAP));
     vpatch(rom, 0xfee8, 8, 0x20, LO8(frame), HI8(frame), 0xea, 0xea, 0xea, 0xea, 0xea);
+    music_wait_loop(rom, frame);
 
     /* Credits: ask for the tagged song and update the driver from their NMI. */
     if (event_song[0] >= 0) {
