@@ -63,7 +63,8 @@ int main(int argc, char **argv)
     char default_flags[] = DEFAULT_FLAGS;
     char *input_file, *output_dir;
     static const char *const bank_levels[4] = {"normal", "easy", "strict", "verystrict"};
-    int bank_cap = 0, bank_level = 0, encounters = 0, quick_spell = 0, key_herb = 0;
+    /* -1 and 0 for the cap: not given, so the flags decide. */
+    int bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, key_herb = -1;
     static const char *const encounter_rates[4] = {"default", "low", "medium", "high"};
     char encoded[64] = {0};
 
@@ -130,20 +131,24 @@ int main(int argc, char **argv)
         sprite = "Random";
     }
 
-    if (bank_cap || bank_level || encounters || quick_spell || key_herb) {
+    if (bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || key_herb >= 0) {
         uint8_t raw[25] = {0};
         strncpy(encoded, flags, 40);
         base32_decode((uint8_t *)encoded, raw);
-        if (bank_cap || bank_level) {
-            raw[12] = (uint8_t)(bank_cap | ((bank_level & 2) << 6));
+        if (bank_cap)
+            raw[12] = (uint8_t)((raw[12] & 0x80) | bank_cap);
+        if (bank_level >= 0) {
+            raw[12] = (uint8_t)((raw[12] & 0x7f) | ((bank_level & 2) << 6));
             raw[14] = (uint8_t)((raw[14] & 0xfe) | (bank_level & 1));
         }
-        raw[3] = (uint8_t)((raw[3] & 0xfe) | ((encounters >> 1) & 1));
-        raw[6] = (uint8_t)((raw[6] & 0xfe) | (encounters & 1));
-        if (key_herb)
-            raw[8] |= 0x10;
-        if (quick_spell)
-            raw[11] |= 0x01;
+        if (encounters >= 0) {
+            raw[3] = (uint8_t)((raw[3] & 0xfe) | ((encounters >> 1) & 1));
+            raw[6] = (uint8_t)((raw[6] & 0xfe) | (encounters & 1));
+        }
+        if (key_herb >= 0)
+            raw[8] = (uint8_t)((raw[8] & 0xef) | (key_herb ? 0x10 : 0));
+        if (quick_spell >= 0)
+            raw[11] = (uint8_t)((raw[11] & 0xfe) | (quick_spell ? 0x01 : 0));
         base32_encode(raw, 25, (uint8_t *)encoded);
         encoded[40] = '\0';
         flags = encoded;

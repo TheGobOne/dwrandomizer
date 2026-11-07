@@ -1735,7 +1735,7 @@ static void radish_finish(dw_rom *rom)
     printf("The princess is craving radishes...\n");
 
     // Hook into original dialogue processing code:
-    vpatch(rom, 0xd193, 3, 0x4c, newcode & 0xff, (newcode >> 8) & 0xff); // JSR newcode
+    vpatch(rom, 0xd193, 3, 0x4c, newcode & 0xff, (newcode >> 8) & 0xff); // JMP newcode
 
     vpatch(rom, newcode, 33,
         0x48,       // pha (original code overwritten by hook, part 1/2)
@@ -1743,7 +1743,7 @@ static void radish_finish(dw_rom *rom)
         0xd0, 0x17, // BNE NEXT
         0xa5, 0xdf, // It is radish dialogue! Check if we rescued Gwaelin. lda zeropage status bits
         0x29, 0x01, // and immediate Gwaelin bit
-        0xf0, 0x11, // bne NEXT, Player is not carrying Gwaelin, move ahead
+        0xf0, 0x11, // beq NEXT, Player is not carrying Gwaelin, move ahead
 
         0x20, 0xcb, 0xc7, 0x74, // Display radish
         0xa9, 0x03,             // lda window type (command)
@@ -3358,6 +3358,11 @@ void find_zoom_tile(dw_rom *rom, uint8_t town, uint8_t zoom_data[][3], uint8_t i
         zoom_data[i][1] = x+1;
 }
 
+/* The menu's current save slot, and three bytes each for what is kept per slot. */
+#define SAVE_SLOT 0x6039
+#define SLOT_VISITED 0x6810
+#define SLOT_RETURN 0x6813
+
 /**
  * Makes Return send you to the last place you saved or used an inn at
  * and/or
@@ -3366,10 +3371,6 @@ void find_zoom_tile(dw_rom *rom, uint8_t town, uint8_t zoom_data[][3], uint8_t i
  *
  * @param rom The rom struct
  */
-/* The menu's current save slot, and three bytes each for what is kept per slot. */
-#define SAVE_SLOT 0x6039
-#define SLOT_VISITED 0x6810
-#define SLOT_RETURN 0x6813
 
 void zoom_and_whistle(dw_rom *rom)
 {
@@ -4829,7 +4830,7 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
 
     check_structs();
 
-    snprintf(output_file, 1024, "%s/DWRando.%"PRIu64".%s.nes", output_dir,
+    snprintf(output_file, 1024, "%s/DWR.%"PRIu64".%s.nes", output_dir,
             seed, flags);
     printf("Using seed# %"PRIu64"\n", seed);
     printf("Using flags %s\n", flags);

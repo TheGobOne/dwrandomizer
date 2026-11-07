@@ -289,7 +289,6 @@ static void rotate_mirror_map(dw_rom *rom, dw_map_index map_index)
     uint8_t rotatemirror, *buf, *mirroredvbuf, *mirroredhbuf, *rotatedbuf;
 
     rotatemirror = mt_rand(0, 15);
-    if (map_index == SWAMP_CAVE)
 
     if (!rotatemirror)
         return;

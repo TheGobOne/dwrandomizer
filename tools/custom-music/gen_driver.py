@@ -17,11 +17,14 @@ src = open(HERE + '/driver/driver.s', encoding='utf8').read()
 line = [l for l in src.splitlines() if l.startswith('\t.addr * + 2')][0]
 patched = src.replace('ft_music_addr:\n' + line, 'ft_music_addr = $6bf0')
 assert patched != src
-open(HERE + '/driver/driver2.s', 'w', encoding='utf8').write(patched)
+# The wrapper always selects NTSC, so the PAL table would only take room from the songs.
+no_pal = patched.replace('\tPAL_PERIOD_TABLE = 1', '\t;PAL_PERIOD_TABLE = 1')
+assert no_pal != patched
+open('driver2.s', 'w', encoding='utf8').write(no_pal)
 
 open('drv.cfg', 'w').write('''MEMORY {
  ZP: start=$D0,size=$2E,type=rw,file="";
- RAM: start=$6900,size=$700,type=rw,file="";
+ RAM: start=$6900,size=$200,type=rw,file="";
  PRG: start=$8100,size=$3F00,type=ro,file=%O;
 }
 SEGMENTS {
@@ -31,8 +34,8 @@ SEGMENTS {
  DPCM: load=PRG,type=ro,optional=yes;
 }
 ''')
-subprocess.check_call([CC65 + '/ca65', '-g', HERE + '/driver/driver2.s', '-D', 'RELOCATE_MUSIC',
-                       '-D', 'USE_OLDVIBRATO', '-D', 'NAMCO_CHANNELS=8', '-D', 'CHANNEL_CONTROL',
+subprocess.check_call([CC65 + '/ca65', '-g', 'driver2.s', '-I', HERE + '/driver', '--bin-include-dir', HERE + '/driver',
+                       '-D', 'RELOCATE_MUSIC', '-D', 'USE_OLDVIBRATO', '-D', 'NAMCO_CHANNELS=8', '-D', 'CHANNEL_CONTROL',
                        '-o', 'drv.o'])
 subprocess.check_call([CC65 + '/ld65', '-o', 'drv.bin', '-C', 'drv.cfg', '-Ln', 'drv.lbl', 'drv.o'])
 L = {m[2]: int(m[1], 16) for m in re.finditer(r'al (\w+) \.(\w+)', open('drv.lbl').read())}
@@ -46,7 +49,7 @@ W = 0x8100 + len(D)
 ZP_SCRATCH = list(range(0xd0, 0xdc)) + list(range(0xde, 0xe5))
 ZP_KEPT = [0xdc, 0xdd] + list(range(0xe5, 0xfe))
 # Nothing to do while the game's own music plays and no new song is wanted, so skip the swap too.
-swap_in = ' lda WANT\n cmp CUR\n bne full\n lda SONG\n bpl full\n lda $03bf\n cmp #$5a\n bne full\n rts\nfull:\n'
+swap_in = ' lda SONG\n bpl full\n lda WANT\n cmp CUR\n bne full\n lda $03bf\n cmp #$5a\n bne full\n rts\nfull:\n lda $fa\n sta FA\n'
 swap_in += ''.join(f' lda ${a:02x}\n sta ${0x6b00 + a - 0xd0:04x}\n' for a in ZP_SCRATCH)
 swap_in += ''.join(f' lda ${a:02x}\n sta ${0x6b00 + a - 0xd0:04x}\n lda ${0x6b40 + a - 0xd0:04x}\n sta ${a:02x}\n' for a in ZP_KEPT)
 swap_out = ''.join(f' lda ${a:02x}\n sta ${0x6b40 + a - 0xd0:04x}\n lda ${0x6b00 + a - 0xd0:04x}\n sta ${a:02x}\n' for a in ZP_KEPT)
@@ -69,8 +72,6 @@ G=$6bfe
 FA=$6bff
 .base {W}
 wrap:
- lda $fa
- sta FA
 {swap_in} lda $03bf
  cmp #$5a
  beq ok
@@ -79,6 +80,9 @@ wrap:
  lda #$ff
  sta CUR
  sta SONG
+ sta WANT
+ lda #1
+ sta JG
 ok:
  lda WANT
  cmp CUR
@@ -91,6 +95,7 @@ ok:
  bcs sting
  lda #$ff
  sta SONG
+ sta CUR
  jmp same
 sting:
  lda WANT
@@ -105,8 +110,12 @@ go:
  jmp same
 start:
  tay
- lda #0
- sta JG
+ cpy SONG
+ bne new
+ lda WANT
+ sta CUR
+ jmp same
+new:
  lda banks,y
  cmp BANKSEL
  beq here
@@ -128,17 +137,19 @@ here:
 same:
  lda SONG
  bmi out
+ lda #0
+ sta JG
  lda #$0f
  sta $4015
  lda FA
  beq idle
- lda #$f5
+ lda #$e5
  sta CH
  lda #1
  sta G
  jmp pl
 idle:
- lda #$ff
+ lda #$ef
  sta CH
  lda #8
  sta $400f

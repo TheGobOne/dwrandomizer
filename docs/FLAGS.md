@@ -1,6 +1,6 @@
 # Flag and feature reference
 
-Detail for the features in the [README](../README.md). Seed numbers and flags are **not** compatible with mcgrew's official randomizer or with juef17's fork. Names match the labels on the website, whose tabs are World, Treasure, Hero & Magic, Monsters, Battle, Shops & Inns, Quest, Speed & Help, Visual and Sound.
+Detail for the features in the [README](../README.md). Seed numbers and flags are **not** compatible with mcgrew's official randomizer or with juef17's fork. Names match the labels on the website, whose tabs are World, Treasure, Hero & Magic, Monsters, Battle, Shops & Inns, Quest, Speed & Info, Visual and Sound.
 
 The first part covers what this remix added. The second part is inherited from juef17's fork and was kept because it is still accurate.
 
@@ -73,12 +73,12 @@ Keeps the screen still when you take damage.
 
 #### Custom Music Packs ####
 
-Pick a pack in the Custom Music Pack option on the website, or pass `--music pack.json5` on the command line. Packs hold FamiTracker modules and play through the Dn-FamiTracker driver. Up to 24 songs and about 16.5 KB fit, and songs that don't fit are skipped. A scene with no tagged song keeps its default music. Sound effects can't be replaced.
+Pick a pack in the Custom Music Pack option on the website, or pass `--music pack.json5` on the command line. Packs hold FamiTracker modules and play through the Dn-FamiTracker driver. Up to 24 songs and about 17 KB fit, and songs that don't fit are skipped. A scene with no tagged song keeps its default music. Sound effects can't be replaced.
 
 Scene tags: `Title`, `Castle`, `Town`, `Overworld`, `Dungeon`, `Cave`, `Battle`, `LastBattle`, `DragonlordRoom`, `Hauksness`, `OldManCave`, `Floor1` to `Floor7`.
 Floors, `DragonlordRoom` and `Hauksness` use the `Dungeon` song if they have no song of their own.
 
-Event tags: `Credits` (stat scroll), `Ending` (original credits), `SilverHarp`, `FairyFlute`, `RainbowBridge`, `Death`, `Inn`, `Gwaelin`, `Cursed`, `Victory`, `LevelUp`. A song with an event tag is used only for that event.
+Event tags: `Credits` (stat scroll), `Ending` (original credits, or the stat scroll if Skip Original Credits is on or the pack has two), `SilverHarp`, `FairyFlute`, `RainbowBridge`, `Death`, `Inn`, `Gwaelin`, `Cursed`, `Victory`, `LevelUp`. A song with an event tag is used only for that event.
 
 
 ## Inherited from the fork ##

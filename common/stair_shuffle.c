@@ -11,9 +11,6 @@
 #include "patch.h"
 #include "mt64.h"
 
-#define CHEST_COUNT 31
-#define ROM_SIZE 81936
-
 typedef struct {
     uint8_t index;
     uint8_t width;
@@ -206,52 +203,6 @@ static void map_dungeon(dungeon_map *map, uint8_t x, uint8_t y, BOOL have_keys)
 
 
 }
-
-// static void map_dungeon(dungeon_map *map, uint8_t x, uint8_t y)
-// {
-//     int left = 0;
-//     int right;
-// 
-//     if (!map)
-//         return;
-// 
-//     right = map->width;
-// 
-//     /* Move all the way to the left */
-//     while(!map_ob(map, x, y) && tile_is_walkable(map->tiles[x-1][y] & 0x7, TRUE))
-//         x--;
-//     left = x;
-// 
-//     while(!map_ob(map, x, y) && tile_is_walkable(map->tiles[x][y] & 0x7, TRUE)) {
-//         map->tiles[x][y] |= 0x8;
-//         right = x++;
-//     }
-// 
-//     /* go back to the left side and look up & down and follow stairs */
-//     for (x = left; x <= right; x++) {
-//         if (!map_ob(map, x, y-1) && tile_is_walkable(map->tiles[x][y-1] & 0x7)
-//                 && !(map->tiles[x][y-1] & 0x8))
-//             map_dungeon(map, x, y-1);
-//         if (!map_ob(map, x, y+1) && tile_is_walkable(map->tiles[x][y+1] & 0x7)
-//                 && !(map->tiles[x][y+1] & 0x8))
-//             map_dungeon(map, x, y+1);
-//         if ((map->tiles[x][y] & 0x7) == DUNGEON_TILE_STAIRS_UP ||
-//             (map->tiles[x][y] & 0x7) == DUNGEON_TILE_STAIRS_DOWN) {
-//             follow_warp(map, x, y);
-//         }
-//     }
-// }
-
-/**
- * Determines if the map uses a dungeon or town tile set
- */
-// static BOOL is_dungeon(dw_map_index index)
-// {
-//     if (index >= CHARLOCK_CAVE_1) {
-//         return TRUE;
-//     }
-//     return FALSE;
-// }
 
 /**
  * Unpacks a map into a 2 dimensional array
@@ -584,115 +535,3 @@ void stair_shuffle(dw_rom *rom)
     maps = NULL;
     warps_from = warps_to = NULL;
 }
-
-#if 0
-static void print_map(dungeon_map *map)
-{
-    size_t x, y;
-    printf("%d, %d\n", map->width, map->height);
-
-    for(y=0; y < map->height; y++) {
-        for(x=0; x < map->width; x++) {
-            printf("%X", map->tiles[x][y]);
-        }
-        printf("\n");
-    }
-}
-
-static void print_all_maps()
-{
-    printf("Charlock\n");
-    print_map(get_map(CHARLOCK));
-    print_map(get_map(CHARLOCK_CAVE_1));
-    print_map(get_map(CHARLOCK_CAVE_2));
-    print_map(get_map(CHARLOCK_CAVE_3));
-    print_map(get_map(CHARLOCK_CAVE_4));
-    print_map(get_map(CHARLOCK_CAVE_5));
-    print_map(get_map(CHARLOCK_CAVE_6));
-    print_map(get_map(CHARLOCK_THRONE_ROOM));
-    printf("\nGrave\n");
-    print_map(get_map(GARINS_GRAVE_1));
-    print_map(get_map(GARINS_GRAVE_1));
-    print_map(get_map(GARINS_GRAVE_2));
-    print_map(get_map(GARINS_GRAVE_3));
-    print_map(get_map(GARINS_GRAVE_4));
-    printf("\nMountain\n");
-    print_map(get_map(MOUNTAIN_CAVE));
-    print_map(get_map(MOUNTAIN_CAVE_2));
-    printf("\nErdrick\n");
-    print_map(get_map(ERDRICKS_CAVE));
-    print_map(get_map(ERDRICKS_CAVE_2));
-}
-
-/* test code */
-
-#include "string.h"
-
-BOOL dwr_init(dw_rom *rom, const char *input_file)
-{
-    FILE *input;
-    int read;
-
-    rom->header = malloc(ROM_SIZE);
-    input = fopen(input_file, "rb");
-    if (!input) {
-        fprintf(stderr, "Unable to open ROM file '%s'", input_file);
-        return FALSE;
-    }
-    read = fread(rom->header, 1, ROM_SIZE, input);
-    if (read < ROM_SIZE) {
-        fprintf(stderr, "File '%s' is too small and may be corrupt, aborting.",
-                input_file);
-        fclose(input);
-        return FALSE;
-    }
-    fclose(input);
-
-    rom->content = &rom->header[0x10];
-    rom->map.warps_from = (dw_warp*)&rom->content[0xf3c8];
-    rom->map.warps_to   = (dw_warp*)&rom->content[0xf461];
-    rom->chests = (dw_chest*)&rom->content[0x5dcd];
-
-    rom->map.flags = rom->flags;
-    memset(rom->chest_access, 0, 31);
-    rom->map.key_access = 0;
-
-    rom->map.meta = (dw_map_meta*)&rom->content[0x1a];
-    return TRUE;
-}
-
-
-int main(int argc, char **argv)
-{
-    dw_rom rom;
-    size_t i;
-
-    dwr_init(&rom, argv[1]);
-    mt_init(time(NULL));
-    stair_shuffle(&rom);
-    clear_all_flags();
-    map_dungeon(get_map(ERDRICKS_CAVE), 0, 0, TRUE);
-    map_dungeon(get_map(MOUNTAIN_CAVE), 6, 5, TRUE);
-    map_dungeon(get_map(GARINS_GRAVE_1), 6, 11, TRUE);
-//     map_dungeon(get_map(CHARLOCK), 10, 19, TRUE);
-    print_all_maps();
-
-    dw_warp *warp;
-    for (i=0; i < 51; i++) {
-        warp = &rom.map.warps_from[i];
-        printf("%2d %2d %2d -> ", warp->map, warp->x, warp->y);
-        warp = &rom.map.warps_to[i];
-        printf("%2d %2d %2d\n", warp->map, warp->x, warp->y);
-    }
-
-    for (i=0; i < CHEST_COUNT; i++) {
-        printf("%X", rom.chest_access[i]);
-    }
-    printf("\n");
-    printf("%X\n", rom.map.key_access);
-
-    free(maps);
-    free(warps_from);
-    return 0;
-}
-#endif

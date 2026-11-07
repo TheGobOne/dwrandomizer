@@ -44,6 +44,8 @@ class Music:
             exit(-1);
         with open(f'_{self.name}.bin', 'rb') as f:
             self.music = f.read()
+        if len(self.music) > 0x2000:
+            exit(f'{self.name}: {len(self.music)} bytes is over the 8 KB credits song limit')
         if exists(f'_{self.name}.dmc'):
             with open(f'_{self.name}.dmc', 'rb') as f:
                 self.dmc = f.read()

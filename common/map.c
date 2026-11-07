@@ -212,24 +212,6 @@ static BOOL tile_is_walkable(dw_tile tile)
 }
 
 /**
- * Removes a land mass from the map, replacing it with water.
- * @param map The map struct
- * @param land_mass The number of the land mass to destroy.
- */
-//static void destroy_land_mass(dw_map *map, int land_mass)
-//{
-//    uint8_t x, y;
-//
-//    for (x = 0; x < 120; x++) {
-//        for (y = 0; y < 120; y++) {
-//            if (map->walkable[x][y] == land_mass) {
-//                map->tiles[x][y] = TILE_WATER;
-//            }
-//        }
-//    }
-//}
-
-/**
  * Finds the size of a land_mass given a point on it. Also fills in the 
  * walkable area array. This is a less recursive version so we don't overflow
  * the wasm stack.
@@ -265,38 +247,6 @@ static int map_land_mass_2(dw_map *map, uint8_t x, uint8_t y,
                 !map->walkable[x][y+1])
             size += map_land_mass_2(map, x, y+1, lm_index);
     }
-    return size;
-}
-
-/**
- * Finds the size of a land_mass given a point on it. Also fills in the 
- * walkable area array.
- *
- * @param rom The rom pointer.
- * @param x The x coordinate of the tile to start mapping.
- * @param y The y coordinate of the tile to start mapping.
- * @param lm_index The index for this land_mass.
- */
-static int map_land_mass(dw_map *map, uint8_t x, uint8_t y,
-        uint8_t lm_index)
-{
-    int size = 1;
-
-    if (map_ob(x) || map_ob(y))
-        return 0;
-
-    if (map->walkable[x][y])
-        return 0;
-
-    if (!tile_is_walkable(map->tiles[x][y]))
-        return 0;
-
-    map->walkable[x][y] = lm_index;
-    size += map_land_mass(map, x-1, y, lm_index);
-    size += map_land_mass(map, x+1, y, lm_index);
-    size += map_land_mass(map, x, y-1, lm_index);
-    size += map_land_mass(map, x, y+1, lm_index);
-
     return size;
 }
 

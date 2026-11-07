@@ -4,6 +4,7 @@
 #include "dwr_types.h"
 #include "dwr.h"
 #include "patch.h"
+#include "expansion.h"
 #include "mt64.h"
 
 /**
@@ -136,7 +137,11 @@ void damage_bonks(dw_rom *rom)
     {
         damage = mt_rand(0, 0x50);
         if(!damage)
+        {
+            /* No damage code, so count the bonks the way setup_expansion would have. */
+            add_hook(rom, JSR, 0x31eb, INC_BONK_CTR);
             return;
+        }
     }
 
     // Make the swamp damage sound if no red flashes is on so we know we get damaged

@@ -71,7 +71,7 @@ Run Mechanics (Battle tab) and Run Bank are separate things. Run Mechanics chang
 
 - It does not include, download or patch ROMs for you.
 - Its seeds and flags are not compatible with mcgrew's or juef17's versions.
-- Custom music cannot replace sound effects, and each ROM fits at most 24 songs from a pack, in about 16.5 KB.
+- Custom music cannot replace sound effects, and each ROM fits at most 24 songs from a pack, in about 17 KB.
 - Phone play is not a supported way to use it.
 
 ## Troubleshooting
