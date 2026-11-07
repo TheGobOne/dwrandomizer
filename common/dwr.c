@@ -96,6 +96,10 @@ static void update_flags(dw_rom *rom)
         rom->flags[16] &= (uint8_t)~0x0c;
         rom->flags[20] &= (uint8_t)~0xc0;
     }
+    /* Run Mechanics replaces the run rate code that Easy Charlock changes, so Easy Charlock would do nothing.
+     * Random counts as on, the same as on the site. */
+    if (DWX_RUN_MECHANICS(rom))
+        rom->flags[10] &= (uint8_t)~0xc0;
     if (RANDOM_MAP_SIZE(rom) == 0xc0) {
         rom->flags[13] &= 0x3f;
         rom->flags[13] |= mt_rand(0, 2) << 6;
@@ -3946,7 +3950,12 @@ void random_princess_location(dw_rom *rom)
         GARINS_GRAVE_3,  17, 4,  19, 5,  19, 7,  99, 99,
         GARINS_GRAVE_4,  3,  3,  3,  2,  5,  1,  2,  3
     };
-    int i = mt_rand(0, sizeof(locations)/(9*sizeof(uint8_t))-1);
+    int i;
+
+    /* Shuffled stairs can cut a spot off. The Swamp Cave is not shuffled, so this always ends. */
+    do {
+        i = mt_rand(0, sizeof(locations)/(9*sizeof(uint8_t))-1);
+    } while (!stair_tile_reachable(locations[i][0], locations[i][5], locations[i][6]));
 
     set_dungeon_tile(rom, locations[0][0], locations[0][1], locations[0][2], 2); // Remove original Gwaelin
     set_dungeon_tile(rom, locations[i][0], locations[i][1], locations[i][2], 6); // Create brand new Gwaelin
@@ -3965,6 +3974,19 @@ void random_princess_location(dw_rom *rom)
 
 static uint16_t run_bank_win_code = 0;
 
+/* Which of Free Charlock (1) and Auto Return (2) went into this ROM. Their code lives outside the part of the
+ * ROM the checksum reads, so it is mixed in by hand. Two racers then match only if both have the same ones. */
+static uint8_t gameplay_patches = 0;
+
+static uint64_t rom_checksum(dw_rom *rom)
+{
+    uint64_t crc = crc64(0, rom->content, 0x10000);
+
+    if (gameplay_patches)
+        crc = crc64(crc, &gameplay_patches, 1);
+    return crc;
+}
+
 /**
  * After the Dragonlord's second form dies, the game would put the hero back on the overworld at Charlock.
  * With Auto Return on it takes the tail of the Return spell instead, which puts the hero in front of Tantegel.
@@ -3978,6 +4000,7 @@ static void auto_return(dw_rom *rom)
     printf("Returning automatically after the Dragonlord...\n");
     /* Was: ldx #$12 : lda #$02 : jmp $d9e2 (leave by the Charlock warp). */
     vpatch(rom, 0xea03, 7, 0x4c, 0x00, 0xdb, 0xea, 0xea, 0xea, 0xea);
+    gameplay_patches |= 2;
 }
 
 /**
@@ -4016,9 +4039,10 @@ static void free_charlock(dw_rom *rom)
         memset(&rom->content[c], 0xff, 57);
     }
     if (c < 0 || w < 0) {
-        printf("No room for Free Charlock, leaving it out.\n");
-        return;
+        printf("No room for Free Charlock.\n");
+        dwr_no_room();
     }
+    gameplay_patches |= 1;
     printf("Freeing Charlock...\n");
     if (walk_size) {
         /* Walking off a map looks for the warp leading to it, and the entrance no longer leads here.
@@ -4031,6 +4055,8 @@ static void free_charlock(dw_rom *rom)
             0x4c, 0x2c, 0xb2);
         vpatch(rom, 0x3228, 4, 0x4c, LO(w), HI(w), 0xea);
     }
+    /* Arrive facing him. The game looks up the facing for each entrance by its warp number. */
+    vpatch(rom, 0x9914 - 0x8000 + (uint16_t)found, 1, DIR_LEFT);
     rom->map.warps_to[found].map = CHARLOCK_THRONE_ROOM;
     rom->map.warps_to[found].x = x;
     rom->map.warps_to[found].y = y;
@@ -4747,6 +4773,7 @@ void instant_name_print(dw_rom *rom)
  */
 void apply_stuff_to_rom(dw_rom *rom)
 {
+    gameplay_patches = 0;
 
     /* Clear the unused code so we can make sure it's unused */
 #ifdef CLEAR_ALL_UNUSED_DATA
@@ -4843,6 +4870,9 @@ void apply_stuff_to_rom(dw_rom *rom)
     forfeit_trigger(rom);
     stat_build_choices(rom);
     not_sharing_the_world(rom);
+    /* Gameplay, so it gets its room before the music does. Then the same flags always give the same game. */
+    free_charlock(rom);
+    auto_return(rom);
 }
 
 
@@ -4938,33 +4968,39 @@ static int fail_stage = 0; /* 1 before the checksum, 2 after it */
 static uint64_t without_winter_once(const char* input_file, uint64_t seed, char *flags)
 {
     uint64_t crc = 0;
-    dw_rom rom;
+    /* On the heap: too big for the web build's stack. */
+    dw_rom *rom = malloc(sizeof(dw_rom));
     jmp_buf on_no_space;
     jmp_buf *outer_handler = no_space_handler;
 
+    if (!rom)
+        return 0;
     mt_init(seed);
-    if (!dwr_init(&rom, input_file, flags)) {
+    if (!dwr_init(rom, input_file, flags)) {
+        free(rom);
         return 0;
     }
-    rom.seed = seed;
+    rom->seed = seed;
 
     if (setjmp(on_no_space)) {
         no_space_handler = outer_handler;
-        free(rom.header);
-        free(rom.expansion);
+        free(rom->header);
+        free(rom->expansion);
+        free(rom);
         return 0;
     }
     no_space_handler = &on_no_space;
 
-    apply_stuff_to_rom(&rom);
+    apply_stuff_to_rom(rom);
     no_space_handler = outer_handler;
 
-    crc = crc64(0, rom.content, 0x10000);
+    crc = rom_checksum(rom);
 
     // We don't care about the stuff that's done post-CRC
 
-    free(rom.header);
-    free(rom.expansion);
+    free(rom->header);
+    free(rom->expansion);
+    free(rom);
     return crc;
 }
 
@@ -5040,7 +5076,7 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
 
     apply_stuff_to_rom(rom);
 
-    crc = crc64(0, rom->content, 0x10000);
+    crc = rom_checksum(rom);
     /* Music and the look of the game come after the checksum and can be packed on their own. */
     fit_best = fit_extras;
     fail_stage = 2;
@@ -5075,8 +5111,6 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
     sprite(rom, sprite_name);
     invisible_npcs(rom); // in case the custom sprite also changed NPCS.
     noir_mode(rom);
-    free_charlock(rom);
-    auto_return(rom);
     name_entry_wrap(rom);
 
 

@@ -68,7 +68,7 @@ When the Dragonlord's second form dies, Return is cast for you and you arrive in
 
 #### Free Charlock ####
 
-Entering Charlock from the overworld puts you beside the Dragonlord and starts the fight, with no dialogue. Run away and you stay in his room; the fight starts by itself again only after you leave and come back. Short Charlock, Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. Very full ROMs leave this out. Command line: `--free-charlock on`.
+Entering Charlock from the overworld puts you beside the Dragonlord and starts the fight, with no dialogue. Run away and you stay in his room; the fight starts by itself again only after you leave and come back. Short Charlock, Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. On a very full ROM the build stops, as it does for other flags that need space. It is part of the checksum, along with Auto Return. Command line: `--free-charlock on`.
 
 
 #### Show Key & Herb Counter ####
@@ -249,7 +249,7 @@ Make the game use alternate mechanics for running away from an enemy from anothe
 
 For `Costs XP`, you are guaranteed to run away if your XP is at least 1/8th of the enemy's XP drop: in that case, that amount is deducted from your XP. Yes, this means you can lose levels! Also, note that running from sleeping enemies won't cost you XP, nor will running from either Dragonlord form (as they don't give experience).
 
-This flag overrides both `Easy Charlock` and `Alternate Running Algorithm`.
+This flag overrides `Alternate Running Algorithm`. `Easy Charlock` is turned off and disabled while any Run Mechanics option is on, including Random.
 
 
 #### Unbreakable Keys ####
@@ -294,7 +294,7 @@ The amount of gold that gold chests hold can now be modified.
 
 #### Random Princess Location ####
 
-Gwaelin might not be in her usual Swamp Cave today. Look for her in [one of these](https://juef.free.nf/dwr/random_princess_location/) locations (or in her vanilla spot). **Beware:** if `Stair Shuffle` is on, the randomizer will ***not*** check if the princess is accessible without going through Charlock. If you do turn both flags on, it is strongly recommended to also have `Open Charlock` on.
+Gwaelin might not be in her usual Swamp Cave today. Look for her in [one of these](https://juef.free.nf/dwr/random_princess_location/) locations (or in her vanilla spot). If `Stair Shuffle` is on, she is only placed where she can be reached without going through Charlock.
 
 
 #### Normal Flute Speed ####
