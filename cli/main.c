@@ -38,6 +38,8 @@ static void print_usage(const char *command, char *default_flags)
     printf("Options, before the rom file:\n");
     printf("  --music <pack.json5>\n");
     printf("  --encounters default|low|medium|high\n");
+    printf("  --free-charlock on|off\n");
+    printf("  --auto-return on|off\n");
     printf("  --spoiler on|off\n");
     printf("  --key-herb on|off\n");
     printf("  --quick-spell on|off\n");
@@ -64,7 +66,7 @@ int main(int argc, char **argv)
     char *input_file, *output_dir;
     static const char *const bank_levels[4] = {"normal", "easy", "strict", "verystrict"};
     /* -1 and 0 for the cap: not given, so the flags decide. */
-    int bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, key_herb = -1;
+    int bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, key_herb = -1, free_charlock = -1, auto_return = -1;
     static const char *const encounter_rates[4] = {"default", "low", "medium", "high"};
     char encoded[64] = {0};
 
@@ -85,6 +87,10 @@ int main(int argc, char **argv)
             dwr_set_spoiler(on_off(argv[1], argv[2]));
         } else if (!strcmp(argv[1], "--key-herb")) {
             key_herb = on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--auto-return")) {
+            auto_return = on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--free-charlock")) {
+            free_charlock = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--quick-spell")) {
             quick_spell = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--bank-cap")) {
@@ -131,7 +137,7 @@ int main(int argc, char **argv)
         sprite = "Random";
     }
 
-    if (bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || key_herb >= 0) {
+    if (bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0) {
         uint8_t raw[25] = {0};
         strncpy(encoded, flags, 40);
         base32_decode((uint8_t *)encoded, raw);
@@ -147,6 +153,10 @@ int main(int argc, char **argv)
         }
         if (key_herb >= 0)
             raw[8] = (uint8_t)((raw[8] & 0xef) | (key_herb ? 0x10 : 0));
+        if (auto_return >= 0)
+            raw[3] = (uint8_t)((raw[3] & 0xfd) | (auto_return ? 0x02 : 0));
+        if (free_charlock >= 0)
+            raw[11] = (uint8_t)((raw[11] & 0xfd) | (free_charlock ? 0x02 : 0));
         if (quick_spell >= 0)
             raw[11] = (uint8_t)((raw[11] & 0xfe) | (quick_spell ? 0x01 : 0));
         base32_encode(raw, 25, (uint8_t *)encoded);

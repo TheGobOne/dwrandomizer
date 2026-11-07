@@ -69,9 +69,14 @@ static void update_flags(dw_rom *rom)
 {
     size_t i;
     const uint8_t safe_start = rom->flags[8] & 0x20;
+    const uint8_t free_charlock_flag = rom->flags[11] & 0x02;
+    const uint8_t auto_return_flag = rom->flags[3] & 0x02;
 
     /* As the high half of a pair this bit would read as "maybe" for Key & Herb. */
     rom->flags[8] &= ~0x20;
+    /* The same goes for these: as the high half of a pair they would turn the low half into a maybe flag. */
+    rom->flags[11] &= ~0x02;
+    rom->flags[3] &= ~0x02;
     /* mcgrew's last 2 bytes do not contain maybe flags. */
     /* flags[12] holds the Run Bank cap, not maybe flags. */
     for (i=0; i < 12; i++) {
@@ -79,6 +84,17 @@ static void update_flags(dw_rom *rom)
         rom->flags[i] &= 0x55;
     }
     rom->flags[8] |= safe_start;
+    rom->flags[11] |= free_charlock_flag;
+    rom->flags[3] |= auto_return_flag;
+    /* Free Charlock cannot go with these: Easy Charlock (exclusive), and Three's Company, Cursed Princess,
+     * Radish Finish and Disguised Dragonlord, which depend on the Dragonlord and the ending he gives.
+     * Open Charlock is fine beside it. */
+    if (free_charlock_flag) {
+        rom->flags[8] &= (uint8_t)~0x0f;
+        rom->flags[10] &= (uint8_t)~0xc0;
+        rom->flags[16] &= (uint8_t)~0x0c;
+        rom->flags[20] &= (uint8_t)~0xc0;
+    }
     if (RANDOM_MAP_SIZE(rom) == 0xc0) {
         rom->flags[13] &= 0x3f;
         rom->flags[13] |= mt_rand(0, 2) << 6;
@@ -3949,6 +3965,148 @@ void random_princess_location(dw_rom *rom)
 static uint16_t run_bank_win_code = 0;
 
 /**
+ * After the Dragonlord's second form dies, the game would put the hero back on the overworld at Charlock.
+ * With Auto Return on it takes the tail of the Return spell instead, which puts the hero in front of Tantegel.
+ *
+ * @param rom The rom struct
+ */
+static void auto_return(dw_rom *rom)
+{
+    if (!AUTO_RETURN(rom))
+        return;
+    printf("Returning automatically after the Dragonlord...\n");
+    /* Was: ldx #$12 : lda #$02 : jmp $d9e2 (leave by the Charlock warp). */
+    vpatch(rom, 0xea03, 7, 0x4c, 0x00, 0xdb, 0xea, 0xea, 0xea, 0xea);
+}
+
+/**
+ * Entering Charlock from the overworld puts the hero beside the Dragonlord and starts the fight.
+ * The entrance warp now leads to the throne room. A hook at the top of the main loop starts the fight
+ * when the hero stands on the arrival tile. A latch stops it starting again after running away, until
+ * the hero has left the room. Runs late, and is left out if there is no room.
+ *
+ * @param rom The rom struct
+ */
+static void free_charlock(dw_rom *rom)
+{
+    const uint16_t latch = 0x680b;
+    const uint8_t x = 16, y = 25; /* just below the Dragonlord at 16,24 */
+    size_t i;
+    int found = -1, c;
+
+    if (!FREE_CHARLOCK(rom))
+        return;
+    for (i = 0; i < 51; i++) {
+        if (rom->map.warps_from[i].map == OVERWORLD && rom->map.warps_to[i].map == CHARLOCK)
+            found = (int)i;
+    }
+    c = dwr_try_free_space(rom->content, 0xc422, 57);
+    if (found < 0 || c < 0) {
+        printf("No room for Free Charlock, leaving it out.\n");
+        return;
+    }
+    printf("Freeing Charlock...\n");
+    rom->map.warps_to[found].map = CHARLOCK_THRONE_ROOM;
+    rom->map.warps_to[found].x = x;
+    rom->map.warps_to[found].y = y;
+    vpatch(rom, (uint16_t)c, 57,
+        0xa5, 0x45, 0xc9, CHARLOCK_THRONE_ROOM, 0xd0, 0x24,   /* in the throne room, or clear the latch */
+        0xad, LO(latch), HI(latch), 0xd0, 0x24,               /* already started: carry on */
+        0xa5, 0xe4, 0x29, 0x04, 0xd0, 0x1e,                   /* already beaten: carry on */
+        0xa5, 0x3a, 0xc9, x, 0xd0, 0x18,                      /* on the arrival tile? */
+        0xa5, 0x3b, 0xc9, y, 0xd0, 0x12,
+        0xa9, 0x01, 0x8d, LO(latch), HI(latch),
+        /* The fight code ends in RTS, so it must be called, or it returns into junk after the win. */
+        0xa9, 0x26, 0x20, 0xdf, 0xe4, 0x4c, 0x56, 0xca,
+        0xa9, 0x00, 0x8d, LO(latch), HI(latch),
+        0xa5, 0xda, 0xd0, 0x03, 0x4c, 0x6c, 0xca,             /* the code this replaced */
+        0x4c, 0x5a, 0xca);
+    vpatch(rom, 0xca56, 4, 0x4c, LO(c), HI(c), 0xea);
+}
+
+/**
+ * With menu wrapping on, the name entry cursor wraps at all four edges too.
+ * The hooks live in the fixed bank, because bank 1 can be full. Runs last, so it only uses room nothing
+ * else needed, and is left out if there is none. The up and down hooks keep whatever dwr_menu_wrap and
+ * run_bank left at the addresses they replace.
+ *
+ * Window $0B is the name screen: $D8 column, $D9 row, $64F2 and $64F3 the cursor's tile position.
+ * The bottom row has 6 letters, then BACK at column 6 and END at column 9.
+ *
+ * @param rom The rom struct
+ */
+static void name_entry_wrap(dw_rom *rom)
+{
+    uint16_t c;
+    uint8_t old[4];
+    int room;
+
+    if (!MENU_WRAP(rom))
+        return;
+    room = dwr_try_free_space(rom->content, 0xc422, 148);
+    if (room < 0) {
+        printf("No room for name screen wrapping, leaving it out.\n");
+        return;
+    }
+
+    /* Up from the top row, using the game's own column fix for the bottom row. */
+    memcpy(old, &rom->content[0x69e0], 4);
+    c = (uint16_t)room;
+    vpatch(rom, c, 40,
+        0xad, 0xdc, 0x64, 0xc9, 0x0b, 0xd0, 0x1a,  /* window $0B, or the old code */
+        0xa5, 0xd9, 0xd0, 0x16,                    /* top row, or the old code */
+        0x20, 0x30, 0xab,                          /* erase the cursor */
+        0xa9, 0x04, 0x85, 0xd9, 0x20, 0x3f, 0xab,  /* row 4, then fix the column */
+        0xa9, 0x05, 0x85, 0xd9,
+        0xa9, 0x0c, 0x8d, 0xf3, 0x64,
+        0x4c, 0x35, 0xab,                          /* draw it */
+        old[0], old[1], old[2], old[3],
+        0x4c, 0xe4, 0xa9);
+    vpatch(rom, 0x69e0, 4, 0x4c, LO(c), HI(c), 0xea);
+
+    /* Down from the bottom row. Columns 6 and 9 exist on the top row too. */
+    memcpy(old, &rom->content[0x6a0b], 3);
+    c = (uint16_t)(room + 40);
+    vpatch(rom, c, 34,
+        0xad, 0xdc, 0x64, 0xc9, 0x0b, 0xd0, 0x15,
+        0xa5, 0xd9, 0xc9, 0x05, 0xd0, 0x0f,
+        0x20, 0x30, 0xab,
+        0xa9, 0x00, 0x85, 0xd9,
+        0xa9, 0x02, 0x8d, 0xf3, 0x64,
+        0x4c, 0x35, 0xab,
+        old[0], old[1], old[2],
+        0x4c, 0x0e, 0xaa);
+    vpatch(rom, 0x6a0b, 3, 0x4c, LO(c), HI(c));
+
+    /* Left from the first column: column 10, or END on the bottom row. */
+    c = (uint16_t)(room + 74);
+    vpatch(rom, c, 40,
+        0xa5, 0xd8, 0xf0, 0x03, 0x4c, 0x77, 0xaa,
+        0xad, 0xdc, 0x64, 0xc9, 0x0b, 0xd0, 0x19,
+        0x20, 0x30, 0xab,
+        0xa2, 0x0a, 0xa9, 0x15,
+        0xa4, 0xd9, 0xc0, 0x05, 0xd0, 0x04,
+        0xa2, 0x09, 0xa9, 0x13,
+        0x86, 0xd8, 0x8d, 0xf2, 0x64,
+        0x4c, 0x35, 0xab,
+        0x60);
+    vpatch(rom, 0x6a73, 4, 0x4c, LO(c), HI(c), 0xea);
+
+    /* Right from the last column, or from END on the bottom row: back to column 0. */
+    c = (uint16_t)(room + 114);
+    vpatch(rom, c, 34,
+        0xae, 0x06, 0x65, 0xca, 0xe4, 0xd8, 0xf0, 0x03, 0x4c, 0x01, 0xab,
+        0xad, 0xdc, 0x64, 0xc9, 0x0b, 0xd0, 0x0f,
+        0x20, 0x30, 0xab,                          /* offset 18: from END */
+        0xa9, 0x00, 0x85, 0xd8,
+        0xa9, 0x01, 0x8d, 0xf2, 0x64,
+        0x4c, 0x35, 0xab,
+        0x60);
+    vpatch(rom, 0x6af9, 6, 0x4c, LO(c), HI(c), 0x4c, LO(c + 18), HI(c + 18));
+    vpatch(rom, 0x6aed, 1, 0x0e);                  /* END's branch now lands on that second jump */
+}
+
+/**
  * Run Bank: each win banks one guaranteed escape (max 99), shown and spent
  * through a BANK row in the battle command window. Bank 1 addresses are
  * offset by 0x4000 from their CPU address ($8000 window).
@@ -4892,6 +5050,9 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
     sprite(rom, sprite_name);
     invisible_npcs(rom); // in case the custom sprite also changed NPCS.
     noir_mode(rom);
+    free_charlock(rom);
+    auto_return(rom);
+    name_entry_wrap(rom);
 
 
     no_space_handler = NULL;

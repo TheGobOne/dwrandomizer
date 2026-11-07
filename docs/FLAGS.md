@@ -61,6 +61,16 @@ Swamp within 3 tiles of Tantegel becomes grass, so the first steps of the game a
 The meter also removes the original game's hidden checkerboard on grass, where neighbouring tiles have different odds.
 
 
+#### Auto Return ####
+
+When the Dragonlord's second form dies, Return is cast for you and you arrive in front of Tantegel, instead of standing at Charlock. Command line: `--auto-return on`.
+
+
+#### Free Charlock ####
+
+Entering Charlock from the overworld puts you beside the Dragonlord and starts the fight, with no dialogue. Run away and you stay in his room; the fight starts by itself again only after you leave and come back. Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. Very full ROMs leave this out. Command line: `--free-charlock on`.
+
+
 #### Show Key & Herb Counter ####
 
 Adds a keys and herbs row to the stats window. Command line: `--key-herb on`.

@@ -15,6 +15,8 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 | **Safe Start** | Swamp within 3 tiles of Tantegel becomes grass. |
 | **Encounter Rate** | Low, Medium or High use a danger meter instead of a roll on every step. |
 | **Run Bank** | Wins earn banked escapes; spend one with the `BANK` battle command. |
+| **Auto Return** | Winning against the Dragonlord returns you to Tantegel. |
+| **Free Charlock** | Entering Charlock starts the Dragonlord fight at once. |
 | **Quick Spell** | A battle command that casts your last spell again. |
 | **Show Key & Herb Counter** | Keys and herbs shown in the stats window, under the deaths row if Show Death Counter is on. |
 | **Disable Screen Shake** | Keeps the screen still when you take damage. |

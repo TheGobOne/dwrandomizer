@@ -39,6 +39,8 @@
 /* The other half of the Key & Herb pair. update_flags keeps it out of the maybe step. */
 #define SAFE_START(x)             (x->flags[ 8] & 0x20)
 #define QUICK_SPELL(x)            (x->flags[11] & 0x01)
+/* The other half of the Quick Spell pair. update_flags keeps it out of the maybe step. */
+#define FREE_CHARLOCK(x)          (x->flags[11] & 0x02)
 /* 0 default, 1 low, 2 medium, 3 high. These bits sit alone in their pairs, so they are never maybe flags. */
 #define ENCOUNTER_RATE(x)         (((x->flags[3] & 0x01) << 1) | (x->flags[6] & 0x01))
 /* 0 means the default cap of 9 */
@@ -47,6 +49,8 @@
 #define RUN_BANK_LEVEL(x)         (((x->flags[12] & 0x80) >> 6) | (x->flags[14] & 0x01))
 
 #define MENU_WRAP(x)              (x->flags[ 3] & 0xc0)
+/* The other half of the Encounter Rate pair. update_flags keeps it out of the maybe step. */
+#define AUTO_RETURN(x)            (x->flags[ 3] & 0x02)
 #define DEATH_NECKLACE(x)         (x->flags[ 3] & 0x30)
 #define TORCH_IN_BATTLE(x)        (x->flags[ 3] & 0x0c)
 #define REPEL_IN_DUNGEONS(x)      (x->flags[ 4] & 0xc0)
