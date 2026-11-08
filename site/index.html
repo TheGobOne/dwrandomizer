@@ -748,7 +748,7 @@ const NEEDS={mapsize:'map',biome:'map',safestart:'map',onlyhealmore:'spells'};
 function needsOff(id){ return !!((NEEDS[id]&&!(State.v[NEEDS[id]]|0))||(CONFLICT_WITH[id]&&CONFLICT_WITH[id].some(o=>State.v[o]|0))); }
 const LEGEND='[ ] off  [x] on  [?] random  (click to cycle)';
 const NEEDS_NAME={map:'Random Map',spells:'Random Spell Learning'};
-const REMIX_IDS=['flutefast','responsive','autoreturn','bank','biome','encounters','freecharlock','keyherb','noshake','pack','quickspell','safestart'];
+const REMIX_IDS=['flutefast','discardflute','responsive','autoreturn','bank','biome','encounters','freecharlock','keyherb','noshake','pack','quickspell','safestart'];
 /* An option cannot be on while any option listed for it is on. Free Charlock is exclusive with Short and Easy Charlock,
    and the rest depend on the Dragonlord or on the ending he gives. Run Mechanics replaces the run rate code that
    Easy Charlock changes (Random counts as on). Turning the listed option on turns the other off and disables it. */
