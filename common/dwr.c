@@ -404,7 +404,7 @@ void dwx_run_mechanics(dw_rom *rom)
     }
     else if(DWX_RUN_MECHANICS(rom) == 4) // Costs XP.
     {
-        costs_xp_newcode = find_free_space(rom->content, 0xc422, 17);
+        costs_xp_newcode = find_free_space(rom->content, FIXED_FREE_START, 17);
         vpatch(rom, costs_xp_newcode, 17,
             0x4e, xp_enemy_hi & 0xff, (xp_enemy_hi >> 8) & 0xff,   // LSR xp_enemy_hi
             0x6e, xp_enemy_lo & 0xff, (xp_enemy_lo >> 8) & 0xff,   // ROR xp_enemy_lo
@@ -451,7 +451,7 @@ void dwx_run_mechanics(dw_rom *rom)
 
     // For everything that follows, we need a run attempt counter
     // Hook at battle start to set ram_n to 0
-    battle_start_newcode = find_free_space(rom->content, 0xc422, 8);
+    battle_start_newcode = find_free_space(rom->content, FIXED_FREE_START, 8);
     vpatch(rom, battle_start_hook, 4, 0x20, battle_start_newcode & 0xff, (battle_start_newcode >> 8) & 0xff, 0xea); // JSR battle_start_newcode and NOP for operation alignment
     vpatch(rom, battle_start_newcode, 8,
         0xa9, 0x00, // LDA $00
@@ -511,7 +511,7 @@ void dwx_run_mechanics(dw_rom *rom)
     else if(DWX_RUN_MECHANICS(rom) == 3) // Safer DW1
     {
         // Hook at beginning of running: check if ram_n == 3. Yes: jmp/jsr to run success. No: go back to usual code
-        tryrunsafer_newcode_check_n = find_free_space(rom->content, 0xc422, 13);
+        tryrunsafer_newcode_check_n = find_free_space(rom->content, FIXED_FREE_START, 13);
         vpatch(rom, tryrunsafer_hook_check_n, 3, 0x20, tryrunsafer_newcode_check_n & 0xff, (tryrunsafer_newcode_check_n >> 8) & 0xff);
         vpatch(rom, tryrunsafer_newcode_check_n, 13,
             0xad, ram_n & 0xff, (ram_n >> 8) & 0xff,   // lda ram_n
@@ -524,7 +524,7 @@ void dwx_run_mechanics(dw_rom *rom)
         );
 
         // Hook at run fail: inc ram_n, continue to usual code
-        tryrunsafer_newcode_inc_n = find_free_space(rom->content, 0xc422, 6);
+        tryrunsafer_newcode_inc_n = find_free_space(rom->content, FIXED_FREE_START, 6);
         vpatch(rom, tryrunsafer_hook_inc_n, 3, 0x4c, tryrunsafer_newcode_inc_n & 0xff, (tryrunsafer_newcode_inc_n >> 8) & 0xff);
         vpatch(rom, tryrunsafer_newcode_inc_n, 6,
             0xee, ram_n & 0xff, (ram_n >> 8) & 0xff,   // inc ram_n
@@ -995,7 +995,7 @@ static void text_scroller_extras(dw_rom *rom)
 
 static void build_extras(dw_rom *rom, uint16_t new_window_data)
 {
-    uint16_t newcode_exp_check = find_free_space(rom->content, 0xc422, 25);
+    uint16_t newcode_exp_check = find_free_space(rom->content, FIXED_FREE_START, 25);
     uint16_t newcode_stats_calc;
     int stat_modifier = 3;
 
@@ -1034,7 +1034,7 @@ static void build_extras(dw_rom *rom, uint16_t new_window_data)
     set_text(rom, 0x7224, " CHG BUILD IF EXP 0  ");
     set_text(rom, 0x7262, " CHG BUILD IF EXP 0  ");
 
-    newcode_stats_calc = find_free_space(rom->content, 0xc422, 127);
+    newcode_stats_calc = find_free_space(rom->content, FIXED_FREE_START, 127);
 
     //head over to our new stats calcuations for all builds
     vpatch(rom, 0xf09e, 3,
@@ -1150,7 +1150,7 @@ static void no_builds(dw_rom *rom)
 
 static void vanilla_builds(dw_rom *rom)
 {
-    uint16_t newcode = find_free_space(rom->content, 0xc422, 61);
+    uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 61);
 
     //Window Data for the new build options.
     vpatch(rom, newcode, 61,
@@ -1178,7 +1178,7 @@ static void vanilla_builds(dw_rom *rom)
 
 static void all_builds(dw_rom *rom)
 {
-    uint16_t newcode = find_free_space(rom->content, 0xc422, 77);
+    uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 77);
 
     //Window Data for the new build options.
     vpatch(rom, newcode, 77,
@@ -1678,7 +1678,7 @@ static void not_sharing_the_world(dw_rom *rom)
     if (THREES_COMPANY(rom))
     {
         /* Lives in free space because the stat reset starts right after the dialogs. */
-        const uint16_t newcode = find_free_space(rom->content, 0xc422, 19);
+        const uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 19);
         vpatch(rom, newcode, 19,
             0xa5, 0xdf, // LDA PlayerFlags
             0x4a,       // LSR
@@ -1703,7 +1703,7 @@ static void radish_finish(dw_rom *rom)
     if (!RADISH_FINISH(rom))
         return;
 
-    uint16_t newcode = find_free_space(rom->content, 0xc422, 33);
+    uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 33);
 
     printf("The princess is craving radishes...\n");
 
@@ -1822,7 +1822,7 @@ static void key_herb_counter(dw_rom *rom)
 
     if (!KEY_HERB_COUNTER(rom))
         return;
-    window = find_free_space(rom->content, 0xc422, 4 + rows + (DEATH_COUNTER(rom) ? 2 : 0) + 6);
+    window = find_free_space(rom->content, FIXED_FREE_START, 4 + rows + (DEATH_COUNTER(rom) ? 2 : 0) + 6);
     w = window;
 
     /* The window starts one block higher, so its bottom stays clear of the battle text. */
@@ -1839,14 +1839,14 @@ static void key_herb_counter(dw_rom *rom)
 
     /* The cleanup after a fight only clears the area under the original window.
      * Have it also close this window, or its raised top row stays on the map. */
-    e = find_free_space(rom->content, 0xc422, 10);
+    e = find_free_space(rom->content, FIXED_FREE_START, 10);
     vpatch(rom, e, 10,
         0xa9, 0x0b, 0x20, 0xa2, 0xa7,             /* lda #$0b : jsr close_window */
         0xa9, 0x00, 0x4c, 0xa2, 0xa7);            /* lda #$00 : jmp close_window (pop-up) */
     vpatch(rom, 0xee7d, 5, 0x20, LO(e), HI(e), 0xea, 0xea);
 
     /* Codes $9A and $9B share the gold code's slot, so they arrive at its hook. */
-    c = find_free_space(rom->content, 0xc422, 57);
+    c = find_free_space(rom->content, FIXED_FREE_START, 57);
     vpatch(rom, c, 57,
         0xad, 0xdf, 0x64, 0xc9, 0x02, 0xb0, 0x03, /* gold or deaths: the old code */
         0x4c, LO(chain), HI(chain),
@@ -2664,7 +2664,7 @@ static void winter_theme(dw_rom *rom)
 static void begin_quest_checksum(dw_rom *rom, uint64_t crc)
 {
     char crc_text[] = " CRC: XXXXXX";
-    const uint16_t newcode = find_free_space(rom->content, 0xc422, 39);
+    const uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 39);
 
     // This grabs the checksum
     snprintf(crc_text+6, 7, "%016"PRIX64, crc);
@@ -2728,6 +2728,34 @@ static void skip_vanilla_credits(dw_rom *rom)
     }
 }
 
+/* TRUE once the bank 3 patch is written and its unused routines are cleared: from then on new code may
+ * also go in those holes (FIXED_FREE_START). Before that, the search starts above the patch as it always
+ * did, so the code placed before the checksum lands where it did in earlier builds. */
+static BOOL patch_holes_open = FALSE;
+
+/* The bank 3 patch holds a few routines that only one flag calls (expansion.h has their addresses).
+ * With the flag off nothing calls them, so they are cleared to $FF and their room is reused. The tests
+ * match the ones that add the hooks (torch_in_battle, threes_company, and so on), which ran earlier with
+ * the same flags. None of these routines is reached by falling through from the code before it. */
+static void free_unused_patch_routines(dw_rom *rom)
+{
+    static const uint16_t patch_end = 0xc41b; /* bank_3_patch: $C288 + 403 */
+    const struct { BOOL unused; uint16_t from, to; } r[] = {
+        {!TORCH_IN_BATTLE(rom), TORCH_IN_BATTLE, THREES_COMPANY_CHECK},
+        {!THREES_COMPANY(rom), THREES_COMPANY_CHECK, STORE_PRINCESS_ITEM},
+        {!CURSED_PRINCESS(rom), STORE_PRINCESS_ITEM, SCARED_SLIMES},
+        {!SCARED_SLIMES(rom), SCARED_SLIMES, INIT_SAVE_RAM},
+        {!DEATH_COUNTER(rom), DISPLAY_DEATHS, COUNT_FRAME},
+        {DWX_RUN_MECHANICS(rom) || !EASY_CHARLOCK(rom), MODIFY_RUN_RATE, patch_end},
+    };
+    size_t i;
+
+    for (i = 0; i < sizeof(r) / sizeof(r[0]); i++)
+        if (r[i].unused)
+            memset(&rom->content[r[i].from], 0xff, r[i].to - r[i].from);
+    patch_holes_open = TRUE;
+}
+
 /**
  * Sets up the extra expansion banks
  *
@@ -2757,6 +2785,7 @@ void setup_expansion(dw_rom *rom)
     add_hook(rom, JSR, 0xfee0, COUNT_FRAME);
 
     bank_3_patch(rom);
+    free_unused_patch_routines(rom);
     fill_expansion(rom);
 
     /* The built-in credits song. With a music pack, bank 5 holds pack songs, so it is only added if the pack's
@@ -3296,7 +3325,7 @@ void return_escapes(dw_rom *rom)
     if (!RETURN_ESCAPES(rom))
         return;
 
-    const uint16_t newcode = find_free_space(rom->content, 0xc422, 22);
+    const uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 22);
     printf("Allowing Zooming out of battle...\n");
 
     // Skip checking for return as a spell that can't be used in battle
@@ -3391,7 +3420,7 @@ void zoom_and_whistle(dw_rom *rom)
     if (!RETURN_TO_ZOOM(rom) && !WARP_WHISTLE(rom))
         return;
 
-    persist = find_free_space(rom->content, 0xc422, 16);
+    persist = find_free_space(rom->content, FIXED_FREE_START, 16);
 	vpatch(rom, persist, 16,
         0xae, LO(SAVE_SLOT), HI(SAVE_SLOT),
         0xad, ram_v & 0xff, (ram_v >> 8) & 0xff, 0x9d, LO(SLOT_VISITED), HI(SLOT_VISITED),
@@ -3589,7 +3618,7 @@ void hurtmore_doors(dw_rom *rom)
     if (!HURTMORE_DOORS(rom))
         return;
 
-    const uint16_t newcode = find_free_space(rom->content, 0xc422, 132);
+    const uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 132);
     printf("Allowing destruction of doors with Hurtmore...\n");
 
     // Hook into original UnknownSpell code:
@@ -3638,7 +3667,7 @@ void levelup_refill(dw_rom *rom)
     if (!LEVELUP_REFILL(rom))
         return;
 
-    const uint16_t newcode = find_free_space(rom->content, 0xc422, 24);
+    const uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 24);
     printf("Making levelups refreshing...\n");
 
     // Hook into first 3 of 5 free bytes in mcgrew's ChkNewSpell
@@ -3715,7 +3744,7 @@ void unbreakable_keys(dw_rom *rom)
     if (!UNBREAKABLE_KEYS(rom) || NO_KEYS(rom))
         return;
 
-    const uint16_t newcode = find_free_space(rom->content, 0xc422, 11);
+    const uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 11);
     printf("Keys are made of titanium in Alefgard...\n");
 
     // Hook into first 4 bytes of UseKey
@@ -3739,7 +3768,7 @@ void unbreakable_keys(dw_rom *rom)
  */
 static void forfeit_trigger(dw_rom *rom)
 {
-    const uint16_t newcode = find_free_space(rom->content, 0xc422, 40);
+    const uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 40);
 
 /* After the status screen is opened it waits for any input at all before closing. */
 /* We're jumping off at that point to do almost the same thing, but with a twist.  */
@@ -4001,7 +4030,7 @@ static void auto_stairs(dw_rom *rom)
 
     if (!AUTO_STAIRS(rom))
         return;
-    c = dwr_try_free_space(rom->content, 0xc422, 25);
+    c = dwr_try_free_space(rom->content, FIXED_FREE_START, 25);
     if (c < 0) {
         printf("No room for Auto Stairs.\n");
         dwr_no_room();
@@ -4050,7 +4079,7 @@ static void responsive_controls(dw_rom *rom)
     if (!RESPONSIVE_CONTROLS(rom))
         return;
     printf("Making the controls responsive...\n");
-    read_hook = find_free_space(rom->content, 0xc422, 109);
+    read_hook = find_free_space(rom->content, FIXED_FREE_START, 109);
     vpatch(rom, read_hook, 109,
         0xad, LO(prev), HI(prev), 0x49, 0xff, 0x25, 0x47, 0x29, 0xf9, 0x85, 0x46, /* new presses, not B or Select */
         0xa5, 0x47, 0x8d, LO(prev), HI(prev),
@@ -4069,7 +4098,7 @@ static void responsive_controls(dw_rom *rom)
         0xa9, 0x00, 0x8d, LO(buf), HI(buf),
         0xa9, READING, 0x8d, LO(state), HI(state),
         0xa5, 0x47, 0x29, 0x08, 0x60);                        /* the code this replaced */
-    frame_hook = find_free_space(rom->content, 0xc422, 59);
+    frame_hook = find_free_space(rom->content, FIXED_FREE_START, 59);
     vpatch(rom, frame_hook, 59,
         0x08, /* callers count on the carry surviving a frame wait */
         0xad, LO(state), HI(state), 0xc9, READING, 0xd0, 0x2e,
@@ -4082,7 +4111,7 @@ static void responsive_controls(dw_rom *rom)
         0xa5, 0x46, 0x8d, LO(prev), HI(prev),
         0x68, 0xa8,
         0x28, 0x4c, 0x74, 0xff, 0xea); /* The real frame wait: NMI only runs its work from there. The nop keeps $FF from looking free. */
-    step_end = find_free_space(rom->content, 0xc422, 8);
+    step_end = find_free_space(rom->content, FIXED_FREE_START, 8);
     vpatch(rom, step_end, 8, 0xa9, DONE, 0x8d, LO(state), HI(state), 0x4c, 0x19, 0xb2);
     vpatch(rom, 0xcaa2, 4, 0x20, LO(read_hook), HI(read_hook), 0xea);
     /* The frame waits in the four step routines, so nothing else pays for reading the buttons, as it would
@@ -4127,10 +4156,10 @@ static void free_charlock(dw_rom *rom)
         return;
     }
     /* Both pieces go in, or neither does. */
-    c = dwr_try_free_space(rom->content, 0xc422, 57);
+    c = dwr_try_free_space(rom->content, FIXED_FREE_START, 57);
     if (c >= 0 && walk_size) {
         memset(&rom->content[c], 0x00, 57); /* held while the other is looked up */
-        w = dwr_try_free_space(rom->content, 0xc422, walk_size);
+        w = dwr_try_free_space(rom->content, FIXED_FREE_START, walk_size);
         memset(&rom->content[c], 0xff, 57);
     }
     if (c < 0 || w < 0) {
@@ -4249,7 +4278,7 @@ static void run_bank(dw_rom *rom)
         vpatch(rom, 0x66df, 2, LO(c + 0x4000), HI(c + 0x4000));
         /* After a one digit bank, one dot at 32 points and two at 64: progress to the next run. */
         {
-            const uint16_t dots = find_free_space(rom->content, 0xc422, 30);
+            const uint16_t dots = find_free_space(rom->content, FIXED_FREE_START, 30);
             vpatch(rom, dots, 30,
                 0x48,
                 0xad, 0xca, 0x64, 0xc9, 0x5f, 0xd0, 0x12,
@@ -4264,7 +4293,7 @@ static void run_bank(dw_rom *rom)
     /* Window code $F8 is only in the window when Quick Spell is on. */
     if (QUICK_SPELL(rom)) {
         /* Window code $F8: print the last spell's short name, in the fixed bank. */
-        c = find_free_space(rom->content, 0xc422, 99);
+        c = find_free_space(rom->content, FIXED_FREE_START, 99);
         vpatch(rom, c, 49,
             0xa9, 0x05, 0x8d, 0xe2, 0x64,
             0xae, LO(last), HI(last), 0xf0, 0x1a,
@@ -4323,7 +4352,7 @@ static void run_bank(dw_rom *rom)
 
     /* Battle: 4 spends a run, 5 recasts. An empty bank, a Dragonlord or no
      * last spell goes back to the prompt with no turn lost. */
-    c = find_free_space(rom->content, 0xc422, 63);
+    c = find_free_space(rom->content, FIXED_FREE_START, 63);
     vpatch(rom, c, 63,
         0xc9, 0x04, 0xf0, RUN_BANK(rom) ? 0x19 : 0x38, /*  0 bank -> 29, or retry */
         0xc9, 0x05, 0xf0, QUICK_SPELL(rom) ? 0x03 : 0x34, /*  4 last -> 11, or retry */
@@ -4344,7 +4373,7 @@ static void run_bank(dw_rom *rom)
 
     /* Remember the spell cast, for the last-spell command (replaces STA $D7 / LDA $DF). */
     if (QUICK_SPELL(rom)) {
-        c = find_free_space(rom->content, 0xc422, 11);
+        c = find_free_space(rom->content, FIXED_FREE_START, 11);
         vpatch(rom, c, 11,
             0x85, 0xd7, 0x18, 0x69, 0x01, 0x8d, LO(last), HI(last),
             0xa5, 0xdf, 0x60);
@@ -4355,10 +4384,10 @@ static void run_bank(dw_rom *rom)
         return;
 
     /* Each kill adds points by enemy tier: 96 points make one run. Points stop at the cap. */
-    t = find_free_space(rom->content, 0xc422, 40);
+    t = find_free_space(rom->content, FIXED_FREE_START, 40);
     for (i = 0; i < 40; i++)
         rom->content[t + i] = tier_points[level][enemy_tier[i]];
-    c = find_free_space(rom->content, 0xc422, 32);
+    c = find_free_space(rom->content, FIXED_FREE_START, 32);
     vpatch(rom, c, 32, 0x20, LO(COUNT_WIN), HI(COUNT_WIN),
         0xa6, 0xe0,                               /* ldx enemy id */
         0xad, LO(ram), HI(ram), 0xc9, cap, 0xb0, 0x13,
@@ -4383,7 +4412,7 @@ static void warp_list_load(dw_rom *rom)
     if (!RETURN_TO_ZOOM(rom) && !WARP_WHISTLE(rom))
         return;
     chain = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
-    c = find_free_space(rom->content, 0xc422, 38);
+    c = find_free_space(rom->content, FIXED_FREE_START, 38);
     vpatch(rom, c, 38,
         0x20, LO(chain), HI(chain),
         0xae, LO(SAVE_SLOT), HI(SAVE_SLOT),
@@ -4420,7 +4449,7 @@ static void danger_meter(dw_rom *rom)
     span = high[rate] - low[rate] + 1;
 
     /* All tiles reach $CDFD with a mask in A: $07 hills and desert, $0F most tiles, $1F grass. */
-    c = find_free_space(rom->content, 0xc422, 67);
+    c = find_free_space(rom->content, FIXED_FREE_START, 67);
     vpatch(rom, c, 67,
         /* Towns, castles and shrines never have fights, so their steps don't count. */
         0xa6, 0x45, 0xe0, 0x0f, 0xb0, 0x09,       /* map 15 and up: dungeons */
@@ -4450,7 +4479,7 @@ static void danger_meter(dw_rom *rom)
     start_target = (low[rate] + high[rate]) / 2;
     {
         uint16_t chain = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
-        init = find_free_space(rom->content, 0xc422, 13);
+        init = find_free_space(rom->content, FIXED_FREE_START, 13);
         vpatch(rom, init, 13,
             0xa9, 0x00, 0x8d, LO(meter), HI(meter),
             0xa9, (uint8_t)start_target, 0x8d, LO(target), HI(target),
@@ -4472,7 +4501,7 @@ static void run_bank_win_hook(dw_rom *rom)
 
     /* $CA1A runs for new and continued games, so only clear on 0 XP: a new game. */
     init_target = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
-    init = find_free_space(rom->content, 0xc422, 20);
+    init = find_free_space(rom->content, FIXED_FREE_START, 20);
     vpatch(rom, init, 20, 0xa5, 0xba, 0x05, 0xbb, 0xd0, 0x0b,
         0xa9, 0x00, 0x8d, LO(ram), HI(ram), 0x8d, LO(last), HI(last),
         0x8d, LO(points), HI(points),
@@ -5099,6 +5128,7 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
     no_space_handler = &on_no_space;
 
     fit_best = fit_game;
+    patch_holes_open = FALSE;
     fail_stage = 1;
     winter_theme(rom);
 
@@ -5215,6 +5245,8 @@ static int search_free_space(uint8_t *content, uint16_t start, uint16_t end, uin
     BOOL found;
     uint32_t i, j;
 
+    if (start == FIXED_FREE_START && !patch_holes_open)
+        start = 0xc422; /* the patch is not written yet: search above it (see patch_holes_open) */
     if (fit_best) {
         uint32_t at, run, best_at = 0, best_len = 0x10000;
 

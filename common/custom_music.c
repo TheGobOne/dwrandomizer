@@ -1062,7 +1062,7 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
      * do that load here, then carry on at the rest of the tail. This saves copying the tail. */
     c[n++] = 0xad; c[n++] = LO8(RAM_BANKSEL); c[n++] = HI8(RAM_BANKSEL);
     c[n++] = 0x4c; c[n++] = LO8(frame + 11); c[n++] = HI8(frame + 11);
-    h2 = find_free_space(k, 0xc422, n);
+    h2 = find_free_space(k, FIXED_FREE_START, n);
     patch(rom, h2, n, c);
     patch(rom, frame + 8, 3, (uint8_t[]){0x4c, LO8(h2), HI8(h2)});
 
@@ -1073,7 +1073,7 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
     c2[n++] = 0x4c; c2[n++] = 0x7f; c2[n++] = 0xfe;
     c2[n++] = 0x20; c2[n++] = 0x2d; c2[n++] = 0xff;
     c2[n++] = 0x4c; c2[n++] = 0x58; c2[n++] = 0xfe;
-    chk = find_free_space(k, 0xc422, n);
+    chk = find_free_space(k, FIXED_FREE_START, n);
     patch(rom, chk, n, c2);
     patch(rom, 0xfe55, 3, (uint8_t[]){0x4c, LO8(chk), HI8(chk)});
 
@@ -1099,7 +1099,7 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
     code[beq + 1] = (uint8_t)(spin - (beq + 2));
     EMIT(0xa9, 0x00, 0x60);                                             /* done: lda #0; rts (A=0, Z set, as before) */
 #undef EMIT
-    w = find_free_space(k, 0xc422, n);
+    w = find_free_space(k, FIXED_FREE_START, n);
     patch(rom, w, n, code);
     patch(rom, 0xff74, 3, (uint8_t[]){0x4c, LO8(w), HI8(w)});
 }
@@ -1279,7 +1279,7 @@ static BOOL apply_music(dw_rom *rom)
         int at[3], k, ok = TRUE;
 
         for (k = 0; k < 3; k++) {
-            at[k] = dwr_try_free_space(rom->content, 0xc422, sizes[k]);
+            at[k] = dwr_try_free_space(rom->content, FIXED_FREE_START, sizes[k]);
             if (at[k] < 0) {
                 ok = FALSE;
                 break;
@@ -1308,7 +1308,7 @@ static BOOL apply_music(dw_rom *rom)
     }
 
     /* Game music tracks write to unmapped $402x unless a jingle is playing. */
-    ys = find_free_space(rom->content, 0xc422, HOOK_YS_SIZE);
+    ys = find_free_space(rom->content, FIXED_FREE_START, HOOK_YS_SIZE);
     vpatch(rom, ys, HOOK_YS_SIZE, 0xad, LO8(RAM_JINGLE), HI8(RAM_JINGLE), 0xd0, 0x02, 0xa0, 0x20,
             0x4c, 0xcb, 0x80);
     vpatch(rom, 0x4071, 2, LO8(ys), HI8(ys));
@@ -1317,7 +1317,7 @@ static BOOL apply_music(dw_rom *rom)
 
     /* Music requests: remember the id and quiet the channels for the new song. */
     /* The battle sting is part of the game's battle music, so let it play first. */
-    rq = find_free_space(rom->content, 0xc422, HOOK_RQ_SIZE);
+    rq = find_free_space(rom->content, FIXED_FREE_START, HOOK_RQ_SIZE);
     {
         static const uint8_t rq_code[] = {
             0xa2, 0xff, 0x8e, 0x05, 0x60,         /* ldx #$ff, stx $6005 (replaced code) */
@@ -1349,7 +1349,7 @@ static BOOL apply_music(dw_rom *rom)
     vpatch(rom, 0x41a0, 5, 0x20, LO8(rq), HI8(rq), 0xea, 0xea);
 
     /* Each frame: the game's sound code, then the driver in its current bank. */
-    frame = find_free_space(rom->content, 0xc422, HOOK_FRAME_SIZE);
+    frame = find_free_space(rom->content, FIXED_FREE_START, HOOK_FRAME_SIZE);
     vpatch(rom, frame, HOOK_FRAME_SIZE,
             0xa9, 0x01, 0x20, 0x96, 0xff, 0x20, 0x28, 0x80,
             0xad, LO8(RAM_BANKSEL), HI8(RAM_BANKSEL), BANK_SELECT,

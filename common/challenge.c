@@ -125,7 +125,7 @@ void damage_bonks(dw_rom *rom)
 
     if (!DAMAGE_BONKS(rom))
         return;
-    newcode = find_free_space(rom->content, 0xc422, 48);
+    newcode = find_free_space(rom->content, FIXED_FREE_START, 48);
 
     if(DAMAGE_BONKS(rom) <= 2)
         damage = DAMAGE_BONKS(rom);
