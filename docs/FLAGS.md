@@ -179,9 +179,9 @@ Walking into walls can deal damage to the player. The amount is chosen on the we
 Prevents the screen from flashing when walking on damage tiles. If bonk damage is on, the usual swamp damage sound is used instead of the bonking sound.
 
 
-#### Discardable Flute ####
+#### DK Flute ####
 
-Make it possible to drop the flute on finding a new item with a full inventory.
+Make it possible to drop the flute on finding a new item with a full inventory, or sell to a shop for 1g.
 
 
 #### Return Escapes ####
