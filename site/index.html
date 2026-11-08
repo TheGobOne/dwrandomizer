@@ -408,6 +408,7 @@ const PRESETS = [
  {id:'standard',name:'Standard',blurb:"juef's Standard flags.",flags:'IVIAAVCEKACAAAAAAAAAAEAUAAQBAAAAABYCAAAA'},
  {id:'fast',name:'Fast Standard',blurb:"juef's Fast Standard flags.",flags:'IVIAAVCEKACFAAAAAAAAAIAUAAQBAAAAABYCAAAA'},
  {id:'easy',name:'Easy Standard',blurb:"juef's Easy Standard flags.",flags:'IVIAAVCFKACACQAAKAAAAZAUAAQBAAAAABYCAAAA'},
+ {id:'gob',name:'Gob Standard',blurb:"Gob's Standard flags.",flags:'IVIACV2EKADEAMAAAADQAEBGAAAJACAAAAIBQAAA'},
 ];
 
 /* ---------- state ---------- */
@@ -1167,15 +1168,24 @@ function searchWin(){
 }
 const spaceLine=el('p',{class:'spaceline',role:'status'});
 let spaceTimer=null;
-/* Bytes still free in the main program bank. Runs of 6 or more blank bytes count. */
-function freeBytes(rom){ let free=0,run=0; for(let i=0x10010+0xc422;i<0x10010+0xfff0;i++){ if(rom[i]===0xff) run++; else { if(run>=6) free+=run; run=0; } } return run>=6?free+run:free; }
+/* The build's names for the song slots (custom_music.c scenes and events), as the site names them. */
+const LOG_SLOT={'Title':'Title','Overworld':'Overworld','Town':'Town','Tantegel':'Tantegel','Hauksness':'Hauksness','Charlock':'Charlock',
+  'Cave':'Cave','Final floor':'Charlock Final Floor','Encounter':'Encounter','Dragonlord':'Dragonlord','Credits':'Stat Scroll','Ending':'Original Credits'};
+/* Bytes still free in the main program bank, from FIXED_FREE_START (dwr.h). Runs of 6 or more blank bytes count. */
+function freeBytes(rom){ let free=0,run=0; for(let i=0x10010+0xc331;i<0x10010+0xfff0;i++){ if(rom[i]===0xff) run++; else { if(run>=6) free+=run; run=0; } } return run>=6?free+run:free; }
 function checkSpace(){ spaceTimer=null;
   if(!State.rom||!wasmReady){ spaceLine.textContent=''; return; }
   try{ const r=buildOnce(); /* A Random slot with no room for any tagged song is switched to Default, and the line says so. */
-    const missed=(r.picks&&r.picks.missed)||[], moved=(State.autoDefaulted||[]).concat(missed.map(m=>m.name)); State.autoDefaulted=null;
-    const left=(r.log||[]).filter(t=>/leaving it out|keeping the|no room/i.test(t)).map(t=>t.replace(/\.$/,''))
-      .concat(moved.map(n=>n+' set to Default: no room for a tagged song'));
-    if(missed.length&&State.assign){ missed.forEach(m=>delete State.assign[m.key]); State.autoDefaulted=moved; savePicks(); State.emit('assign'); }
+    /* A slot whose song the build left out ("Charlock     no room for its song") goes back to Default and is
+       marked, the same as a Random slot with no room. LOG_SLOT turns the build's names into the site's. */
+    const handMissed=(r.log||[]).map(t=>/^\s*(.+?)\s+no room for its song/.exec(t)).filter(Boolean)
+      .map(m=>LOG_SLOT[m[1]]).filter(n=>n&&State.assign&&State.assign[slotKey('Tracks',n)]!=null)
+      .map(n=>({name:n,key:slotKey('Tracks',n)}));
+    const missed=((r.picks&&r.picks.missed)||[]).concat(handMissed), moved=(State.autoDefaulted||[]).concat(missed.map(m=>m.name)); State.autoDefaulted=null;
+    const left=(r.log||[]).filter(t=>/keeping the|no room/i.test(t)&&!/no room for its song/.test(t)).map(t=>t.replace(/\.$/,''))
+      .concat(moved.map(n=>n+' set to Default: no room for its song'));
+    if(missed.length&&State.assign){ if(!State.badSlots) State.badSlots=new Set();
+      missed.forEach(m=>{ delete State.assign[m.key]; State.badSlots.add(m.key); }); State.autoDefaulted=moved; savePicks(); State.emit('assign'); }
     spaceLine.textContent=r.data?'ROM space: '+freeBytes(r.data)+' bytes'+(left.length?'. Left out: '+left.join('; ')+'.':''):(r.log.some(t=>t.includes('Out of room'))?'ROM space: will not fit. Turn off a flag.':'Build check: '+failMessage(r.log)); }
   catch(e){ spaceLine.textContent=''; } }
 State.on(i=>{ if(i==='seed') return; clearTimeout(spaceTimer);
