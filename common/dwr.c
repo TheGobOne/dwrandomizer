@@ -2977,6 +2977,17 @@ static void discardable_flute(dw_rom *rom)
     vpatch(rom, 0xe0fc, 1, 0x01);
 }
 
+/**
+ * Gives the Fairy Flute a price of 2 gold in the shop price table (index 23, after the 17 weapons and
+ * armor and the other items), so a shop will buy it. The game's own price is 0.
+ *
+ * @param rom The rom struct
+ */
+static void sellable_flute(dw_rom *rom)
+{
+    vpatch(rom, 0x1947 + 23 * 2, 2, 0x02, 0x00);
+}
+
 static void formidable_flute(dw_rom *rom)
 {
     if (!FORMIDABLE_FLUTE(rom))
@@ -4846,6 +4857,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     modify_run_rate(rom);
     dwr_token_dialogue(rom);
     discardable_flute(rom);
+    sellable_flute(rom);
     formidable_flute(rom);
     magic_herbs(rom);
     shuffle_inn_prices(rom);
