@@ -1936,7 +1936,8 @@ static void other_patches(dw_rom *rom)
     /* Faster town sprite drawing, same results. The NPC sprite builder runs every frame and was the
      * game's biggest cost while walking in towns, which left little time for the music.
      * 1. $B6CE: the sprite pointer's high byte was raised by counting $24 down to 0 one step at a time;
-     *    add it in one go instead. A, Z and N end the same; both callers set the carry before using it.
+     *    add it in one go instead. A, Z and N end the same; none of its callers ($B724, $B998, $C0D4)
+     *    reads the carry or overflow before setting it.
      * 2. $B9ED: the loop that hides unused sprite slots tested Y at the top of every pass; test it once,
      *    then loop on the increment. The sec keeps the carry set as the old cpy #0 left it. */
     {

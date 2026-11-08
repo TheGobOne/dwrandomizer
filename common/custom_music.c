@@ -1024,8 +1024,8 @@ static void pick_like_site(dw_rom *rom)
 /* Run the driver from the game's own wait loop (at $FF74) instead of only from the NMI.
  * The NMI counts a pending tick. The wait runs one tick and leaves the others for later waits (or for the
  * NMI, once three are pending), so the music keeps its speed when the game misses frames.
- * The tick runs right after the NMI, never just before it: the game's NMI resets the console if it lands
- * on a bank switch while the game waits, and the next NMI is a whole frame away.
+ * The tick runs before the wait's spin, so an NMI can land on one of its bank switches: the NMI resets the
+ * MMC1 shift register before its own switches (see the $FEE3 patch in apply_music), which makes that safe.
  * Code that never calls the wait (three frames without it) gets its ticks from the NMI. */
 /* After lda RAM_BANKSEL: A = the music bank. Bits 7-6 hold the bank minus 3: $00 bank 3, $40 bank 4,
  * $80 bank 5, $C0 bank 6 (see gen_driver.py). and #$c0 : asl : rol : rol leaves the two bits at the bottom
@@ -1036,6 +1036,7 @@ static void pick_like_site(dw_rom *rom)
 #define MW_RUNNING 0x6bf3
 #define MW_INWAIT 0x6bf4
 #define MW_SKIP 0x6bf7 /* set when the game missed a frame: the next wait puts its tick off */
+#define MW_DROPPED 0x6bff /* the last mid-step wait dropped its ticks: the next one plays */
 #define MW_TH 3
 #define MW_BANKSEL RAM_BANKSEL
 static void music_wait_loop(dw_rom *rom, uint16_t frame)
@@ -1045,7 +1046,7 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
     uint8_t *k = rom->content;
     uint8_t c[48], c2[20], code[128];
     int h2, chk, w;
-    int n = 0, n1, n2, beq, beq2, spin, skipj, stepj;
+    int n = 0, n1, n2, beq, beq2, spin, skipj, stepj, dropj;
 
     if (memcmp(k + 0xff74, wait_in, 9) || memcmp(k + 0xfe55, overrun_in, 3)) {
         printf("Music wait loop not recognized, keeping the frame music.\n");
@@ -1067,7 +1068,7 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
 
     /* 2. Overrun path of the NMI: while the game waits for a frame, take the full path. Otherwise the game
      * missed this frame: note it, so the next wait puts its tick off and the game can catch up instead
-     * of missing frames in a row. The tick still plays later. */
+     * of missing frames in a row. Mid-step that wait drops one tick; elsewhere the tick plays later. */
     n = 0;
     c2[n++] = 0xad; c2[n++] = LO8(MW_INWAIT); c2[n++] = HI8(MW_INWAIT);
     c2[n++] = 0xf0; c2[n++] = 3;
@@ -1077,7 +1078,7 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
     c2[n++] = 0x4c; c2[n++] = 0x58; c2[n++] = 0xfe;
     n2 = n;
 
-    /* 3. The wait itself: run one pending tick and drop any others, then wait for the frame. The tick
+    /* 3. The wait itself: run one pending tick and leave any others, then wait for the frame. The tick
      * runs first so it uses the time the game would spend waiting, not the start of the next frame
      * (which in scroll frames has little to spare). INWAIT is held through the tick, so an NMI that
      * lands during it still takes the full path. */
@@ -1092,20 +1093,25 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
     EMIT(0xa9, 0x00, 0x8d, LO8(MW_SKIP), HI8(MW_SKIP));                 /* lda #0; sta SKIP */
     EMIT(0xa5, 0x90, 0x05, 0x92, 0x29, 0x0f);                           /* lda $90; ora $92; and #$0f */
     stepj = n; EMIT(0xf0, 0);                                           /* beq run: on a tile; drop: */
-    EMIT(0xa9, 0x00, 0x8d, LO8(MW_PEND), HI8(MW_PEND));                 /* lda #0; sta PEND: drop this frame's tick */
-    beq2 = n; EMIT(0xf0, 0);                                            /* beq spin (always) */
+    /* Never two drops in a row: a step that runs late every frame would otherwise get no ticks at all. */
+    dropj = n; EMIT(0xad, LO8(MW_DROPPED), HI8(MW_DROPPED), 0xd0, 0);   /* lda DROPPED; bne run */
+    EMIT(0xa9, 0x00, 0x8d, LO8(MW_PEND), HI8(MW_PEND));                 /* lda #0; sta PEND: drop the pending ticks */
+    EMIT(0xa9, 0x01, 0x8d, LO8(MW_DROPPED), HI8(MW_DROPPED));           /* lda #1; sta DROPPED */
+    beq2 = n; EMIT(0xd0, 0);                                            /* bne spin (always) */
     code[skipj + 4] = (uint8_t)(n - (skipj + 5));
     code[stepj + 1] = (uint8_t)(n - (stepj + 2));
+    code[dropj + 4] = (uint8_t)(n - (dropj + 5));
     EMIT(0xad, LO8(MW_PEND), HI8(MW_PEND));                             /* run: lda PEND */
     beq = n; EMIT(0xf0, 0);                                             /* beq spin */
     EMIT(0x08, 0x8a, 0x48, 0x98, 0x48);                                 /* php txa pha tya pha */
     EMIT(0xad, 0x04, 0x60, 0x48);                                       /* lda $6004; pha */
-    EMIT(0xee, LO8(MW_RUNNING), HI8(MW_RUNNING));                       /* inc RUNNING: it is 0 here */
+    EMIT(0xa9, 0x01, 0x8d, LO8(MW_RUNNING), HI8(MW_RUNNING));           /* lda #1; sta RUNNING (not inc: it may hold power-on garbage) */
     EMIT(0xce, LO8(MW_PEND), HI8(MW_PEND));                             /* dec PEND: one tick now, the rest later */
     EMIT(0xad, LO8(MW_BANKSEL), HI8(MW_BANKSEL), BANK_SELECT);
     EMIT(0x20, 0x91, 0xff);                                             /* jsr $ff91 (sets $6004) */
     EMIT(0x20, LO8(FT_WRAP), HI8(FT_WRAP));                             /* jsr wrap */
     EMIT(0xa9, 0x00, 0x8d, LO8(MW_RUNNING), HI8(MW_RUNNING));           /* lda #0; sta RUNNING */
+    EMIT(0x8d, LO8(MW_DROPPED), HI8(MW_DROPPED));                       /* sta DROPPED: a tick played */
     EMIT(0x68, 0x20, 0x91, 0xff);                                       /* pla; jsr $ff91 */
     EMIT(0x68, 0xa8, 0x68, 0xaa, 0x28);                                 /* pla tay pla tax plp */
     spin = n;
@@ -1389,7 +1395,14 @@ static BOOL apply_music(dw_rom *rom)
             0xad, LO8(RAM_BANKSEL), HI8(RAM_BANKSEL), BANK_SELECT,
             0x20, 0x96, 0xff,
             0x4c, LO8(FT_WRAP), HI8(FT_WRAP));
-    vpatch(rom, 0xfee8, 8, 0x20, LO8(frame), HI8(frame), 0xea, 0xea, 0xea, 0xea, 0xea);
+    /* The NMI's first bank switch is here. The music's ticks switch banks in the main code too (the wait loop
+     * below runs them just before an NMI can land), so an NMI can cut a switch after 1 to 4 of its 5 serial
+     * writes and its own switch would then load a mix of both. Reset the MMC1 shift register first (bit 7;
+     * it also sets the control's PRG mode 3, which the game already uses). The NMI then restores the bank from
+     * $6004 at $FEF0 and moves the cut switch's return past its writes, so the main code ends in the bank it
+     * asked for. The reset uses the 5 bytes the frame hook freed: was lda $6005 : bne $FEF0 : jsr frame : nop x5. */
+    vpatch(rom, 0xfee3, 13, 0xa9, 0x80, 0x8d, 0x00, 0x80, 0xad, 0x05, 0x60, 0xd0, 0x03,
+            0x20, LO8(frame), HI8(frame));
     music_wait_loop(rom, frame);
 
     /* Credits: ask for the tagged song and update the driver from their NMI. */
