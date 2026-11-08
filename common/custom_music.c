@@ -29,7 +29,7 @@
 /* Sizes of the three fixed-bank hooks. */
 #define HOOK_YS_SIZE 10
 #define HOOK_RQ_SIZE 90
-#define HOOK_FRAME_SIZE 24
+#define HOOK_FRAME_SIZE 29
 #define REQUEST_BATTLE_RESUME 0x18
 #define REQUEST_CREDITS 0x1f
 #define REQUEST_HAUKSNESS 0x1c
@@ -56,6 +56,9 @@ typedef struct {
 
 static song_t songs[MAX_SONGS];
 static int song_count = 0;
+/* The loaded pack, kept whole when a site-style pick replaces songs[] with per-slot copies. */
+static song_t pack[MAX_SONGS];
+static int pack_count = 0;
 
 /* ------------------------------------------------------------ JSON5 reader */
 
@@ -484,8 +487,16 @@ static void skip_value(reader *r)
 void custom_music_clear(void)
 {
     int i;
-    for (i = 0; i < song_count; i++)
-        free(songs[i].data);
+    /* After a site-style pick, songs[] holds copies that share data with pack[] (and with each other),
+     * so free the data once, from whichever list owns it. */
+    if (pack_count) {
+        for (i = 0; i < pack_count; i++)
+            free(pack[i].data);
+        pack_count = 0;
+    } else {
+        for (i = 0; i < song_count; i++)
+            free(songs[i].data);
+    }
     song_count = 0;
 }
 
@@ -613,15 +624,31 @@ static BOOL has_tag(const song_t *s, const char *const tags[4])
     return FALSE;
 }
 
+/* Music banks in placement order: 6, 3, and 5 when it is free. Bank 5 ends below the reset vectors,
+ * and below the credits hook when that is kept there. */
+#define MUSIC_BANKS 3
+static int music_bank_count = 2;
+static uint16_t music_bank_end[MUSIC_BANKS] = {0xc000, 0xc000, 0xbffa};
+
+static BOOL fits_a_bank(const uint16_t next[MUSIC_BANKS], unsigned size)
+{
+    int b;
+
+    for (b = 0; b < music_bank_count; b++)
+        if (next[b] + size <= music_bank_end[b])
+            return TRUE;
+    return FALSE;
+}
+
 /* Puts a song in the first bank with room. */
-static BOOL place(song_t *s, uint16_t next[2], int order[MAX_PLACED], int *placed, int index)
+static BOOL place(song_t *s, uint16_t next[MUSIC_BANKS], int order[MAX_PLACED], int *placed, int index)
 {
     int b;
 
     if (*placed >= MAX_PLACED)
         return FALSE;
-    for (b = 0; b < 2; b++) {
-        if (next[b] + s->size <= 0xc000) {
+    for (b = 0; b < music_bank_count; b++) {
+        if (next[b] + s->size <= music_bank_end[b]) {
             s->bank = b;
             s->address = next[b];
             next[b] = (uint16_t)(next[b] + s->size);
@@ -633,7 +660,7 @@ static BOOL place(song_t *s, uint16_t next[2], int order[MAX_PLACED], int *place
 }
 
 /* Random unplaced song from those matching: tags (NULL = any), enabled only or not. */
-static int pick(const char *const *tags, BOOL enabled_only, const uint16_t next[2], BOOL event)
+static int pick(const char *const *tags, BOOL enabled_only, const uint16_t next[MUSIC_BANKS], BOOL event)
 {
     int candidates[MAX_SONGS];
     int n = 0, i;
@@ -646,7 +673,7 @@ static int pick(const char *const *tags, BOOL enabled_only, const uint16_t next[
             continue;
         if (!event && is_reserved(s))
             continue;
-        if (next[0] + s->size > 0xc000 && next[1] + s->size > 0xc000)
+        if (!fits_a_bank(next, s->size))
             continue;
         candidates[n++] = i;
     }
@@ -684,10 +711,10 @@ static const event_t events[EVENT_COUNT] = {
  * all dungeon floors, so the same seed and pack give the same music. This mirrors chosenPack in
  * site/index.html: change the two together. */
 #define PICK_ROOM (0xc000 - FT_SONGS)
+/* Bank 5 ends below the reset vectors. The credits hook may take a little more; then a song is left out. */
+#define PICK_ROOM5 (0xbffa - FT_SONGS)
 
 static BOOL choose_like_site = FALSE;
-static song_t pack[MAX_SONGS];
-static int pack_count = 0;
 
 void custom_music_choose_like_site(void)
 {
@@ -801,7 +828,7 @@ static BOOL pick_fits(const char *tag, size_t size)
 {
     pick_entry_t a[MAX_PLACED + 1];
     int n = pick_placed_count, i, j;
-    size_t b[2] = {0, 0};
+    size_t b[3] = {0, 0, 0};
 
     if (n + 1 > MAX_PLACED)
         return FALSE;
@@ -819,6 +846,8 @@ static BOOL pick_fits(const char *tag, size_t size)
             b[0] += a[i].size;
         else if (b[1] + a[i].size <= PICK_ROOM)
             b[1] += a[i].size;
+        else if (b[2] + a[i].size <= PICK_ROOM5)
+            b[2] += a[i].size;
         else
             return FALSE;
     }
@@ -851,7 +880,7 @@ static int pick_choose(const char *const *list, const char *tag, int left, BOOL 
         return -1;
     for (i = 0; i < pick_placed_count; i++)
         used += pick_placed[i].size;
-    share = 1.5 * (double)(2 * PICK_ROOM - (long)used) / left;
+    share = 1.5 * (double)(2 * PICK_ROOM + PICK_ROOM5 - (long)used) / left;
     for (i = 0; i < nfit; i++)
         if ((double)pack[fit[i]].size <= share)
             base[nbase++] = fit[i];
@@ -977,6 +1006,10 @@ static void pick_like_site(dw_rom *rom)
  * The tick runs right after the NMI, never just before it: the game's NMI resets the console if it lands
  * on a bank switch while the game waits, and the next NMI is a whole frame away.
  * Code that never calls the wait (three frames without it) gets its ticks from the NMI. */
+/* After lda RAM_BANKSEL: A = the music bank. $00 is bank 6, $40 bank 3, $80 bank 5 (see gen_driver.py).
+ *   beq six; bmi five; lda #3; BIT $05a9; five: lda #5; BIT $06a9; six: lda #6
+ * Each BIT skips the next load, so bank 3 and bank 5 fall through to the jsr with their own number. */
+#define BANK_SELECT 0xf0, 0x08, 0x30, 0x03, 0xa9, 0x03, 0x2c, 0xa9, 0x05, 0x2c, 0xa9, 0x06
 #define MW_PEND 0x6bf2
 #define MW_RUNNING 0x6bf3
 #define MW_INWAIT 0x6bf4
@@ -1034,7 +1067,7 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
     EMIT(0xad, 0x04, 0x60, 0x48);                                       /* lda $6004; pha */
     EMIT(0xa9, 0x01, 0x8d, LO8(MW_RUNNING), HI8(MW_RUNNING));           /* lda #1; sta RUNNING */
     EMIT(0xa9, 0x00, 0x8d, LO8(MW_PEND), HI8(MW_PEND));                 /* lda #0; sta PEND: one tick, drop the rest */
-    EMIT(0xad, LO8(MW_BANKSEL), HI8(MW_BANKSEL), 0xf0, 0x03, 0xa9, 0x03, 0x2c, 0xa9, 0x06);
+    EMIT(0xad, LO8(MW_BANKSEL), HI8(MW_BANKSEL), BANK_SELECT);
     EMIT(0x20, 0x91, 0xff);                                             /* jsr $ff91 (sets $6004) */
     EMIT(0x20, LO8(FT_WRAP), HI8(FT_WRAP));                             /* jsr wrap */
     EMIT(0xa9, 0x00, 0x8d, LO8(MW_RUNNING), HI8(MW_RUNNING));           /* lda #0; sta RUNNING */
@@ -1049,10 +1082,51 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
     patch(rom, 0xff74, 3, (uint8_t[]){0x4c, LO8(w), HI8(w)});
 }
 
-void custom_music_apply(dw_rom *rom)
+/* First address in $C422-$FEFF where size bytes are free (0xff) both in the fixed bank and at the same
+ * place in bank 5, skipping [avoid, avoid + avoid_len). 0 if there is none. */
+static uint16_t common_hole(const dw_rom *rom, const uint8_t *bank5, size_t size, uint32_t avoid, size_t avoid_len)
 {
-    static const int banks[2] = {6, 3};
-    uint16_t next[2] = {FT_SONGS, FT_SONGS};
+    uint32_t u;
+    size_t n;
+
+    for (u = 0xc422; u + size <= 0xff00; u++) {
+        if (avoid_len && u < avoid + avoid_len && u + size > avoid)
+            continue;
+        for (n = 0; n < size; n++)
+            if (rom->content[u + n] != 0xff || bank5[u + n - 0xc000] != 0xff)
+                break;
+        if (n == size)
+            return (uint16_t)u;
+    }
+    return 0;
+}
+
+/* Like common_hole, but the highest address at or above low, so bank 5 keeps as much song room as it can. */
+static uint16_t common_hole_top(const dw_rom *rom, const uint8_t *bank5, size_t size, uint32_t low,
+        uint32_t avoid, size_t avoid_len)
+{
+    uint32_t u;
+    size_t n;
+
+    for (u = 0xff00 - size; u >= low && u >= 0xc422; u--) {
+        if (avoid_len && u < avoid + avoid_len && u + size > avoid)
+            continue;
+        for (n = 0; n < size; n++)
+            if (rom->content[u + n] != 0xff || bank5[u + n - 0xc000] != 0xff)
+                break;
+        if (n == size)
+            return (uint16_t)u;
+    }
+    return 0;
+}
+
+static void apply_music(dw_rom *rom)
+{
+    static const int banks[MUSIC_BANKS] = {6, 3, 5};
+    /* Bits 7-6 of a song's high address byte name its bank (gen_driver.py). */
+    static const uint8_t bank_code[MUSIC_BANKS] = {0x80, 0xc0, 0x00};
+    uint16_t next[MUSIC_BANKS] = {FT_SONGS, FT_SONGS, FT_SONGS};
+    uint16_t stub_at = 0, stub_sw = 0; /* credits hook places held while bank 5 has songs */
     int order[MAX_PLACED], placed = 0;
     int event_song[EVENT_COUNT];
     int chosen[SCENE_COUNT];
@@ -1067,6 +1141,18 @@ void custom_music_apply(dw_rom *rom)
     for (i = 0; i < song_count; i++)
         songs[i].bank = -1;
     printf("Adding custom music...\n");
+
+    /* Bank 5 holds songs when it is empty apart from the reset vectors: no built-in credits samples. */
+    music_bank_count = 2;
+    music_bank_end[2] = 0xbffa;
+    {
+        const uint8_t *b5 = &rom->expansion[0x8000];
+        size_t o;
+        for (o = 0x100; o < 0x3ffa && b5[o] == 0xff; o++)
+            ;
+        if (o == 0x3ffa)
+            music_bank_count = 3;
+    }
 
     mt_init(rom->seed ^ 0x6d75736963ULL);
     /* The credits run in 32 KB banking mode, where only bank 6 of the music banks
@@ -1088,6 +1174,36 @@ void custom_music_apply(dw_rom *rom)
                     (unsigned int)songs[found].size, banks[songs[found].bank]);
         }
     }
+    /* The credits hook sits at the same address in the fixed bank and bank 5. With songs in bank 5, take
+     * its places now, as high as they go, and end bank 5's songs below them. */
+    if (music_bank_count == 3 && event_song[0] >= 0) {
+        const uint8_t *b5 = &rom->expansion[0x8000];
+        const uint32_t low = (uint32_t)FT_SONGS + 0x4000;
+        stub_at = common_hole_top(rom, b5, 52, low, 0, 0);
+        if (stub_at) {
+            stub_sw = (uint16_t)(stub_at + 32);
+        } else {
+            stub_at = common_hole_top(rom, b5, 32, low, 0, 0);
+            stub_sw = stub_at ? common_hole_top(rom, b5, 20, low, stub_at, 32) : 0;
+            if (!stub_sw)
+                stub_at = 0;
+        }
+        if (!stub_at) {
+            music_bank_count = 2; /* no place clear of songs: leave bank 5 to the hook */
+        } else {
+            uint16_t lowest = stub_at < stub_sw ? stub_at : stub_sw;
+            memset(&rom->content[stub_at], 0x00, 32); /* held, like the hooks below */
+            memset(&rom->content[stub_sw], 0x00, 20);
+            if ((uint16_t)(lowest - 0x4000) < music_bank_end[2])
+                music_bank_end[2] = (uint16_t)(lowest - 0x4000);
+        }
+    }
+    if (music_bank_count == 3)
+        printf("Music bank 5: %u bytes for songs.\n", (unsigned)(music_bank_end[2] - FT_SONGS));
+    else
+        printf("Music bank 5: not used (built-in credits samples or no room for the credits hook).\n");
+#define RELEASE_STUB() do { if (stub_at) { memset(&rom->content[stub_at], 0xff, 32); \
+        memset(&rom->content[stub_sw], 0xff, 20); } } while (0)
     for (i = 0; i < SCENE_COUNT; i++) {
         int found = -1;
         found = pick(scenes[i].primary, TRUE, next, FALSE);
@@ -1098,6 +1214,8 @@ void custom_music_apply(dw_rom *rom)
                     (unsigned int)songs[found].size, banks[songs[found].bank]);
         } else {
             chosen[i] = -1; /* the game's own music plays */
+            if (count_tagged(scenes[i].primary))
+                printf("  %-12s no room for its song, leaving it out.\n", scenes[i].name);
         }
     }
     for (i = 1; i < EVENT_COUNT; i++) {
@@ -1114,6 +1232,7 @@ void custom_music_apply(dw_rom *rom)
     }
     mt_init(time(NULL));
     if (!placed) {
+        RELEASE_STUB();
         printf("No custom music fits, keeping the original music.\n");
         return;
     }
@@ -1131,15 +1250,16 @@ void custom_music_apply(dw_rom *rom)
     memset(hi, 0, sizeof(hi));
     for (i = 0; i < placed; i++) {
         lo[i] = LO8(songs[order[i]].address);
-        /* Songs sit at $80xx-$BFxx, so bit 6 is free to say which bank holds the song. */
-        hi[i] = (uint8_t)(HI8(songs[order[i]].address) | (songs[order[i]].bank ? 0x40 : 0));
+        /* Songs sit at $80xx-$BFxx, so bits 7-6 are free to say which bank holds the song. */
+        hi[i] = (uint8_t)((HI8(songs[order[i]].address) & 0x3f) | bank_code[songs[order[i]].bank]);
     }
 
-    for (b = 0; b < 2; b++) {
+    for (b = 0; b < music_bank_count; b++) {
         uint8_t *base = &rom->expansion[(banks[b] - 3) * 0x4000];
-        size_t offset;
-        for (offset = 0x100; offset < 0x4000; offset++) {
+        size_t offset, end = banks[b] == 5 ? 0x3ffa : 0x4000; /* bank 5 ends with the reset vectors */
+        for (offset = 0x100; offset < end; offset++) {
             if (base[offset] != 0xff) {
+                RELEASE_STUB();
                 printf("Music bank %d is in use, keeping the original music.\n", banks[b]);
                 return;
             }
@@ -1161,12 +1281,13 @@ void custom_music_apply(dw_rom *rom)
         while (--k >= 0)
             memset(&rom->content[at[k]], 0xff, sizes[k]);
         if (!ok) {
+            RELEASE_STUB();
             printf("No room for the music hooks, keeping the original music.\n");
             return;
         }
     }
 
-    for (b = 0; b < 2; b++) {
+    for (b = 0; b < music_bank_count; b++) {
         uint8_t *base = &rom->expansion[(banks[b] - 3) * 0x4000];
         memcpy(base + (FT_BASE - 0x8000), ft_image, sizeof(ft_image));
         memcpy(base + (FT_MAP - 0x8000), map, sizeof(map));
@@ -1221,8 +1342,7 @@ void custom_music_apply(dw_rom *rom)
     frame = find_free_space(rom->content, 0xc422, HOOK_FRAME_SIZE);
     vpatch(rom, frame, HOOK_FRAME_SIZE,
             0xa9, 0x01, 0x20, 0x96, 0xff, 0x20, 0x28, 0x80,
-            0xad, LO8(RAM_BANKSEL), HI8(RAM_BANKSEL), 0xf0, 0x03,
-            0xa9, 0x03, 0x2c, 0xa9, 0x06,    /* bank 3, or 6 when the selector is 0 (BIT skips the load) */
+            0xad, LO8(RAM_BANKSEL), HI8(RAM_BANKSEL), BANK_SELECT,
             0x20, 0x96, 0xff,
             0x4c, LO8(FT_WRAP), HI8(FT_WRAP));
     vpatch(rom, 0xfee8, 8, 0x20, LO8(frame), HI8(frame), 0xea, 0xea, 0xea, 0xea, 0xea);
@@ -1259,27 +1379,37 @@ void custom_music_apply(dw_rom *rom)
                 0x8d, 0xff, 0xff, 0x4a, 0x8d, 0xff, 0xff,
                 0x60
             };
-            uint32_t u;
+            /* Both parts run while the banks switch, so each sits at the same address in the fixed
+             * bank and bank 5. The main part (32 bytes) and the mapper write (20 bytes) can go in
+             * separate holes, which fits ROMs whose free space is in small pieces. */
             uint8_t *bank5 = &rom->expansion[0x8000];
-            for (u = 0xc422; u < 0xff00 - sizeof(stub); u++) {
-                size_t n;
-                for (n = 0; n < sizeof(stub); n++)
-                    if (rom->content[u + n] != 0xff || bank5[u + n - 0xc000] != 0xff)
-                        break;
-                if (n == sizeof(stub))
-                    break;
+            const size_t main_len = 32, sw_len = sizeof(stub) - 32;
+            uint16_t u, sw;
+            RELEASE_STUB(); /* held places become the hook's */
+            u = stub_at ? stub_at : common_hole(rom, bank5, sizeof(stub), 0, 0);
+            if (stub_at) {
+                sw = stub_sw;
+            } else if (u) {
+                sw = (uint16_t)(u + main_len);   /* one hole: keep the parts together */
+            } else {
+                u = common_hole(rom, bank5, main_len, 0, 0);
+                sw = u ? common_hole(rom, bank5, sw_len, u, main_len) : 0;
+                if (!sw)
+                    u = 0;
             }
-            if (u >= 0xff00 - sizeof(stub)) {
+            if (!u) {
                 if (!dwr_packing())
                     dwr_no_room();
-                printf("No room for the credits song, keeping the original credits music.\n");
+                printf("No room for the credits song, so the stat scroll is silent.\n");
             } else {
-                stub[21] = LO8(u + 32);
-                stub[22] = HI8(u + 32);
-                stub[29] = LO8(u + 32);
-                stub[30] = HI8(u + 32);
-                patch(rom, u, sizeof(stub), stub);
-                memcpy(bank5 + (u - 0xc000), stub, sizeof(stub));
+                stub[21] = LO8(sw);
+                stub[22] = HI8(sw);
+                stub[29] = LO8(sw);
+                stub[30] = HI8(sw);
+                patch(rom, u, main_len, stub);
+                memcpy(bank5 + (u - 0xc000), stub, main_len);
+                patch(rom, sw, sw_len, stub + main_len);
+                memcpy(bank5 + (sw - 0xc000), stub + main_len, sw_len);
                 memset(start_at, 0xea, 14);
                 start_at[0] = 0xa9;
                 start_at[1] = REQUEST_CREDITS;
@@ -1298,6 +1428,31 @@ void custom_music_apply(dw_rom *rom)
 
 /* True when the loaded pack has a song for the credits. Then the built-in credits song is not added, so its
  * drum samples do not take the bank 5 room the custom credits song needs. */
+/* With a pack there is no built-in credits song (dwr.c). Unless a pack credits song was hooked in, the
+ * credits player would start on empty song data and crash, so the stat scroll stays silent instead. */
+void custom_music_apply(dw_rom *rom)
+{
+    static const uint8_t start[14] = {0xa9, 0x01, 0xa2, 0x00, 0xa0, 0x80,
+            0x20, LO8(CREDITS_FAMISTUDIO_INIT), HI8(CREDITS_FAMISTUDIO_INIT),
+            0xa9, 0x00, 0x20, LO8(CREDITS_FAMISTUDIO_PLAY), HI8(CREDITS_FAMISTUDIO_PLAY)};
+    static const uint8_t update[3] = {0x20, LO8(CREDITS_FAMISTUDIO_UPDATE), HI8(CREDITS_FAMISTUDIO_UPDATE)};
+    uint8_t *credits = &rom->expansion[0x4000];
+    uint8_t *start_at = credits + (CREDITS_MUSIC_START - 0x8000);
+    uint8_t *update_at = credits + (CREDITS_MUSIC_UPDATE - 0x8000);
+
+    apply_music(rom);
+    if (custom_music_has_pack() && !memcmp(start_at, start, sizeof(start)) && !memcmp(update_at, update, sizeof(update))) {
+        memset(start_at, 0xea, sizeof(start));
+        memset(update_at, 0xea, sizeof(update));
+        printf("No credits song: the stat scroll is silent.\n");
+    }
+}
+
+BOOL custom_music_has_pack(void)
+{
+    return song_count > 0 || pack_count > 0;
+}
+
 BOOL custom_music_has_credits(void)
 {
     static const char *const credits[4] = {"StatScroll", "OriginalCredits"};

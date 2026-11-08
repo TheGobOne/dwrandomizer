@@ -558,7 +558,9 @@ function songsFromPack(text){
    the song with only that slot's tag. A slot with no copy keeps the game's music.
    The same seed makes the same random choices. */
 /* Room per music bank, from gen_driver.py's output (FT_SONGS), and the randomizer's song limit. */
-const BANK_ROOM=8770, MAX_MUSIC_SONGS=24;
+const BANK_ROOM=8766, MAX_MUSIC_SONGS=24;
+/* Bank 5 ends below the reset vectors (PICK_ROOM5 in custom_music.c). */
+const BANK5_ROOM=8760, ROOMS=[BANK_ROOM,BANK_ROOM,BANK5_ROOM];
 /* The order custom_music_apply places songs in, which decides what fits. */
 const PLACE_ORDER=['StatScroll','Overworld','Encounter','Charlock','Cave','Town','Tantegel','Dragonlord','Title','OriginalCredits','CharlockFinalFloor','Hauksness'];
 /* Who gets first claim on the space when slots are on Random. */
@@ -601,16 +603,16 @@ function chosenPack(seed){
   const sz=i=>sizes[i]??(sizes[i]=moduleSize(items[i].it.data));
   /* What will be in the ROM so far. A pick must still fit when the randomizer places everything in its own order. */
   const placed=[];
-  const fits=(tag,size)=>{ const a=[...placed,{tag,size}], b=[0,0],
+  const fits=(tag,size)=>{ const a=[...placed,{tag,size}], b=[0,0,0],
       rank=e=>PLACE_ORDER.indexOf(e.tag);
     a.sort((x,y)=>rank(x)-rank(y));
-    return a.length<=MAX_MUSIC_SONGS&&a.every(e=>{ const k=b[0]+e.size<=BANK_ROOM?0:b[1]+e.size<=BANK_ROOM?1:-1; if(k<0) return false; b[k]+=e.size; return true; }); };
+    return a.length<=MAX_MUSIC_SONGS&&a.every(e=>{ const k=ROOMS.findIndex((r,j)=>b[j]+e.size<=r); if(k<0) return false; b[k]+=e.size; return true; }); };
   /* Songs that fit; while many slots remain, leave room for them by preferring songs near a fair share. */
   /* A song that stops would leave these places silent, so Random only gives them songs that loop. */
   const stops=State.pack.stops||(State.pack.stops={});
   const loops=i=>!(stops[i]??(stops[i]=moduleStops(items[i].it.data)));
   const choose=(list,tag,left,loop)=>{ let fit=list.filter(i=>sz(i)>=256&&fits(tag,sz(i))&&(!loop||loops(i))); if(!fit.length) return null;
-    const free=2*BANK_ROOM-placed.reduce((n,e)=>n+e.size,0), small=fit.filter(i=>sz(i)<=1.5*free/left), base=small.length?small:fit;
+    const free=ROOMS.reduce((n,r)=>n+r,0)-placed.reduce((n,e)=>n+e.size,0), small=fit.filter(i=>sz(i)<=1.5*free/left), base=small.length?small:fit;
     const on=base.filter(i=>items[i].it.enabled!==false), a=on.length?on:base, fresh=a.filter(i=>!used.has(i)), p=fresh.length?fresh:a, c=p[rnd(p.length)];
     used.add(c); placed.push({tag,size:sz(c)}); return c; };
   /* With Skip Original Credits the ending never plays, and the stat scroll takes only StatScroll songs (custom_music.c). */

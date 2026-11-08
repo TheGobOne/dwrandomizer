@@ -2816,8 +2816,9 @@ void setup_expansion(dw_rom *rom)
     bank_3_patch(rom);
     fill_expansion(rom);
 
-    /* A pack credits song takes the bank 5 room that the built-in song's drum samples would use. */
-    if (!custom_music_has_credits()) {
+    /* With a music pack, bank 5 holds pack songs, so the built-in credits song and its drum samples are left
+     * out: the stat scroll plays the pack's credits song, or the game's own credits music. */
+    if (!custom_music_has_pack()) {
         int track = mt_rand(0, track_count - 1);
         add_music(rom, track);
     }
@@ -2985,6 +2986,8 @@ static void discardable_flute(dw_rom *rom)
  */
 static void sellable_flute(dw_rom *rom)
 {
+    if (!DISCARDABLE_FLUTE(rom))
+        return;
     vpatch(rom, 0x1947 + 23 * 2, 2, 0x02, 0x00);
 }
 
@@ -3449,7 +3452,7 @@ void zoom_and_whistle(dw_rom *rom)
         0xad, ram_i & 0xff, (ram_i >> 8) & 0xff, 0x9d, LO(SLOT_RETURN), HI(SLOT_RETURN),
         0x60);
 
-	newcode = find_free_space(rom->content, 0xc82b, 181); // Starting address for new code
+	newcode = find_free_space(rom->content, 0xc82b, WARP_WHISTLE(rom) ? 181 : 121); // Starting address for new code
 	address = newcode;
 
     zoom_data[0][0] = 0x05; // Tantegel throne room
@@ -3575,6 +3578,8 @@ void zoom_and_whistle(dw_rom *rom)
         0x60                // RTS
     );
     address += code_size;
+    if (address - newcode > 121) /* the Return to Town part alone must fit the smaller request */
+        printf("Return to Town code is larger than reserved.\n");
 
 	if(!WARP_WHISTLE(rom))
 		return;
