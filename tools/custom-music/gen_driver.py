@@ -87,6 +87,9 @@ SONG=$6bfb
 WANT=$6bfc
 CUR=$6bfd
 G=$6bfe
+PEND=$6bf2
+SKIP=$6bf7
+DROPPED=$6bff
 .base {W}
 wrap:
 {swap_in} lda $03bf
@@ -100,6 +103,11 @@ wrap:
  sta WANT
  lda #1
  sta JG
+ ; The wait loop's counters sit in battery RAM, so they hold anything at power-on.
+ lda #0
+ sta PEND
+ sta SKIP
+ sta DROPPED
 ok:
  ; A new request is told apart by map once (the request hook used to do this in the fixed bank):
  ; Hauksness has its own song, the old man caves keep what was playing, and floors in a cave
@@ -143,6 +151,7 @@ noremap:
 newreq:
  cmp #$0e
  bne go
+ jsr quiet
  inc DELAY
  lda DELAY
  cmp #60
@@ -158,15 +167,7 @@ go:
  tax
  lda map,x
  bpl start
- ; Back to the game's own music: if a custom song was playing, silence it, or its last notes hang on
- ; (the game's songs never touch noise or DPCM). $4015 = $0F turns the four tone channels back on.
- ldy SONG
- bmi orig
- ldy #0
- sty $4015
- ldy #$0f
- sty $4015
-orig:
+ jsr quiet
  sta SONG
  lda WANT
  sta CUR
@@ -238,6 +239,18 @@ pl:
  jsr PLAY
 out:
 {swap_out} rts
+; Back to the game's own music (or the battle sting's wait): if a custom song was playing, silence it, or
+; its last notes hang on (the game's songs never touch noise or DPCM). $0F turns the four tone channels back
+; on. Keeps A.
+quiet:
+ ldy SONG
+ bmi quiet_out
+ ldy #0
+ sty $4015
+ ldy #$0f
+ sty $4015
+quiet_out:
+ rts
 ; Channels left on while a game sound effect plays, by effect number (SFX holds the request, $80 + n).
 ; $E7 for the effects that only use noise (bank 1's table at $8339: 0, 2, 3, 4, 7, 8, 10, 11, 18), so the
 ; song keeps square 2. $E5 (square 2 and noise off) for the rest, as the original game does for all.
