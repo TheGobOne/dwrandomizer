@@ -138,7 +138,9 @@
 #define UNGUARDED_OW_SEARCHSPOT(x)((x->flags[22] & 0x80) >> 7) // 1
 #define LEVEL_1_REPEL(x)          ((x->flags[22] & 0x40) >> 6) // 1
 #define FAST_FLUTE(x)             (!((x->flags[22] & 0x20) >> 5)) // 1, stored inverted so every older code keeps its flute
-#define HINTS(x)                  ((x->flags[22] & 0x18) >> 3) // 2: vanilla, corrected, useful, one of the above
+#define HINTS(x)                  ((x->flags[22] & 0x08) >> 3) // 1: vanilla, corrected
+/* Hints once kept 0x10 for a third choice that was never made. No site ever set it, so old codes read the same. */
+#define AUTO_STAIRS(x)            ((x->flags[22] & 0x10) >> 4) // 1
 #define NORMALIZED_XP_GOLD(x)     ((x->flags[22] & 0x06) >> 1) // 2
 #define WINTER_THEME(x)           ((x->flags[22] & 0x01)     ) // 1
 

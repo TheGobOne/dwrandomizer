@@ -2,14 +2,15 @@
 """Assembles the Dn-FamiTracker driver and wrapper into common/ft_driver.h.
 Usage: gen_driver.py CC65_BIN_DIR ASM6F_EXE (run from a scratch directory)
 
-Layout of a music bank (banks 6, 3 and 5 hold identical copies):
+Layout of a music bank (banks 6, 3, 5 and 4 hold identical copies; bank 4 also holds the credits code
+  at $A000, so its songs go below and above that):
   $8000-$80ff  left free (bank 3 uses it; banks 4 and 6 hold the credits hook at $8000-$8033)
   $8100-       driver, wrapper and tables
   FT_SONGS-    song data, different per bank
 
 A song's high address byte in the hi table carries its bank in bits 7-6, since songs sit at $80xx-$BFxx:
-  %10 bank 6, %11 bank 3, %00 bank 5. The wrapper turns that into BANKSEL ($00 bank 6, $40 bank 3,
-  $80 bank 5; 0 is bank 6 so a cleared selector is safe) and rebuilds the address with and #$3f, ora #$80.
+  %10 bank 6, %11 bank 3, %00 bank 5, %01 bank 4. The wrapper turns that into BANKSEL ($00 bank 6,
+  $40 bank 3, $80 bank 5, $C0 bank 4; 0 is bank 6 so a cleared selector is safe) and rebuilds the address with and #$3f, ora #$80.
 """
 import os, re, subprocess, sys
 

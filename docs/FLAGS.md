@@ -71,6 +71,11 @@ When the Dragonlord's second form dies, Return is cast for you and you arrive in
 On the overworld, walking, the command window and pause answer a press at once instead of waiting up to 15 frames. In towns and dungeons a short press is kept until the game can act on it, because NPCs move in time with that wait. A button newly pressed during a step is kept for when the step ends. Very full ROMs may not build with it on. It is part of the checksum. Command line: `--responsive-controls on`.
 
 
+#### Auto Stairs ####
+
+Stepping onto stairs takes them at once, the way stepping onto a town enters it, so there is no need to open the command window and choose `STAIRS`. It happens before any fight check on that step. Arriving on stairs, from other stairs or a warp, does nothing until you step off and back on. Charlock's hidden stairs work once you have found them by searching, and then you step off and back on. The `STAIRS` command still works, and Stair Shuffle is followed. It is part of the checksum. Command line: `--auto-stairs on`.
+
+
 #### Free Charlock ####
 
 Entering Charlock from the overworld puts you beside the Dragonlord and starts the fight, with no dialogue. Run away and you stay in his room; the fight starts by itself again only after you leave and come back. Short Charlock, Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. On a very full ROM the build stops, as it does for other flags that need space. It is part of the checksum, along with Auto Return. Command line: `--free-charlock on`.
@@ -407,6 +412,7 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--encounters` | `default`, `low`, `medium`, `high` |
 | `--quick-spell` | `on` |
 | `--key-herb` | `on`: adds a keys and herbs row to the stats window |
+| `--auto-stairs` | `on`: stepping onto stairs takes them |
 | `--spoiler` | `on`: writes a `.spoiler.txt` next to the ROM, without changing the checksum |
 
 Most of these also exist as options on the website. `--spoiler` is a command line option only.
