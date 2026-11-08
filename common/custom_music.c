@@ -307,8 +307,7 @@ static void swap_squares(uint8_t *d)
 
 /* Songs with these tags only play for that event. */
 static const char *const reserved_tags[] = {
-    "SilverHarp", "FairyFlute", "RainbowBridge", "Death", "Dying", "PlayerDeath", "Inn",
-    "Gwaelin", "Cursed", "Victory", "LevelUp", "OriginalCredits", "StatScroll",
+    "OriginalCredits", "StatScroll",
     "CharlockFinalFloor", "DragonlordRoom", "Hauksness", NULL
 };
 
@@ -671,21 +670,12 @@ typedef struct {
     const char *tags[4];
 } event_t;
 
-#define EVENT_COUNT 13
+#define EVENT_COUNT 4
 static const event_t events[EVENT_COUNT] = {
     {"Credits",     REQUEST_CREDITS, {"StatScroll", "OriginalCredits"}},
     {"Ending",      0x10, {"OriginalCredits"}},
     {"Final floor", 0x0d, {"CharlockFinalFloor", "DragonlordRoom"}},
     {"Hauksness",   REQUEST_HAUKSNESS, {"Hauksness"}},
-    {"Silver harp", 0x11, {"SilverHarp"}},
-    {"Fairy flute", 0x12, {"FairyFlute"}},
-    {"Bridge",      0x13, {"RainbowBridge"}},
-    {"Death",       0x14, {"Death", "Dying", "PlayerDeath"}},
-    {"Inn",         0x15, {"Inn"}},
-    {"Gwaelin",     0x16, {"Gwaelin"}},
-    {"Cursed",      0x17, {"Cursed"}},
-    {"Victory",     0x19, {"Victory"}},
-    {"Level up",    0x1a, {"LevelUp"}},
 };
 
 /* ------------------------------------------------------------ choosing like the site */
@@ -888,9 +878,24 @@ static int pick_choose(const char *const *list, const char *tag, int left, BOOL 
 }
 
 /* Fills songs with one copy per slot, tagged for that slot only. */
+/* With Skip Original Credits the ending never plays, so its slot is left out, and the stat scroll
+ * slot takes only StatScroll songs (the same as the site). */
+static const char *const stat_only_tags[4] = {"StatScroll", NULL, NULL, NULL};
+
+static BOOL slot_skipped(const pick_slot_t *slot, BOOL skip)
+{
+    return skip && strcmp(slot->tags[0], "OriginalCredits") == 0 && slot->tags[1] == NULL;
+}
+
+static const char *const *slot_tags(const pick_slot_t *slot, BOOL skip)
+{
+    return skip && strcmp(slot->tags[0], "StatScroll") == 0 ? stat_only_tags : slot->tags;
+}
+
 static void pick_like_site(dw_rom *rom)
 {
     int chosen[PICK_SLOTS], order[PICK_SLOTS], random_slots = 0, i, j, k, pass, left;
+    BOOL skip = SKIP_VANILLA_CREDITS(rom) != 0;
 
     if (!pack_count) {
         pack_count = song_count;
@@ -910,8 +915,10 @@ static void pick_like_site(dw_rom *rom)
 
     for (i = 0; i < PICK_SLOTS; i++) {
         chosen[i] = -1;
+        if (slot_skipped(&pick_slots[i], skip))
+            continue;
         for (j = 0; j < pack_count; j++) {
-            if (pack_has(&pack[j], pick_slots[i].tags)) {
+            if (pack_has(&pack[j], slot_tags(&pick_slots[i], skip))) {
                 order[random_slots++] = i;
                 break;
             }
@@ -930,9 +937,9 @@ static void pick_like_site(dw_rom *rom)
         const pick_slot_t *slot = &pick_slots[s];
         BOOL own = FALSE;
         for (j = 0; j < pack_count; j++)
-            own = own || pack_has(&pack[j], slot->tags);
+            own = own || pack_has(&pack[j], slot_tags(slot, skip));
         if (own)
-            c = pick_choose(slot->tags, slot->tags[0], left, slot->location);
+            c = pick_choose(slot_tags(slot, skip), slot->tags[0], left, slot->location);
         if (c < 0 && slot->location)
             c = pick_choose(NULL, slot->tags[0], left, TRUE);
         chosen[s] = c;
@@ -1070,7 +1077,7 @@ void custom_music_apply(dw_rom *rom)
         static const char *const credits_only[4] = {"StatScroll"};
         int found = pick(credits_only, TRUE, next, TRUE);
         if (found < 0) found = pick(credits_only, FALSE, next, TRUE);
-        if (found < 0 && count_tagged(events[1].tags) >= 2) {
+        if (found < 0 && !SKIP_VANILLA_CREDITS(rom) && count_tagged(events[1].tags) >= 2) {
             found = pick(events[1].tags, TRUE, next, TRUE);
             if (found < 0) found = pick(events[1].tags, FALSE, next, TRUE);
         }
@@ -1094,9 +1101,11 @@ void custom_music_apply(dw_rom *rom)
         }
     }
     for (i = 1; i < EVENT_COUNT; i++) {
+        event_song[i] = -1;
+        if (events[i].request == 0x10 && SKIP_VANILLA_CREDITS(rom)) /* the ending never plays */
+            continue;
         int found = pick(events[i].tags, TRUE, next, TRUE);
         if (found < 0) found = pick(events[i].tags, FALSE, next, TRUE);
-        event_song[i] = -1;
         if (found >= 0 && place(&songs[found], next, order, &placed, found)) {
             event_song[i] = placed - 1;
             printf("  %-12s %s (%u bytes, bank %d)\n", events[i].name, songs[found].title,
@@ -1285,4 +1294,20 @@ void custom_music_apply(dw_rom *rom)
         }
     }
 
+}
+
+/* True when the loaded pack has a song for the credits. Then the built-in credits song is not added, so its
+ * drum samples do not take the bank 5 room the custom credits song needs. */
+BOOL custom_music_has_credits(void)
+{
+    static const char *const credits[4] = {"StatScroll", "OriginalCredits"};
+    int i;
+
+    for (i = 0; i < song_count; i++)
+        if (has_tag(&songs[i], credits))
+            return TRUE;
+    for (i = 0; i < pack_count; i++)
+        if (has_tag(&pack[i], credits))
+            return TRUE;
+    return FALSE;
 }

@@ -107,6 +107,11 @@ static void update_flags(dw_rom *rom)
         rom->flags[13] &= 0x3f;
         rom->flags[13] |= mt_rand(0, 2) << 6;
     }
+    /* Biome "Random" is $22 in this byte on the site: pick one of the four biomes. */
+    if ((rom->flags[2] & 0x22) == 0x22) {
+        const int b = mt_rand(0, 3);
+        rom->flags[2] = (uint8_t)((rom->flags[2] & ~0x33) | ((b & 2) << 3) | (b & 1));
+    }
 
     // Tristates / "One of the above"s  group of 5's #         same       bitmask  nbOptions-1  back to bitmask   --   all but bitmask
     if(INN_IN_CHARLOCK(rom) == 2)       rom->flags[15] = (rom->flags[15] | 0xc0) & ((mt_rand(0, 1) << 6) | 0x3f);
@@ -1873,7 +1878,7 @@ static void key_herb_counter(dw_rom *rom)
 
     if (!KEY_HERB_COUNTER(rom))
         return;
-    window = find_free_space(rom->content, 0xc422, 4 + rows + (DEATH_COUNTER(rom) ? 2 : 0) + 5);
+    window = find_free_space(rom->content, 0xc422, 4 + rows + (DEATH_COUNTER(rom) ? 2 : 0) + 6);
     w = window;
 
     /* The window starts one block higher, so its bottom stays clear of the battle text. */
@@ -1885,7 +1890,7 @@ static void key_herb_counter(dw_rom *rom)
         vpatch(rom, w, 2, 0x27, 0x99);            /* D nnnnn */
         w += 2;
     }
-    vpatch(rom, w, 5, 0x2e, 0x9a, 0x82, 0x2b, 0x9b); /* K n  H n, with n under the other numbers */
+    vpatch(rom, w, 6, 0x2e, 0x9a, 0x2b, 0x9b, 0x29, 0x9c); /* KnHnFn on the bottom row, in the same width */
     vpatch(rom, 0x6f6c, 2, LO(window), HI(window));
 
     /* The cleanup after a fight only clears the area under the original window.
@@ -1897,13 +1902,20 @@ static void key_herb_counter(dw_rom *rom)
     vpatch(rom, 0xee7d, 5, 0x20, LO(e), HI(e), 0xea, 0xea);
 
     /* Codes $9A and $9B share the gold code's slot, so they arrive at its hook. */
-    c = find_free_space(rom->content, 0xc422, 22);
-    vpatch(rom, c, 22,
+    c = find_free_space(rom->content, 0xc422, 57);
+    vpatch(rom, c, 57,
         0xad, 0xdf, 0x64, 0xc9, 0x02, 0xb0, 0x03, /* gold or deaths: the old code */
         0x4c, LO(chain), HI(chain),
         0xaa, 0xa9, 0x01, 0x8d, 0xe2, 0x64,       /* one digit */
+        0xe0, 0x04, 0xf0, 0x06,                   /* code $9C: fairy waters */
         0xb5, 0xbd, 0x8d, 0xca, 0x64,             /* $BF keys, $C0 herbs */
-        0x60);
+        0x60,
+        /* count the fairy waters (item 2) in the eight inventory nibbles at $C1-$C4 */
+        0xa0, 0x00, 0xa2, 0x03,
+        0xb5, 0xc1, 0x29, 0x0f, 0xc9, 0x02, 0xd0, 0x01, 0xc8,
+        0xb5, 0xc1, 0x4a, 0x4a, 0x4a, 0x4a, 0xc9, 0x02, 0xd0, 0x01, 0xc8,
+        0xca, 0x10, 0xe9,
+        0x8c, 0xca, 0x64, 0x60);
     vpatch(rom, 0x6378, 3, 0x20, LO(c), HI(c));
 }
 
@@ -2374,6 +2386,10 @@ static void dwr_speed_hacks(dw_rom *rom)
         vpatch(rom, 0x7a33, 3, 0xea, 0xea, 0xea);
     }
 
+    /* The faster Fairy Flute song, on its own flag: with or without Speed Hacks. */
+    if (FAST_FLUTE(rom))
+        speed_up_flute_song(rom);
+
     if (!SPEED_HACKS(rom))
         return;
 
@@ -2403,9 +2419,6 @@ static void dwr_speed_hacks(dw_rom *rom)
     vpatch(rom, 0x471a, 1, 1);
     vpatch(rom, 0x471c, 1, 1);
     vpatch(rom, 0x471e, 1, 1);
-    /* speed up the fairy flute */
-    if(!NORMAL_FLUTE_SPEED(rom))
-        speed_up_flute_song(rom);
     /* speed up the inn music */
     vpatch(rom, 0x46d4, 1, 1);
     vpatch(rom, 0x46d6, 1, 1);
@@ -2803,8 +2816,11 @@ void setup_expansion(dw_rom *rom)
     bank_3_patch(rom);
     fill_expansion(rom);
 
-    int track = mt_rand(0, track_count - 1);
-    add_music(rom, track);
+    /* A pack credits song takes the bank 5 room that the built-in song's drum samples would use. */
+    if (!custom_music_has_credits()) {
+        int track = mt_rand(0, track_count - 1);
+        add_music(rom, track);
+    }
 }
 
 

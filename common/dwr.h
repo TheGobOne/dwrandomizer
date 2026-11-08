@@ -137,7 +137,7 @@
 
 #define UNGUARDED_OW_SEARCHSPOT(x)((x->flags[22] & 0x80) >> 7) // 1
 #define LEVEL_1_REPEL(x)          ((x->flags[22] & 0x40) >> 6) // 1
-#define NORMAL_FLUTE_SPEED(x)     ((x->flags[22] & 0x20) >> 5) // 1
+#define FAST_FLUTE(x)             (!((x->flags[22] & 0x20) >> 5)) // 1, stored inverted so every older code keeps its flute
 #define HINTS(x)                  ((x->flags[22] & 0x18) >> 3) // 2: vanilla, corrected, useful, one of the above
 #define NORMALIZED_XP_GOLD(x)     ((x->flags[22] & 0x06) >> 1) // 2
 #define WINTER_THEME(x)           ((x->flags[22] & 0x01)     ) // 1

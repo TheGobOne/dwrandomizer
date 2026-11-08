@@ -76,9 +76,9 @@ On the overworld, walking, the command window and pause answer a press at once i
 Entering Charlock from the overworld puts you beside the Dragonlord and starts the fight, with no dialogue. Run away and you stay in his room; the fight starts by itself again only after you leave and come back. Short Charlock, Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. On a very full ROM the build stops, as it does for other flags that need space. It is part of the checksum, along with Auto Return. Command line: `--free-charlock on`.
 
 
-#### Show Key & Herb Counter ####
+#### Show Key, Herb & Fairy Water Counter ####
 
-Adds a keys and herbs row to the stats window. Command line: `--key-herb on`.
+Adds a row to the bottom of the stats window that reads `KnHnFn`: keys, herbs and fairy waters. Command line: `--key-herb on`.
 
 
 #### Disable Screen Shake ####
@@ -93,9 +93,8 @@ Pick a pack in the Custom Music Pack option on the website, or pass `--music pac
 Scene tags: `Title`, `Tantegel`, `Town`, `Overworld`, `Charlock`, `Cave`, `Encounter`, `Dragonlord`, `CharlockFinalFloor`, `Hauksness`.
 One `Charlock` song plays on all seven floors of Charlock, to save music space. `CharlockFinalFloor` and `Hauksness` use it if they have no song of their own. `Cave` plays in Erdrick's Cave, the mountain cave, Garin's Grave and the swamp cave; without a `Cave` song those keep the game's own floor music. The old man caves (the Tantegel basement and the shrines) have no song of their own: whatever was playing keeps playing, so the overworld song from an overworld tile, or the town or cave song when the cave is joined to one.
 
-Event tags: `StatScroll` (stat scroll), `OriginalCredits` (original credits, or the stat scroll if the pack has two; with Skip Original Credits on the stat scroll plays only its own `StatScroll` track), `SilverHarp`, `FairyFlute`, `RainbowBridge`, `Death`, `Inn`, `Gwaelin`, `Cursed`, `Victory`, `LevelUp`. A song with an event tag is used only for that event.
+Event tags: `StatScroll` (stat scroll), `OriginalCredits` (original credits, or the stat scroll if the pack has two; with Skip Original Credits on the stat scroll plays only its own `StatScroll` track). A song with an event tag is used only for that event. Jingles always play the game's own music.
 
-On the website, Custom Jingles shows how long the game's own jingle runs (for example the Inn jingle is 2.63 s) and how long each track is, to 0.01 s, so you can pick one of the same length. Tracks that never stop are marked "loops". A jingle slot on Random picks a track close to the game's length, and prefers tracks that stop on their own.
 
 
 ## Inherited from the fork ##
@@ -271,7 +270,7 @@ King Lorik is feeling fair today and will let you keep your hard-earned gold whe
 
 #### Show Death Counter ####
 
-Adds a row to the stats window showing how many times you've died. With Show Key & Herb Counter on as well, the keys and herbs row sits under it.
+Adds a row to the stats window showing how many times you've died. With Show Key, Herb & Fairy Water Counter on as well, that row sits under it.
 
 
 #### Step Counter ####
@@ -304,9 +303,9 @@ The amount of gold that gold chests hold can now be modified.
 Gwaelin might not be in her usual Swamp Cave today. Look for her in [one of these](https://juef.free.nf/dwr/random_princess_location/) locations (or in her vanilla spot). If `Stair Shuffle` is on, she is only placed where she can be reached without going through Charlock.
 
 
-#### Normal Flute Speed ####
+#### Fast Flute ####
 
-When On, this flag will ensure that `Speed Hacks` does not speed up the flute music.
+The Fairy Flute music plays much faster (about 0.7 seconds, down from 4.5), with or without `Speed Hacks`. `Speed Hacks` no longer speeds the flute on its own. Older flag codes keep their flute: the old `Normal Flute Speed` bit is this flag turned off.
 
 
 #### Hints ####
