@@ -18,21 +18,23 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 | **Auto Return** | Winning against the Dragonlord returns you to Tantegel. |
 | **Free Charlock** | Entering Charlock starts the Dragonlord fight at once. |
 | **Quick Spell** | A battle command that casts your last spell again. |
-| **Show Key & Herb Counter** | Keys and herbs shown in the stats window, under the deaths row if Show Death Counter is on. |
+| **Show Key, Herb & Fairy Water Counter** | Keys, herbs and fairy waters on the bottom row of the stats window. |
 | **Disable Screen Shake** | Keeps the screen still when you take damage. |
+| **Auto Stairs** | Stepping onto stairs takes them right away, with no STAIRS command. |
+| **Responsive Controls** | Short presses are no longer missed; on the overworld, walking and the command window answer at once. |
+| **Fast Flute** | The Fairy Flute music plays much faster, with or without Speed Hacks. |
+| **DK Flute** | With a full inventory, the flute can be dropped for a new item, or sold to a shop for 1 gold. |
 | **Website** | A single-page generator with the options grouped into tabs. |
 
 Details, tables and the older fork features are in [docs/FLAGS.md](docs/FLAGS.md).
 
 ## You need
 
-A **vanilla Dragon Warrior (NES) ROM that you supply yourself**. No ROMs are included or distributed. The website accepts an uncompressed `.nes` file of at least 81,936 bytes with an iNES header.
+A **vanilla Dragon Warrior (NES) ROM that you supply yourself**. No ROMs are included or distributed. The randomizer needs an iNES `.nes` file with four program banks, at least 81,936 bytes.
 
 ## Use it
 
 ### Website
-
-Hosted site: *(placeholder: no public URL yet, the repository is private)*
 
 The generator is the static page in [`site/`](site/) (`index.html` plus `dwrandomizer.js` and `dwrandomizer.wasm`). Choose your ROM, pick options, press generate, and it saves a patched `.nes`. Everything runs in the browser through WebAssembly. Phone play is not supported.
 
@@ -44,7 +46,7 @@ What the page adds on top of the options:
 
 ### Command line
 
-Build with CMake (verified here on Windows with Ninja; any C toolchain should work):
+Build with CMake and a C compiler (checked on Windows with Ninja and GCC):
 
 ```sh
 cmake -S . -B build
