@@ -1022,8 +1022,8 @@ static void pick_like_site(dw_rom *rom)
 }
 
 /* Run the driver from the game's own wait loop (at $FF74) instead of only from the NMI.
- * The NMI counts a pending tick. The wait runs one tick and drops any others: a frame the game was too
- * busy to wait in skips its music step instead of making the next frame later still.
+ * The NMI counts a pending tick. The wait runs one tick and leaves the others for later waits (or for the
+ * NMI, once three are pending), so the music keeps its speed when the game misses frames.
  * The tick runs right after the NMI, never just before it: the game's NMI resets the console if it lands
  * on a bank switch while the game waits, and the next NMI is a whole frame away.
  * Code that never calls the wait (three frames without it) gets its ticks from the NMI. */
@@ -1035,7 +1035,7 @@ static void pick_like_site(dw_rom *rom)
 #define MW_PEND 0x6bf2
 #define MW_RUNNING 0x6bf3
 #define MW_INWAIT 0x6bf4
-#define MW_SKIP 0x6bf7 /* set when the game missed a frame: the next wait skips the music once */
+#define MW_SKIP 0x6bf7 /* set when the game missed a frame: the next wait puts its tick off */
 #define MW_TH 3
 #define MW_BANKSEL RAM_BANKSEL
 static void music_wait_loop(dw_rom *rom, uint16_t frame)
@@ -1045,7 +1045,7 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
     uint8_t *k = rom->content;
     uint8_t c[48], c2[20], code[128];
     int h2, chk, w;
-    int n = 0, n1, n2, beq, beq2, spin;
+    int n = 0, n1, n2, beq, beq2, spin, skipj, stepj;
 
     if (memcmp(k + 0xff74, wait_in, 9) || memcmp(k + 0xfe55, overrun_in, 3)) {
         printf("Music wait loop not recognized, keeping the frame music.\n");
@@ -1066,8 +1066,8 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
     n1 = n;
 
     /* 2. Overrun path of the NMI: while the game waits for a frame, take the full path. Otherwise the game
-     * missed this frame: note it, so the next wait skips the music once and the game can catch up instead
-     * of missing frames in a row. */
+     * missed this frame: note it, so the next wait puts its tick off and the game can catch up instead
+     * of missing frames in a row. The tick still plays later. */
     n = 0;
     c2[n++] = 0xad; c2[n++] = LO8(MW_INWAIT); c2[n++] = HI8(MW_INWAIT);
     c2[n++] = 0xf0; c2[n++] = 3;
@@ -1084,16 +1084,24 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
     n = 0;
 #define EMIT(...) do { const uint8_t e_[] = {__VA_ARGS__}; memcpy(code + n, e_, sizeof(e_)); n += sizeof(e_); } while (0)
     EMIT(0xa9, 0x01, 0x85, 0x02, 0x8d, LO8(MW_INWAIT), HI8(MW_INWAIT));  /* lda #1; sta $02; sta INWAIT */
-    EMIT(0xad, LO8(MW_SKIP), HI8(MW_SKIP), 0xf0, 0x0a);                 /* lda SKIP; beq run (skips the next 10 bytes) */
+    /* Only a wait in the middle of a step drops its tick, since walking is where a late frame shows. The
+     * hero is between tiles then: the low 4 bits of the pixel position ($90 x, $92 y) are not 0. Text,
+     * menus and battles happen on a tile, so their music keeps its speed: the tick plays a frame later.
+     * (Battles, text and walking wait from the same routines, so the caller cannot tell them apart.) */
+    skipj = n; EMIT(0xad, LO8(MW_SKIP), HI8(MW_SKIP), 0xf0, 0);         /* lda SKIP; beq run */
     EMIT(0xa9, 0x00, 0x8d, LO8(MW_SKIP), HI8(MW_SKIP));                 /* lda #0; sta SKIP */
-    EMIT(0x8d, LO8(MW_PEND), HI8(MW_PEND));                             /* sta PEND: drop this frame's tick */
+    EMIT(0xa5, 0x90, 0x05, 0x92, 0x29, 0x0f);                           /* lda $90; ora $92; and #$0f */
+    stepj = n; EMIT(0xf0, 0);                                           /* beq run: on a tile; drop: */
+    EMIT(0xa9, 0x00, 0x8d, LO8(MW_PEND), HI8(MW_PEND));                 /* lda #0; sta PEND: drop this frame's tick */
     beq2 = n; EMIT(0xf0, 0);                                            /* beq spin (always) */
+    code[skipj + 4] = (uint8_t)(n - (skipj + 5));
+    code[stepj + 1] = (uint8_t)(n - (stepj + 2));
     EMIT(0xad, LO8(MW_PEND), HI8(MW_PEND));                             /* run: lda PEND */
     beq = n; EMIT(0xf0, 0);                                             /* beq spin */
     EMIT(0x08, 0x8a, 0x48, 0x98, 0x48);                                 /* php txa pha tya pha */
     EMIT(0xad, 0x04, 0x60, 0x48);                                       /* lda $6004; pha */
     EMIT(0xee, LO8(MW_RUNNING), HI8(MW_RUNNING));                       /* inc RUNNING: it is 0 here */
-    EMIT(0xa9, 0x00, 0x8d, LO8(MW_PEND), HI8(MW_PEND));                 /* lda #0; sta PEND: one tick, drop the rest */
+    EMIT(0xce, LO8(MW_PEND), HI8(MW_PEND));                             /* dec PEND: one tick now, the rest later */
     EMIT(0xad, LO8(MW_BANKSEL), HI8(MW_BANKSEL), BANK_SELECT);
     EMIT(0x20, 0x91, 0xff);                                             /* jsr $ff91 (sets $6004) */
     EMIT(0x20, LO8(FT_WRAP), HI8(FT_WRAP));                             /* jsr wrap */
