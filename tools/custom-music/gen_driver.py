@@ -138,7 +138,9 @@ nb:
 noremap:
  lda WANT
  cmp CUR
- beq same
+ bne newreq
+ jmp same
+newreq:
  cmp #$0e
  bne go
  inc DELAY
@@ -156,6 +158,15 @@ go:
  tax
  lda map,x
  bpl start
+ ; Back to the game's own music: if a custom song was playing, silence it, or its last notes hang on
+ ; (the game's songs never touch noise or DPCM). $4015 = $0F turns the four tone channels back on.
+ ldy SONG
+ bmi orig
+ ldy #0
+ sty $4015
+ ldy #$0f
+ sty $4015
+orig:
  sta SONG
  lda WANT
  sta CUR

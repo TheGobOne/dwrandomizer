@@ -559,10 +559,10 @@ function songsFromPack(text){
    the song with only that slot's tag. A slot with no copy keeps the game's music.
    The same seed makes the same random choices. */
 /* Room per music bank, from gen_driver.py's output (FT_SONGS), and the randomizer's song limit. */
-const BANK_ROOM=8663, MAX_MUSIC_SONGS=24;
+const BANK_ROOM=8645, MAX_MUSIC_SONGS=24;
 /* Bank 5 ends below the reset vectors; bank 4 holds songs below and above the credits code
    (pick_room in custom_music.c). */
-const BANK5_ROOM=8657, BANK4_LOW=471, BANK4_HIGH=3104, ROOMS=[BANK_ROOM,BANK_ROOM,BANK5_ROOM,BANK4_LOW,BANK4_HIGH];
+const BANK5_ROOM=8639, BANK4_LOW=453, BANK4_HIGH=3104, ROOMS=[BANK_ROOM,BANK_ROOM,BANK5_ROOM,BANK4_LOW,BANK4_HIGH];
 /* The order custom_music_apply places songs in, which decides what fits. */
 const PLACE_ORDER=['StatScroll','Overworld','Encounter','Charlock','Cave','Town','Tantegel','Dragonlord','Title','OriginalCredits','CharlockFinalFloor','Hauksness'];
 /* Who gets first claim on the space when slots are on Random. */
