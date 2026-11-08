@@ -4042,13 +4042,13 @@ static void auto_stairs(dw_rom *rom)
 
     if (!AUTO_STAIRS(rom))
         return;
-    c = dwr_try_free_space(rom->content, FIXED_FREE_START, 21);
+    c = dwr_try_free_space(rom->content, FIXED_FREE_START, 29);
     if (c < 0) {
         printf("No room for Auto Stairs.\n");
         dwr_no_room();
     }
     printf("Taking stairs automatically...\n");
-    vpatch(rom, c, 21,
+    vpatch(rom, c, 29,
         0xc9, 0x07,       /*   cmp #$07 : below towns, look for stairs     */
         0x90, 0x03,       /*   bcc stairs                                  */
         0x4c, 0xb8, 0xcd, /*   jmp $cdb8 : the game's own town check       */
@@ -4056,8 +4056,13 @@ static void auto_stairs(dw_rom *rom)
         0xc9, 0x03,       /*   cmp #$03 : stairs up                        */
         0xf0, 0x04,       /*   beq take                                    */
         0xc9, 0x05,       /*   cmp #$05 : stairs down                      */
-        0xd0, 0x03,       /*   bne done                                    */
-        0x4c, 0xaf, 0xd9, /* take: jmp $d9af : the STAIRS command          */
+        0xd0, 0x0b,       /*   bne done                                    */
+        0xad, 0x0d, 0x68, /* take: lda $680d : Responsive Controls keeps   */
+        0x29, 0xfe,       /*   and #$fe : the presses made during the step */
+        0x8d, 0x0d, 0x68, /*   sta $680d : and adds them to the pad after  */
+                          /*   it. Drop only A, which would open the menu  */
+                          /*   after the stairs; directions still carry.   */
+        0x4c, 0xaf, 0xd9, /*   jmp $d9af : the STAIRS command              */
         0x4c, 0xbf, 0xcd  /* done: jmp $cdbf                               */
     );
     /* Was: cmp #$07 : bcc $cdbf | $CDB8: cmp #$0a : bcs $cdbf : jmp $d941 (enter the town). Only the first
