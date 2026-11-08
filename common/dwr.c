@@ -2759,11 +2759,14 @@ void setup_expansion(dw_rom *rom)
     bank_3_patch(rom);
     fill_expansion(rom);
 
-    /* With a music pack, bank 5 holds pack songs, so the built-in credits song and its drum samples are left
-     * out: the stat scroll plays the pack's credits song, or the game's own credits music. */
-    if (!custom_music_has_pack()) {
+    /* The built-in credits song. With a music pack, bank 5 holds pack songs, so it is only added if the pack's
+     * music does not go in (custom_music_apply). It is drawn either way, so seeds keep their other results. */
+    {
         int track = mt_rand(0, track_count - 1);
-        add_music(rom, track);
+        if (!custom_music_has_pack())
+            add_music(rom, track);
+        else
+            custom_music_set_credits_fallback(track);
     }
 }
 

@@ -93,7 +93,7 @@ Pick a pack in the Custom Music Pack option on the website, or pass `--music pac
 Scene tags: `Title`, `Tantegel`, `Town`, `Overworld`, `Charlock`, `Cave`, `Encounter`, `Dragonlord`, `CharlockFinalFloor`, `Hauksness`.
 One `Charlock` song plays on all seven floors of Charlock, to save music space. `CharlockFinalFloor` and `Hauksness` use it if they have no song of their own. `Cave` plays in Erdrick's Cave, the mountain cave, Garin's Grave and the swamp cave; without a `Cave` song those keep the game's own floor music. The old man caves (the Tantegel basement and the shrines) have no song of their own: whatever was playing keeps playing, so the overworld song from an overworld tile, or the town or cave song when the cave is joined to one.
 
-Event tags: `StatScroll` (stat scroll), `OriginalCredits` (original credits, or the stat scroll if the pack has two; with Skip Original Credits on the stat scroll plays only its own `StatScroll` track). A song with an event tag is used only for that event. Jingles always play the game's own music.
+Event tags: `StatScroll` (stat scroll), `OriginalCredits` (original credits, or the stat scroll if the pack has two; with Skip Original Credits on the stat scroll plays only its own `StatScroll` track). A song with an event tag is used only for that event. Jingles always play the game's own music. With a pack loaded, the built-in random credits song is left out so music bank 5 can hold pack songs: the stat scroll plays the pack's `StatScroll` song, or is silent without one. If the pack's music does not fit at all, the built-in credits song comes back.
 
 
 

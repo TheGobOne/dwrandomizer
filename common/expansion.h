@@ -42,10 +42,10 @@ enum subroutine {
 };
 
 #define CREDITS_MUSIC_START 0xA04D
-#define CREDITS_MUSIC_UPDATE 0xAA64
-#define CREDITS_FAMISTUDIO_INIT 0xAA76
-#define CREDITS_FAMISTUDIO_PLAY 0xAB39
-#define CREDITS_FAMISTUDIO_UPDATE 0xAC12
+#define CREDITS_MUSIC_UPDATE 0xAA74
+#define CREDITS_FAMISTUDIO_INIT 0xAA86
+#define CREDITS_FAMISTUDIO_PLAY 0xAB49
+#define CREDITS_FAMISTUDIO_UPDATE 0xAC22
 
 void add_hook(dw_rom *rom, enum hooktype type, uint16_t address,
         enum subroutine to_addr);

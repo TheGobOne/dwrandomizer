@@ -12,6 +12,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "credit_music.h"
 #include "custom_music.h"
 #include "dwr.h"
 #include "expansion.h"
@@ -625,7 +626,7 @@ static BOOL has_tag(const song_t *s, const char *const tags[4])
 }
 
 /* Music banks in placement order: 6, 3, and 5 when it is free. Bank 5 ends below the reset vectors,
- * and below the credits hook when that is kept there. */
+ * The credits hook is at $8000 in banks 4 and 6, below the driver. */
 #define MUSIC_BANKS 3
 static int music_bank_count = 2;
 static uint16_t music_bank_end[MUSIC_BANKS] = {0xc000, 0xc000, 0xbffa};
@@ -711,7 +712,7 @@ static const event_t events[EVENT_COUNT] = {
  * all dungeon floors, so the same seed and pack give the same music. This mirrors chosenPack in
  * site/index.html: change the two together. */
 #define PICK_ROOM (0xc000 - FT_SONGS)
-/* Bank 5 ends below the reset vectors. The credits hook may take a little more; then a song is left out. */
+/* Bank 5 ends below the reset vectors. */
 #define PICK_ROOM5 (0xbffa - FT_SONGS)
 
 static BOOL choose_like_site = FALSE;
@@ -1091,7 +1092,7 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
     patch(rom, 0xff74, 3, (uint8_t[]){0x4c, LO8(w), HI8(w)});
 }
 
-static void apply_music(dw_rom *rom)
+static BOOL apply_music(dw_rom *rom)
 {
     static const int banks[MUSIC_BANKS] = {6, 3, 5};
     /* Bits 7-6 of a song's high address byte name its bank (gen_driver.py). */
@@ -1105,23 +1106,26 @@ static void apply_music(dw_rom *rom)
     uint8_t map[32], lo[MAX_PLACED], hi[MAX_PLACED];
 
     if (!song_count && !pack_count)
-        return;
+        return FALSE;
     if (choose_like_site)
         pick_like_site(rom);
     for (i = 0; i < song_count; i++)
         songs[i].bank = -1;
     printf("Adding custom music...\n");
 
-    /* Bank 5 holds songs when it is empty apart from the reset vectors: no built-in credits samples. */
-    music_bank_count = 2;
+    /* Bank 5 holds songs, so it must be empty apart from the reset vectors. With a pack it always is: the
+     * built-in credits song and its samples are only added when the pack's music does not go in. */
+    music_bank_count = 3;
     music_bank_end[2] = 0xbffa;
     {
         const uint8_t *b5 = &rom->expansion[0x8000];
         size_t o;
-        for (o = 0x100; o < 0x3ffa && b5[o] == 0xff; o++)
+        for (o = 0; o < 0x3ffa && b5[o] == 0xff; o++)
             ;
-        if (o == 0x3ffa)
-            music_bank_count = 3;
+        if (o < 0x3ffa) {
+            printf("Music bank 5 is in use, keeping the original music.\n");
+            return FALSE;
+        }
     }
 
     mt_init(rom->seed ^ 0x6d75736963ULL);
@@ -1144,15 +1148,13 @@ static void apply_music(dw_rom *rom)
                     (unsigned int)songs[found].size, banks[songs[found].bank]);
         }
     }
-    if (music_bank_count == 3)
-        printf("Music bank 5: %u bytes for songs.\n", (unsigned)(music_bank_end[2] - FT_SONGS));
-    else
-        printf("Music bank 5: not used (built-in credits samples).\n");
+    printf("Music bank 5: %u bytes for songs.\n", (unsigned)(music_bank_end[2] - FT_SONGS));
     {
         /* Choose the scene and event songs first, then place them biggest first, so the big songs
          * find room. The stat scroll was already placed first. Songs picked here are held (bank 9)
          * so no slot picks the same one. */
-        struct { int slot, song, event; } want[SCENE_COUNT + EVENT_COUNT];
+        typedef struct { int slot, song, event; } want_t;
+        want_t want[SCENE_COUNT + EVENT_COUNT];
         int nwant = 0, w, k;
         for (i = 0; i < SCENE_COUNT; i++) {
             int found = pick(scenes[i].primary, TRUE, next, FALSE);
@@ -1179,7 +1181,7 @@ static void apply_music(dw_rom *rom)
         }
         /* Insertion sort, biggest first; ties keep the order they were picked in. */
         for (w = 1; w < nwant; w++) {
-            __typeof__(want[0]) e = want[w];
+            want_t e = want[w];
             for (k = w; k > 0 && songs[want[k - 1].song].size < songs[e.song].size; k--)
                 want[k] = want[k - 1];
             want[k] = e;
@@ -1187,22 +1189,32 @@ static void apply_music(dw_rom *rom)
         for (w = 0; w < nwant; w++) {
             int found = want[w].song;
             songs[found].bank = -1;
-            if (place(&songs[found], next, order, &placed, found)) {
+            if (!place(&songs[found], next, order, &placed, found)) {
+                /* Bigger songs took the room it was picked against: pick again with what is left. */
+                const char *const *tags = want[w].event ? events[want[w].slot].tags : scenes[want[w].slot].primary;
+                found = pick(tags, TRUE, next, want[w].event);
+                if (found < 0) found = pick(tags, FALSE, next, want[w].event);
+                if (found >= 0 && !place(&songs[found], next, order, &placed, found))
+                    found = -1;
+            } else {
+                found = want[w].song;
+            }
+            if (found >= 0) {
                 if (want[w].event) event_song[want[w].slot] = placed - 1;
                 else chosen[want[w].slot] = placed - 1;
                 printf("  %-12s %s (%u bytes, bank %d)\n",
                         want[w].event ? events[want[w].slot].name : scenes[want[w].slot].name,
                         songs[found].title, (unsigned int)songs[found].size, banks[songs[found].bank]);
             } else {
-                if (!want[w].event)
-                    printf("  %-12s no room for its song, leaving it out.\n", scenes[want[w].slot].name);
+                printf("  %-12s no room for its song, leaving it out.\n",
+                        want[w].event ? events[want[w].slot].name : scenes[want[w].slot].name);
             }
         }
     }
     mt_init(time(NULL));
     if (!placed) {
         printf("No custom music fits, keeping the original music.\n");
-        return;
+        return FALSE;
     }
 
     memset(map, 0xff, sizeof(map));
@@ -1227,8 +1239,8 @@ static void apply_music(dw_rom *rom)
         size_t offset, end = banks[b] == 5 ? 0x3ffa : 0x4000; /* bank 5 ends with the reset vectors */
         for (offset = 0x100; offset < end; offset++) {
             if (base[offset] != 0xff) {
-                        printf("Music bank %d is in use, keeping the original music.\n", banks[b]);
-                return;
+                printf("Music bank %d is in use, keeping the original music.\n", banks[b]);
+                return FALSE;
             }
         }
     }
@@ -1248,8 +1260,8 @@ static void apply_music(dw_rom *rom)
         while (--k >= 0)
             memset(&rom->content[at[k]], 0xff, sizes[k]);
         if (!ok) {
-                printf("No room for the music hooks, keeping the original music.\n");
-            return;
+            printf("No room for the music hooks, keeping the original music.\n");
+            return FALSE;
         }
     }
 
@@ -1374,12 +1386,21 @@ static void apply_music(dw_rom *rom)
         }
     }
 
+    return TRUE;
 }
 
-/* True when the loaded pack has a song for the credits. Then the built-in credits song is not added, so its
- * drum samples do not take the bank 5 room the custom credits song needs. */
-/* With a pack there is no built-in credits song (dwr.c). Unless a pack credits song was hooked in, the
- * credits player would start on empty song data and crash, so the stat scroll stays silent instead. */
+/* The built-in credits song drawn by dwr.c, added only if the pack's music does not go in. */
+static int fallback_credits_track = -1;
+
+void custom_music_set_credits_fallback(int track)
+{
+    fallback_credits_track = track;
+}
+
+/* With a pack, the built-in credits song is left out (dwr.c) so bank 5 can hold songs.
+ * - The pack's music did not go in: the credits get the built-in song after all.
+ * - It went in without a credits song: the credits player would start on empty song data, so it is
+ *   skipped, and the sound is switched off so no note from the ending keeps sounding. */
 void custom_music_apply(dw_rom *rom)
 {
     static const uint8_t start[14] = {0xa9, 0x01, 0xa2, 0x00, 0xa0, 0x80,
@@ -1390,9 +1411,17 @@ void custom_music_apply(dw_rom *rom)
     uint8_t *start_at = credits + (CREDITS_MUSIC_START - 0x8000);
     uint8_t *update_at = credits + (CREDITS_MUSIC_UPDATE - 0x8000);
 
-    apply_music(rom);
+    if (!apply_music(rom)) {
+        if (custom_music_has_pack() && fallback_credits_track >= 0) {
+            add_music(rom, fallback_credits_track);
+            printf("The stat scroll plays the built-in credits song.\n");
+        }
+        return;
+    }
     if (custom_music_has_pack() && !memcmp(start_at, start, sizeof(start)) && !memcmp(update_at, update, sizeof(update))) {
         memset(start_at, 0xea, sizeof(start));
+        start_at[0] = 0xa9; start_at[1] = 0x00;                 /* lda #0 */
+        start_at[2] = 0x8d; start_at[3] = 0x15; start_at[4] = 0x40; /* sta $4015: sound off */
         memset(update_at, 0xea, sizeof(update));
         printf("No credits song: the stat scroll is silent.\n");
     }
@@ -1403,16 +1432,3 @@ BOOL custom_music_has_pack(void)
     return song_count > 0 || pack_count > 0;
 }
 
-BOOL custom_music_has_credits(void)
-{
-    static const char *const credits[4] = {"StatScroll", "OriginalCredits"};
-    int i;
-
-    for (i = 0; i < song_count; i++)
-        if (has_tag(&songs[i], credits))
-            return TRUE;
-    for (i = 0; i < pack_count; i++)
-        if (has_tag(&pack[i], credits))
-            return TRUE;
-    return FALSE;
-}

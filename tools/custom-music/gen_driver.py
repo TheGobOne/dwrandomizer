@@ -3,7 +3,7 @@
 Usage: gen_driver.py CC65_BIN_DIR ASM6F_EXE (run from a scratch directory)
 
 Layout of a music bank (banks 6, 3 and 5 hold identical copies):
-  $8000-$80ff  left free (bank 3 uses it)
+  $8000-$80ff  left free (bank 3 uses it; banks 4 and 6 hold the credits hook at $8000-$8033)
   $8100-       driver, wrapper and tables
   FT_SONGS-    song data, different per bank
 

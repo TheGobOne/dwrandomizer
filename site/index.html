@@ -890,7 +890,6 @@ function goBlock(out){
       const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:'application/octet-stream'}));
       a.download=out_name; window.lastRom={name:out_name,size:data.length}; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000);
       State.showChecksum(sum.toString(16).padStart(16,'0')); const last=log.slice(log.map(t=>t.includes('Out of room')).lastIndexOf(true)+1);
-      const noCredits=last.some(t=>t.includes('No room for the credits song'));
       const lines=[];
       if(last.some(t=>t.includes('No room for Free Charlock'))) lines.push({text:'Free Charlock did not fit in this ROM, so Charlock plays as normal.'});
       if(last.some(t=>t.includes('No room for name screen wrapping'))) lines.push({text:'Name screen wrapping did not fit in this ROM, so the name cursor stops at the edges.'});
@@ -899,14 +898,13 @@ function goBlock(out){
         const left={}; let bytes=0, placed=0;
         last.forEach(t=>{ const m=/\((\d+) bytes, bank \d\)\s*$/.exec(t); if(!m) return; const title=t.slice(15,m.index).trim(); left[title]=(left[title]||0)+1; bytes+=+m[1]; placed++; });
         if(last.some(t=>t.includes('keeping the original music'))){
-          lines.push({text:'The music pack did not fit in this ROM, so the default game music plays.'});
+          lines.push({text:'The music pack did not fit in this ROM, so the default game music plays, and the stat scroll plays the built-in credits song.'});
         } else {
           /* The log shows 'Group: Title', so match on the end. */
           const missed=picks.list.filter(p=>{ const k=Object.keys(left).find(t=>left[t]>0&&(t===p.title||t.endsWith(': '+p.title))); if(k){ left[k]--; return false; } return true; });
           /* Banks 6 and 3, plus bank 5 when the log says it held songs. */
           const b5=last.map(t=>/Music bank 5: (\d+) bytes/.exec(t)).find(Boolean), room=2*BANK_ROOM+(b5?+b5[1]:0);
-          lines.push({text:'Music: '+(picks.count-missed.length)+' of '+picks.count+' songs placed ('+(bytes/1024).toFixed(1)+' KB of '+(room/1024).toFixed(1)+' KB). Slots without a song play the default game music.'});
-          if(noCredits) lines.push({text:'The credits song did not fit.'});
+          lines.push({text:'Music: '+(picks.count-missed.length)+' of '+picks.count+' songs placed ('+(bytes/1024).toFixed(1)+' KB of '+(room/1024).toFixed(1)+' KB). Slots without a song play the default game music.'+(last.some(t=>t.includes('the stat scroll is silent'))?' The stat scroll has no song, so it is silent.':'')});
           if(missed.length) lines.push({text:'These songs did not fit, so their slots play the default game music:',items:missed.map(p=>p.tag+': '+p.title),keys:missed.map(p=>p.key)});
         }
       }
