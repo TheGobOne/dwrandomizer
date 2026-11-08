@@ -5142,6 +5142,13 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
             /* Last resort. A music pack can then change the checksum, but the build works. */
             fit_game = TRUE;
             fit_extras = FALSE;
+        } else if (custom_music_has_pack()) {
+            /* Still no room after the checksum with a music pack: the game keeps its own music. */
+            custom_music_disable();
+            fit_game = FALSE;
+            fit_extras = FALSE;
+            printf("Out of room with the music pack, keeping the original music.\n");
+            continue;
         } else {
             return 0;
         }

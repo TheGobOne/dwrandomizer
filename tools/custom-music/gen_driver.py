@@ -78,6 +78,7 @@ DELAY=$6bf8
 JG=$6bfa
 BANKSEL=$6bf9
 SFX=$6bf6
+RAW=$6bf5
 SONG=$6bfb
 WANT=$6bfc
 CUR=$6bfd
@@ -96,6 +97,41 @@ wrap:
  lda #1
  sta JG
 ok:
+ ; A new request is told apart by map once (the request hook used to do this in the fixed bank):
+ ; Hauksness has its own song, the old man caves keep what was playing, and floors in a cave
+ ; (not Charlock) are the Cave song.
+ lda RAW
+ beq noremap
+ lda #0
+ sta RAW
+ lda WANT
+ cmp #$0e
+ bcs noremap
+ cmp #$01
+ bcc noremap
+ ldx $45
+ cpx #3
+ bne nh
+ lda #$1c
+ sta WANT
+nh:
+ cpx #12
+ bcc nb
+ cpx #15
+ bcs nb
+ lda CUR
+ sta WANT
+ jmp noremap
+nb:
+ cmp #$06
+ bcc noremap
+ cpx #21
+ bcc noremap
+ cpx #30
+ bcs noremap
+ lda #$1d
+ sta WANT
+noremap:
  lda WANT
  cmp CUR
  beq same

@@ -23,6 +23,8 @@ void custom_music_clear(void);
 void custom_music_apply(dw_rom *rom);
 /* True when a music pack is loaded. */
 BOOL custom_music_has_pack(void);
+/* Leave the pack out of the rest of this build (no room for it). */
+void custom_music_disable(void);
 /* The built-in credits song to add if the pack's music does not go in. */
 void custom_music_set_credits_fallback(int track);
 

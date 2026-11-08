@@ -29,7 +29,7 @@
 #define FIRST_JINGLE 0x10 /* requests from here on are events */
 /* Sizes of the three fixed-bank hooks. */
 #define HOOK_YS_SIZE 10
-#define HOOK_RQ_SIZE 111
+#define HOOK_RQ_SIZE 63
 #define HOOK_FRAME_SIZE 29
 #define REQUEST_BATTLE_RESUME 0x18
 #define REQUEST_CREDITS 0x1f
@@ -38,6 +38,7 @@
 #define REQUEST_CAVE 0x1d /* dungeon floor music in a cave, not Charlock */
 #define MAX_PLACED 24
 #define RAM_JINGLE 0x6bfa
+#define RAM_RAW 0x6bf5 /* nonzero: WANT holds a new request the wrapper has not remapped yet */
 #define RAM_SFX 0x6bf6 /* last sound effect request ($80 + n) */
 #define RAM_WANT 0x6bfc
 #define RAM_CUR 0x6bfd
@@ -61,6 +62,8 @@ static int song_count = 0;
 /* The loaded pack, kept whole when a site-style pick replaces songs[] with per-slot copies. */
 static song_t pack[MAX_SONGS];
 static int pack_count = 0;
+/* Set when the ROM has no room for the pack: the build then goes on as if no pack were loaded. */
+static BOOL music_disabled = FALSE;
 
 /* ------------------------------------------------------------ JSON5 reader */
 
@@ -489,6 +492,7 @@ static void skip_value(reader *r)
 void custom_music_clear(void)
 {
     int i;
+    music_disabled = FALSE;
     /* After a site-style pick, songs[] holds copies that share data with pack[] (and with each other),
      * so free the data once, from whichever list owns it. */
     if (pack_count) {
@@ -508,6 +512,8 @@ BOOL custom_music_load(const char *path)
     long size;
     char *text;
     reader r;
+
+    music_disabled = FALSE;
     char key[32];
 
     if (!f) {
@@ -1302,6 +1308,8 @@ static BOOL apply_music(dw_rom *rom)
             0x68, 0x68, 0x60,
             0x8d, LO8(RAM_SFX), HI8(RAM_SFX), 0x60,
             0x8d, LO8(RAM_WANT), HI8(RAM_WANT),
+            /* New request: the driver wrapper tells shared requests apart by map (gen_driver.py, remap). */
+            0x8d, LO8(RAM_RAW), HI8(RAM_RAW),
             0xa2, 0x00, 0x8e, LO8(RAM_DELAY), HI8(RAM_DELAY),
             /* The game's music plays unless the driver starts a song for this request. */
             0xa2, 0x01, 0x8e, LO8(RAM_JINGLE), HI8(RAM_JINGLE),
@@ -1311,21 +1319,6 @@ static BOOL apply_music(dw_rom *rom)
             0xae, 0xfb, 0x6b, 0x30, 0x10,         /* ldx SONG ($6BFB), bmi: no pack song playing */
             0xa2, 0x30, 0x8e, 0x00, 0x40, 0x8e, 0x04, 0x40, 0x8e, 0x0c, 0x40,
             0xa2, 0x80, 0x8e, 0x08, 0x40,
-            /* Map music requests shared between places: tell them apart by map. */
-            0xc9, 0x0e, 0xb0, 0x1d, 0xc9, 0x01, 0x90, 0x19,
-            0xa6, 0x45,
-            0xe0, MAP_HAUKSNESS, 0xd0, 0x05,
-            0xa9, REQUEST_HAUKSNESS, 0x8d, LO8(RAM_WANT), HI8(RAM_WANT), /* A, so X keeps the map */
-            /* Old man caves keep whatever was playing: the overworld song from an overworld tile,
-             * or the town or cave song when the cave is joined to a town or another cave. */
-            0xe0, TANTEGEL_BASEMENT, 0x90, 0x0b, 0xe0, SOUTHERN_SHRINE + 1, 0xb0, 0x07,
-            0xad, LO8(RAM_CUR), HI8(RAM_CUR), 0x8d, LO8(RAM_WANT), HI8(RAM_WANT),
-            0x60,
-            /* Floor music in Erdrick's Cave, the mountain cave, Garin's Grave or the swamp cave is the
-             * Cave song; Charlock keeps the floor requests. */
-            0xc9, 0x06, 0x90, 0x0d,
-            0xe0, SWAMP_CAVE, 0x90, 0x09, 0xe0, ERDRICKS_CAVE_2 + 1, 0xb0, 0x05,
-            0xa2, REQUEST_CAVE, 0x8e, LO8(RAM_WANT), HI8(RAM_WANT),
             0x60};
         /* The free-space check above reserves HOOK_RQ_SIZE bytes: the two must agree. */
         _Static_assert(sizeof(rq_code) == HOOK_RQ_SIZE, "HOOK_RQ_SIZE must match the request hook");
@@ -1428,6 +1421,8 @@ void custom_music_apply(dw_rom *rom)
     uint8_t *start_at = credits + (CREDITS_MUSIC_START - 0x8000);
     uint8_t *update_at = credits + (CREDITS_MUSIC_UPDATE - 0x8000);
 
+    if (music_disabled)
+        return;
     if (!apply_music(rom)) {
         if (custom_music_has_pack() && fallback_credits_track >= 0) {
             add_music(rom, fallback_credits_track);
@@ -1444,8 +1439,14 @@ void custom_music_apply(dw_rom *rom)
     }
 }
 
+
+void custom_music_disable(void)
+{
+    music_disabled = TRUE;
+}
+
 BOOL custom_music_has_pack(void)
 {
-    return song_count > 0 || pack_count > 0;
+    return !music_disabled && (song_count > 0 || pack_count > 0);
 }
 
