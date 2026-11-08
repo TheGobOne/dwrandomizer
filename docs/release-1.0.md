@@ -38,27 +38,10 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 
 ## Fixes
 
-<details>
-<summary>1.0 fixes</summary>
-
-- The Winter Theme no longer crashes the web build.
-- Free Charlock: you arrive beside the Dragonlord, so the entrance leads straight into the fight.
-- Free Charlock cannot be combined with Short Charlock or Easy Charlock, and it is part of the checksum. A ROM too full for it fails the build instead of silently dropping it.
-- Easy Charlock is off while any Run Mechanics option is on.
-- Auto Stairs no longer opens the command window after the stairs when you pressed A as you stepped on them.
-- Return and Wings on the overworld no longer play the game's music over your custom song.
-- A custom song keeps playing when the scene changes to the same song (stairs, throne room), and the map song starts after a fight that ends inside the battle sting.
-- Noise-only sound effects no longer mute the song's second square channel, and the town footstep is skipped when a pack is loaded.
-- Switching from a custom song to the game's own music, as at the Ending, no longer leaves the last note hanging.
-- Holding A through text or a battle no longer slows the music.
-- A rare crash in busy frames with custom music on is fixed, and the music no longer freezes in steady lag or plays double speed at power-on.
-- A full ROM keeps the original music instead of failing the build, and Responsive Controls takes less fixed-bank space, which cut random-flag build failures from 12% to 5.5%.
-- On the site, hand-picked songs that do not fit go back to Default and are marked, a pack error keeps the loaded pack, and the flags box shows all 40 characters.
-
-</details>
+The remix is built on juef's 3.0.3.20, and building on it turned up a few small things, now fixed here.
 
 <details>
-<summary>3.0.3.20 fixes</summary>
+<summary>Fixes to 3.0.3.20 code</summary>
 
 - Gwaelin always ends up somewhere you can reach. With Stair Shuffle she could be placed where the shuffled stairs cut her off.
 - With Easy Charlock, run odds use the game's random roll. The patch used to jump into unrelated code and add a random extra point.
