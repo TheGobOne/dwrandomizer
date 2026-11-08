@@ -18,3 +18,9 @@ build/
 builds/
 __pycache__
 CMakeFiles
+
+# Local working files
+.claude/launch.json
+test-roms/*.png
+reviews/
+site-mockups/
