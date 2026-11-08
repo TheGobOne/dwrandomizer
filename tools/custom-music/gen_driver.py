@@ -9,8 +9,9 @@ Layout of a music bank (banks 6, 3, 5 and 4 hold identical copies; bank 4 also h
   FT_SONGS-    song data, different per bank
 
 A song's high address byte in the hi table carries its bank in bits 7-6, since songs sit at $80xx-$BFxx:
-  %10 bank 6, %11 bank 3, %00 bank 5, %01 bank 4. The wrapper turns that into BANKSEL ($00 bank 6,
-  $40 bank 3, $80 bank 5, $C0 bank 4; 0 is bank 6 so a cleared selector is safe) and rebuilds the address with and #$3f, ora #$80.
+  the bank minus 3: %00 bank 3, %01 bank 4, %10 bank 5, %11 bank 6. The wrapper keeps those two bits in BANKSEL
+  (0 is bank 3, which always holds a driver, so a cleared selector is safe; custom_music.c BANK_SELECT turns
+  it into a bank number) and rebuilds the address with and #$3f, ora #$80.
 """
 import os, re, subprocess, sys
 
@@ -57,6 +58,8 @@ W = 0x8100 + len(D)
 # without loops.
 # Scratch bytes are rebuilt by the driver each frame, so only the game's values are kept for them.
 assert L['var_Note_Table'] == 0xdc
+# $D3, $D8 and $D9 are the expansion-chip temporaries (var_Temp4, var_Temp_Pointer2). Without those chips the
+# driver never touches them, so the game's values there need no swap. Re-add them if an expansion is enabled.
 ZP_SCRATCH = list(range(0xd0, 0xdc))
 ZP_KEPT = [0xdc, 0xdd]
 # Nothing to do while the game's own music plays and no new song is wanted, so skip the swap too.
@@ -167,7 +170,6 @@ start:
 new:
  lda hi,y
  and #$c0
- eor #$80
  cmp BANKSEL
  beq here
  sta BANKSEL

@@ -1215,4 +1215,6 @@ exp_wait_for_nmi:
 .include famistudio_conf.asm
 .include famistudio_asm6.asm
 
+credits_code_end:
+
 .org $c000
