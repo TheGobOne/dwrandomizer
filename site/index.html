@@ -355,6 +355,7 @@ input[type=file]::file-selector-button{color:buttontext}
 .searchnote:empty{display:none}
 .searchrow{display:flex;gap:1rem;margin-top:.25rem}
 .onlyrow{display:flex;flex-wrap:wrap;gap:0 2rem}
+.spoilertag{margin-top:.5rem}
 .searchwin .animrow{margin:0;white-space:nowrap}
 body.compact .opt .desc,body.compact .opt .secnote{display:none}
 body.compact .opt{padding-top:.2rem;padding-bottom:.2rem}
@@ -831,7 +832,7 @@ function spaceMessage(){ const on=SPACE_FLAGS.filter(id=>State.v[id]).map(id=>St
   if(State.pack) on.splice(1,0,'Custom Music Pack');
   return 'Not enough ROM space for these flags. '+(on.length?'Try turning off one of: '+on.slice(0,5).join(', ')+'.':'Try turning some flags off.'); }
 /* One full build in the browser. The button downloads it, and the space check only measures it. */
-function buildOnce(){
+function buildOnce(spoiler){
   const seed=BigInt(State.seed||'0').toString(), flags=State.flags(), out_name='DWR.'+seed+'.'+flags+'.nes';
   const sprite=State.find('sprite')[4][State.v.sprite|0]||'Random';
   FS.writeFile('/input.nes',State.rom.bytes);
@@ -842,11 +843,16 @@ function buildOnce(){
     if(!Module.ccall('custom_music_load','number',['string'],['/pack.json5'])) throw new Error('That music pack could not be read.');
   }
   const log=window.dwrLog=[];
+  /* A spoiler log changes the checksum, so only the Randomize button asks for one. */
+  Module.ccall('dwr_set_spoiler',null,['number'],[spoiler?1:0]);
   let sum=Module.ccall('dwr_randomize','bigint',['string','bigint','string','string','string'],['/input.nes',BigInt(seed),flags,sprite,'/']);
   if(sum<0n) sum+=18446744073709551616n;
   let data=null;
-  if(sum!==0n){ data=FS.readFile('/'+out_name); FS.unlink('/'+out_name); }
-  return {seed,flags,out_name:'DWR.'+seed+'.'+flags+'.nes',picks,log,sum,data};
+  let spoilerText=null;
+  if(sum!==0n){ data=FS.readFile('/'+out_name); FS.unlink('/'+out_name);
+    const sp='/'+out_name+'.spoiler.txt';
+    if(FS.analyzePath(sp).exists){ spoilerText=FS.readFile(sp,{encoding:'utf8'}); FS.unlink(sp); } }
+  return {seed,flags,out_name:'DWR.'+seed+'.'+flags+'.nes',picks,log,sum,data,spoilerText};
 }
 function failMessage(log){
   const has=t=>log.some(x=>x.includes(t));
@@ -879,18 +885,20 @@ function showResult(name,lines){
 function goBlock(out){
   const o=out||el('p',{class:'result',role:'status'});
   State.say=t=>{ o.textContent=t; };
-  State.clearDone=()=>{ if(/^ROM downloaded/.test(o.textContent)) o.textContent=''; };
+  State.clearDone=()=>{ if(/^ROM (downloaded|and spoiler)/.test(o.textContent)) o.textContent=''; };
   const b=el('button',{type:'button',class:'btn go',text:'Randomize',onclick:async()=>{
     if(!State.rom){ o.textContent=''; const f=document.querySelector('.romfile'), st=document.querySelector('.romstat'); if(st){ st.classList.add('romalert'); if(f) f.addEventListener('change',()=>st.classList.remove('romalert'),{once:true}); } if(f) f.focus(); return; }
     if(!wasmReady){ o.textContent='Still loading the randomizer. Try again in a moment.'; return; }
     b.disabled=true; o.textContent='Randomizing...';
     await new Promise(r=>setTimeout(r,20));
     try{
-      const r=buildOnce(); const {picks,log,sum,out_name}=r;
+      const r=buildOnce(State.spoiler); const {picks,log,sum,out_name}=r;
       if(sum===0n) throw new Error(failMessage(log));
       const data=r.data;
       const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([data],{type:'application/octet-stream'}));
       a.download=out_name; window.lastRom={name:out_name,size:data.length}; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+      if(r.spoilerText){ const s=document.createElement('a'); s.href=URL.createObjectURL(new Blob([r.spoilerText],{type:'text/plain'}));
+        s.download=out_name+'.spoiler.txt'; setTimeout(()=>{ s.click(); setTimeout(()=>URL.revokeObjectURL(s.href),5000); },300); }
       State.showChecksum(sum.toString(16).padStart(16,'0')); const last=log.slice(log.map(t=>t.includes('Out of room')).lastIndexOf(true)+1);
       const lines=[];
       if(last.some(t=>t.includes('No room for Free Charlock'))) lines.push({text:'Free Charlock did not fit in this ROM, so Charlock plays as normal.'});
@@ -911,11 +919,15 @@ function goBlock(out){
           if(missed.length) lines.push({text:'These songs did not fit, so their slots play the default game music:',items:missed.map(p=>p.tag+': '+p.title),keys:missed.map(p=>p.key)});
         }
       }
-      o.textContent='ROM downloaded.';
+      o.textContent=r.spoilerText?'ROM and spoiler log downloaded.':'ROM downloaded.';
       showResult(out_name,lines);
     }catch(e){ o.textContent=e.message||'Something went wrong while randomizing.'; }
     b.disabled=false; }});
-  return {button:b,result:o};
+  /* Not kept between visits, so a racer never gets a spoiler checksum by accident. */
+  const sp=el('input',{type:'checkbox',id:'spoilerlog'});
+  sp.addEventListener('change',()=>{ State.spoiler=sp.checked; State.showChecksum(''); State.clearDone&&State.clearDone(); });
+  const spoiler=el('label',{class:'onlytag spoilertag',for:'spoilerlog'},sp,' Spoiler log (changes the checksum)');
+  return {button:b,result:o,spoiler};
 }
 /* Saved presets stay in this browser. */
 const PRESET_KEY='dwrSavedPresets';
@@ -1121,7 +1133,7 @@ scr.append(backLink(),
    el('div',{class:'row'},el('span',{text:'ROM'}),rb.label,rb.input,rb.forget,rb.status),
    el('div',{class:'idrow'},el('div',{class:'idfields'},el('div',{class:'row'},el('label',{for:'flags',text:'Flags'}),fb.flags),
    el('div',{class:'row'},el('label',{for:'seed',text:'Seed'}),fb.seed,fb.rnd),
-   el('div',{class:'row'},el('label',{for:'checksum',text:'Checksum'}),fb.sum,fb.copy,gb.button),gb.result),
+   el('div',{class:'row'},el('label',{for:'checksum',text:'Checksum'}),fb.sum,fb.copy,gb.button),gb.spoiler,gb.result),
    el('div',{class:'idpresets'},presetArea()))));
 const main=el('div',{class:'main'});
 const cmd=el('nav',{class:'win cmd','aria-label':'Command menu'});

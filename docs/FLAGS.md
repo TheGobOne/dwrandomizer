@@ -413,9 +413,9 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--quick-spell` | `on` |
 | `--key-herb` | `on`: adds a keys and herbs row to the stats window |
 | `--auto-stairs` | `on`: stepping onto stairs takes them |
-| `--spoiler` | `on`: writes a `.spoiler.txt` next to the ROM, without changing the checksum |
+| `--spoiler` | `on`: writes a `.spoiler.txt` next to the ROM. It changes the checksum, so a spoiler seed never matches one without |
 
-Most of these also exist as options on the website. `--spoiler` is a command line option only.
+Most of these also exist as options on the website, including the spoiler log.
 
 
 ## Known issues ##

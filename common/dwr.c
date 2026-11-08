@@ -3997,16 +3997,25 @@ void random_princess_location(dw_rom *rom)
 
 static uint16_t run_bank_win_code = 0;
 
-/* Which of Free Charlock (1), Auto Return (2), Responsive Controls (4) and Auto Stairs (8) went into this ROM. Their code lives outside the part of the
- * ROM the checksum reads, so it is mixed in by hand. Two racers then match only if both have the same ones. */
+/* Which of Free Charlock (1), Auto Return (2), Responsive Controls (4) and Auto Stairs (8) went into this ROM. They are
+ * mixed into the checksum by hand, so two racers match only if both have the same ones. */
 static uint8_t gameplay_patches = 0;
+
+/* A spoiler log was asked for. It changes the checksum (16), so a racer with one never matches a racer without. */
+static BOOL write_spoiler = FALSE;
+
+void dwr_set_spoiler(BOOL enabled)
+{
+    write_spoiler = enabled;
+}
 
 static uint64_t rom_checksum(dw_rom *rom)
 {
     uint64_t crc = crc64(0, rom->content, 0x10000);
+    uint8_t mixed = gameplay_patches | (write_spoiler ? 0x10 : 0);
 
-    if (gameplay_patches)
-        crc = crc64(crc, &gameplay_patches, 1);
+    if (mixed)
+        crc = crc64(crc, &mixed, 1);
     return crc;
 }
 
@@ -4964,13 +4973,6 @@ void apply_stuff_to_rom(dw_rom *rom)
     auto_stairs(rom);
 }
 
-
-static BOOL write_spoiler = FALSE;
-
-void dwr_set_spoiler(BOOL enabled)
-{
-    write_spoiler = enabled;
-}
 
 /**
  * Writes where everything is, for players who ask for it.
