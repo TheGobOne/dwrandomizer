@@ -29,8 +29,8 @@
 #define FIRST_JINGLE 0x10 /* requests from here on are events */
 /* Sizes of the three fixed-bank hooks. */
 #define HOOK_YS_SIZE 10
-#define HOOK_RQ_SIZE 111
-#define HOOK_FRAME_SIZE 29
+#define HOOK_RQ_SIZE 63
+#define HOOK_FRAME_SIZE 36
 #define REQUEST_BATTLE_RESUME 0x18
 #define REQUEST_CREDITS 0x1f
 #define REQUEST_HAUKSNESS 0x1c
@@ -38,6 +38,7 @@
 #define REQUEST_CAVE 0x1d /* dungeon floor music in a cave, not Charlock */
 #define MAX_PLACED 24
 #define RAM_JINGLE 0x6bfa
+#define RAM_RAW 0x6bf5 /* nonzero: WANT holds a new request the wrapper has not remapped yet */
 #define RAM_SFX 0x6bf6 /* last sound effect request ($80 + n) */
 #define RAM_WANT 0x6bfc
 #define RAM_CUR 0x6bfd
@@ -61,6 +62,8 @@ static int song_count = 0;
 /* The loaded pack, kept whole when a site-style pick replaces songs[] with per-slot copies. */
 static song_t pack[MAX_SONGS];
 static int pack_count = 0;
+/* Set when the ROM has no room for the pack: the build then goes on as if no pack were loaded. */
+static BOOL music_disabled = FALSE;
 
 /* ------------------------------------------------------------ JSON5 reader */
 
@@ -489,6 +492,7 @@ static void skip_value(reader *r)
 void custom_music_clear(void)
 {
     int i;
+    music_disabled = FALSE;
     /* After a site-style pick, songs[] holds copies that share data with pack[] (and with each other),
      * so free the data once, from whichever list owns it. */
     if (pack_count) {
@@ -508,6 +512,8 @@ BOOL custom_music_load(const char *path)
     long size;
     char *text;
     reader r;
+
+    music_disabled = FALSE;
     char key[32];
 
     if (!f) {
@@ -626,11 +632,13 @@ static BOOL has_tag(const song_t *s, const char *const tags[4])
     return FALSE;
 }
 
-/* Music banks in placement order: 6, 3, and 5 when it is free. Bank 5 ends below the reset vectors,
- * The credits hook is at $8000 in banks 4 and 6, below the driver. */
-#define MUSIC_BANKS 3
+/* Song areas in placement order: banks 6, 3 and 5, then bank 4 in two pieces either side of the credits
+ * code ($A000 up to BANK4_HIGH). Bank 5 ends below the reset vectors. The credits hook is at $8000 in
+ * banks 4 and 6, below the driver. Each bank holds its own copy of the driver at FT_BASE. */
+#define MUSIC_BANKS 5
+#define BANK4_HIGH 0xb3e0
 static int music_bank_count = 2;
-static uint16_t music_bank_end[MUSIC_BANKS] = {0xc000, 0xc000, 0xbffa};
+static uint16_t music_bank_end[MUSIC_BANKS] = {0xc000, 0xc000, 0xbffa, 0xa000, 0xc000};
 
 static BOOL fits_a_bank(const uint16_t next[MUSIC_BANKS], unsigned size)
 {
@@ -712,9 +720,11 @@ static const event_t events[EVENT_COUNT] = {
 /* The command line picks songs exactly the way the site does with every slot on Random and one track for
  * all dungeon floors, so the same seed and pack give the same music. This mirrors chosenPack in
  * site/index.html: change the two together. */
-#define PICK_ROOM (0xc000 - FT_SONGS)
-/* Bank 5 ends below the reset vectors. */
-#define PICK_ROOM5 (0xbffa - FT_SONGS)
+/* Room in each song area, in apply_music's order: banks 6, 3 and 5 (which ends below the reset vectors),
+ * then bank 4 below and above the credits code. */
+static const size_t pick_room[MUSIC_BANKS] = {0xc000 - FT_SONGS, 0xc000 - FT_SONGS, 0xbffa - FT_SONGS,
+    0xa000 - FT_SONGS, 0xc000 - BANK4_HIGH};
+#define PICK_ROOM_ALL (pick_room[0] + pick_room[1] + pick_room[2] + pick_room[3] + pick_room[4])
 
 static BOOL choose_like_site = FALSE;
 
@@ -839,7 +849,8 @@ static BOOL pick_fits(const char *tag, size_t size)
 {
     pick_entry_t a[MAX_PLACED + 1];
     int n = pick_placed_count, i, j;
-    size_t b[3] = {0, 0, 0};
+    size_t b[MUSIC_BANKS] = {0};
+    int k;
 
     if (n + 1 > MAX_PLACED)
         return FALSE;
@@ -853,14 +864,11 @@ static BOOL pick_fits(const char *tag, size_t size)
         a[j] = e;
     }
     for (i = 0; i < n; i++) {
-        if (b[0] + a[i].size <= PICK_ROOM)
-            b[0] += a[i].size;
-        else if (b[1] + a[i].size <= PICK_ROOM)
-            b[1] += a[i].size;
-        else if (b[2] + a[i].size <= PICK_ROOM5)
-            b[2] += a[i].size;
-        else
+        for (k = 0; k < MUSIC_BANKS && b[k] + a[i].size > pick_room[k]; k++)
+            ;
+        if (k == MUSIC_BANKS)
             return FALSE;
+        b[k] += a[i].size;
     }
     return TRUE;
 }
@@ -891,7 +899,7 @@ static int pick_choose(const char *const *list, const char *tag, int left, BOOL 
         return -1;
     for (i = 0; i < pick_placed_count; i++)
         used += pick_placed[i].size;
-    share = 1.5 * (double)(2 * PICK_ROOM + PICK_ROOM5 - (long)used) / left;
+    share = 1.5 * (double)((long)PICK_ROOM_ALL - (long)used) / left;
     for (i = 0; i < nfit; i++)
         if ((double)pack[fit[i]].size <= share)
             base[nbase++] = fit[i];
@@ -1017,10 +1025,13 @@ static void pick_like_site(dw_rom *rom)
  * The tick runs right after the NMI, never just before it: the game's NMI resets the console if it lands
  * on a bank switch while the game waits, and the next NMI is a whole frame away.
  * Code that never calls the wait (three frames without it) gets its ticks from the NMI. */
-/* After lda RAM_BANKSEL: A = the music bank. $00 is bank 6, $40 bank 3, $80 bank 5 (see gen_driver.py).
- *   beq six; bmi five; lda #3; BIT $05a9; five: lda #5; BIT $06a9; six: lda #6
- * Each BIT skips the next load, so bank 3 and bank 5 fall through to the jsr with their own number. */
-#define BANK_SELECT 0xf0, 0x08, 0x30, 0x03, 0xa9, 0x03, 0x2c, 0xa9, 0x05, 0x2c, 0xa9, 0x06
+/* After lda RAM_BANKSEL: A = the music bank. $00 is bank 6, $40 bank 3, $80 bank 5, $C0 bank 4
+ * (see gen_driver.py).
+ *   beq six; bpl three; cmp #$c0; beq four; lda #5; BIT $04a9; four: lda #4; BIT $03a9; three: lda #3;
+ *   BIT $06a9; six: lda #6
+ * Each BIT skips the next load, so every bank falls through to the jsr with its own number. */
+#define BANK_SELECT 0xf0, 0x0f, 0x10, 0x0a, 0xc9, 0xc0, 0xf0, 0x03, 0xa9, 0x05, 0x2c, 0xa9, 0x04, \
+        0x2c, 0xa9, 0x03, 0x2c, 0xa9, 0x06
 #define MW_PEND 0x6bf2
 #define MW_RUNNING 0x6bf3
 #define MW_INWAIT 0x6bf4
@@ -1095,10 +1106,13 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
 
 static BOOL apply_music(dw_rom *rom)
 {
-    static const int banks[MUSIC_BANKS] = {6, 3, 5};
+    static const int banks[MUSIC_BANKS] = {6, 3, 5, 4, 4};
     /* Bits 7-6 of a song's high address byte name its bank (gen_driver.py). */
-    static const uint8_t bank_code[MUSIC_BANKS] = {0x80, 0xc0, 0x00};
-    uint16_t next[MUSIC_BANKS] = {FT_SONGS, FT_SONGS, FT_SONGS};
+    static const uint8_t bank_code[MUSIC_BANKS] = {0x80, 0xc0, 0x00, 0x40, 0x40};
+    /* Where each area must be empty: from the driver up, except bank 4's high piece, which starts
+     * above the credits code. */
+    static const uint16_t area_start[MUSIC_BANKS] = {0x8100, 0x8100, 0x8100, 0x8100, BANK4_HIGH};
+    uint16_t next[MUSIC_BANKS] = {FT_SONGS, FT_SONGS, FT_SONGS, FT_SONGS, BANK4_HIGH};
     int order[MAX_PLACED], placed = 0;
     int event_song[EVENT_COUNT];
     int chosen[SCENE_COUNT];
@@ -1116,8 +1130,7 @@ static BOOL apply_music(dw_rom *rom)
 
     /* Bank 5 holds songs, so it must be empty apart from the reset vectors. With a pack it always is: the
      * built-in credits song and its samples are only added when the pack's music does not go in. */
-    music_bank_count = 3;
-    music_bank_end[2] = 0xbffa;
+    music_bank_count = MUSIC_BANKS;
     {
         const uint8_t *b5 = &rom->expansion[0x8000];
         size_t o;
@@ -1126,6 +1139,18 @@ static BOOL apply_music(dw_rom *rom)
         if (o < 0x3ffa) {
             printf("Music bank 5 is in use, keeping the original music.\n");
             return FALSE;
+        }
+    }
+    /* Bank 4 holds the credits code at $A000; songs go around it only where it is empty. */
+    for (b = 3; b < MUSIC_BANKS; b++) {
+        const uint8_t *b4 = &rom->expansion[0x4000];
+        size_t o;
+        for (o = area_start[b] - 0x8000; o < music_bank_end[b] - 0x8000u && b4[o] == 0xff; o++)
+            ;
+        if (o < music_bank_end[b] - 0x8000u) {
+            printf("Music bank 4 is in use, so it holds no songs.\n");
+            music_bank_count = 3;
+            break;
         }
     }
 
@@ -1150,6 +1175,9 @@ static BOOL apply_music(dw_rom *rom)
         }
     }
     printf("Music bank 5: %u bytes for songs.\n", (unsigned)(music_bank_end[2] - FT_SONGS));
+    if (music_bank_count == MUSIC_BANKS)
+        printf("Music bank 4: %u bytes for songs.\n",
+                (unsigned)(music_bank_end[3] - FT_SONGS + music_bank_end[4] - BANK4_HIGH));
     {
         /* Choose the scene and event songs first, then place them biggest first, so the big songs
          * find room. The stat scroll was already placed first. Songs picked here are held (bank 9)
@@ -1237,8 +1265,8 @@ static BOOL apply_music(dw_rom *rom)
 
     for (b = 0; b < music_bank_count; b++) {
         uint8_t *base = &rom->expansion[(banks[b] - 3) * 0x4000];
-        size_t offset, end = banks[b] == 5 ? 0x3ffa : 0x4000; /* bank 5 ends with the reset vectors */
-        for (offset = 0x100; offset < end; offset++) {
+        size_t offset, end = music_bank_end[b] - 0x8000u;
+        for (offset = area_start[b] - 0x8000u; offset < end; offset++) {
             if (base[offset] != 0xff) {
                 printf("Music bank %d is in use, keeping the original music.\n", banks[b]);
                 return FALSE;
@@ -1302,6 +1330,8 @@ static BOOL apply_music(dw_rom *rom)
             0x68, 0x68, 0x60,
             0x8d, LO8(RAM_SFX), HI8(RAM_SFX), 0x60,
             0x8d, LO8(RAM_WANT), HI8(RAM_WANT),
+            /* New request: the driver wrapper tells shared requests apart by map (gen_driver.py, remap). */
+            0x8d, LO8(RAM_RAW), HI8(RAM_RAW),
             0xa2, 0x00, 0x8e, LO8(RAM_DELAY), HI8(RAM_DELAY),
             /* The game's music plays unless the driver starts a song for this request. */
             0xa2, 0x01, 0x8e, LO8(RAM_JINGLE), HI8(RAM_JINGLE),
@@ -1311,21 +1341,6 @@ static BOOL apply_music(dw_rom *rom)
             0xae, 0xfb, 0x6b, 0x30, 0x10,         /* ldx SONG ($6BFB), bmi: no pack song playing */
             0xa2, 0x30, 0x8e, 0x00, 0x40, 0x8e, 0x04, 0x40, 0x8e, 0x0c, 0x40,
             0xa2, 0x80, 0x8e, 0x08, 0x40,
-            /* Map music requests shared between places: tell them apart by map. */
-            0xc9, 0x0e, 0xb0, 0x1d, 0xc9, 0x01, 0x90, 0x19,
-            0xa6, 0x45,
-            0xe0, MAP_HAUKSNESS, 0xd0, 0x05,
-            0xa9, REQUEST_HAUKSNESS, 0x8d, LO8(RAM_WANT), HI8(RAM_WANT), /* A, so X keeps the map */
-            /* Old man caves keep whatever was playing: the overworld song from an overworld tile,
-             * or the town or cave song when the cave is joined to a town or another cave. */
-            0xe0, TANTEGEL_BASEMENT, 0x90, 0x0b, 0xe0, SOUTHERN_SHRINE + 1, 0xb0, 0x07,
-            0xad, LO8(RAM_CUR), HI8(RAM_CUR), 0x8d, LO8(RAM_WANT), HI8(RAM_WANT),
-            0x60,
-            /* Floor music in Erdrick's Cave, the mountain cave, Garin's Grave or the swamp cave is the
-             * Cave song; Charlock keeps the floor requests. */
-            0xc9, 0x06, 0x90, 0x0d,
-            0xe0, SWAMP_CAVE, 0x90, 0x09, 0xe0, ERDRICKS_CAVE_2 + 1, 0xb0, 0x05,
-            0xa2, REQUEST_CAVE, 0x8e, LO8(RAM_WANT), HI8(RAM_WANT),
             0x60};
         /* The free-space check above reserves HOOK_RQ_SIZE bytes: the two must agree. */
         _Static_assert(sizeof(rq_code) == HOOK_RQ_SIZE, "HOOK_RQ_SIZE must match the request hook");
@@ -1428,6 +1443,8 @@ void custom_music_apply(dw_rom *rom)
     uint8_t *start_at = credits + (CREDITS_MUSIC_START - 0x8000);
     uint8_t *update_at = credits + (CREDITS_MUSIC_UPDATE - 0x8000);
 
+    if (music_disabled)
+        return;
     if (!apply_music(rom)) {
         if (custom_music_has_pack() && fallback_credits_track >= 0) {
             add_music(rom, fallback_credits_track);
@@ -1444,8 +1461,14 @@ void custom_music_apply(dw_rom *rom)
     }
 }
 
+
+void custom_music_disable(void)
+{
+    music_disabled = TRUE;
+}
+
 BOOL custom_music_has_pack(void)
 {
-    return song_count > 0 || pack_count > 0;
+    return !music_disabled && (song_count > 0 || pack_count > 0);
 }
 

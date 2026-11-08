@@ -3955,7 +3955,7 @@ void random_princess_location(dw_rom *rom)
 
 static uint16_t run_bank_win_code = 0;
 
-/* Which of Free Charlock (1), Auto Return (2) and Responsive Controls (4) went into this ROM. Their code lives outside the part of the
+/* Which of Free Charlock (1), Auto Return (2), Responsive Controls (4) and Auto Stairs (8) went into this ROM. Their code lives outside the part of the
  * ROM the checksum reads, so it is mixed in by hand. Two racers then match only if both have the same ones. */
 static uint8_t gameplay_patches = 0;
 
@@ -3982,6 +3982,48 @@ static void auto_return(dw_rom *rom)
     /* Was: ldx #$12 : lda #$02 : jmp $d9e2 (leave by the Charlock warp). */
     vpatch(rom, 0xea03, 7, 0x4c, 0x00, 0xdb, 0xea, 0xea, 0xea, 0xea);
     gameplay_patches |= 2;
+}
+
+/**
+ * Stepping onto stairs takes them, the way stepping onto a town or cave enters it.
+ *
+ * After each step the game reads the tile under the hero at $CDB4 and enters tiles 7 to 9
+ * (town, cave, castle) through $D941. This adds stairs (3 up, 5 down), which go to $D9AF, the
+ * start of the STAIRS command, so stair shuffle and the other stair patches still apply.
+ * Arriving on stairs is not a step, so taking stairs never loops. The hidden Charlock stairs read
+ * as floor until they are found, so they work once found and the hero steps onto them again.
+ *
+ * @param rom The rom struct
+ */
+static void auto_stairs(dw_rom *rom)
+{
+    int c;
+
+    if (!AUTO_STAIRS(rom))
+        return;
+    c = dwr_try_free_space(rom->content, 0xc422, 25);
+    if (c < 0) {
+        printf("No room for Auto Stairs.\n");
+        dwr_no_room();
+    }
+    printf("Taking stairs automatically...\n");
+    vpatch(rom, c, 25,
+        0xc9, 0x07,       /*   cmp #$07 : below towns, look for stairs */
+        0x90, 0x07,       /*   bcc stairs                              */
+        0xc9, 0x0a,       /*   cmp #$0a                                */
+        0xb0, 0x0e,       /*   bcs done                                */
+        0x4c, 0x41, 0xd9, /*   jmp $d941 : enter the town, as before   */
+                          /* stairs:                                   */
+        0xc9, 0x03,       /*   cmp #$03 : stairs up                    */
+        0xf0, 0x04,       /*   beq take                                */
+        0xc9, 0x05,       /*   cmp #$05 : stairs down                  */
+        0xd0, 0x03,       /*   bne done                                */
+        0x4c, 0xaf, 0xd9, /* take: jmp $d9af : the STAIRS command      */
+        0x4c, 0xbf, 0xcd  /* done: jmp $cdbf                           */
+    );
+    /* Was: cmp #$07 : bcc $cdbf : cmp #$0a : bcs $cdbf : jmp $d941 */
+    vpatch(rom, 0xcdb4, 11, 0x4c, LO(c), HI(c), 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea);
+    gameplay_patches |= 8;
 }
 
 /**
@@ -4858,6 +4900,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     free_charlock(rom);
     auto_return(rom);
     responsive_controls(rom);
+    auto_stairs(rom);
 }
 
 
@@ -5142,6 +5185,13 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
             /* Last resort. A music pack can then change the checksum, but the build works. */
             fit_game = TRUE;
             fit_extras = FALSE;
+        } else if (custom_music_has_pack()) {
+            /* Still no room after the checksum with a music pack: the game keeps its own music. */
+            custom_music_disable();
+            fit_game = FALSE;
+            fit_extras = FALSE;
+            printf("Out of room with the music pack, keeping the original music.\n");
+            continue;
         } else {
             return 0;
         }

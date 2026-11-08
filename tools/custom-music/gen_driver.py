@@ -2,14 +2,15 @@
 """Assembles the Dn-FamiTracker driver and wrapper into common/ft_driver.h.
 Usage: gen_driver.py CC65_BIN_DIR ASM6F_EXE (run from a scratch directory)
 
-Layout of a music bank (banks 6, 3 and 5 hold identical copies):
+Layout of a music bank (banks 6, 3, 5 and 4 hold identical copies; bank 4 also holds the credits code
+  at $A000, so its songs go below and above that):
   $8000-$80ff  left free (bank 3 uses it; banks 4 and 6 hold the credits hook at $8000-$8033)
   $8100-       driver, wrapper and tables
   FT_SONGS-    song data, different per bank
 
 A song's high address byte in the hi table carries its bank in bits 7-6, since songs sit at $80xx-$BFxx:
-  %10 bank 6, %11 bank 3, %00 bank 5. The wrapper turns that into BANKSEL ($00 bank 6, $40 bank 3,
-  $80 bank 5; 0 is bank 6 so a cleared selector is safe) and rebuilds the address with and #$3f, ora #$80.
+  %10 bank 6, %11 bank 3, %00 bank 5, %01 bank 4. The wrapper turns that into BANKSEL ($00 bank 6,
+  $40 bank 3, $80 bank 5, $C0 bank 4; 0 is bank 6 so a cleared selector is safe) and rebuilds the address with and #$3f, ora #$80.
 """
 import os, re, subprocess, sys
 
@@ -78,6 +79,7 @@ DELAY=$6bf8
 JG=$6bfa
 BANKSEL=$6bf9
 SFX=$6bf6
+RAW=$6bf5
 SONG=$6bfb
 WANT=$6bfc
 CUR=$6bfd
@@ -96,6 +98,41 @@ wrap:
  lda #1
  sta JG
 ok:
+ ; A new request is told apart by map once (the request hook used to do this in the fixed bank):
+ ; Hauksness has its own song, the old man caves keep what was playing, and floors in a cave
+ ; (not Charlock) are the Cave song.
+ lda RAW
+ beq noremap
+ lda #0
+ sta RAW
+ lda WANT
+ cmp #$0e
+ bcs noremap
+ cmp #$01
+ bcc noremap
+ ldx $45
+ cpx #3
+ bne nh
+ lda #$1c
+ sta WANT
+nh:
+ cpx #12
+ bcc nb
+ cpx #15
+ bcs nb
+ lda CUR
+ sta WANT
+ jmp noremap
+nb:
+ cmp #$06
+ bcc noremap
+ cpx #21
+ bcc noremap
+ cpx #30
+ bcs noremap
+ lda #$1d
+ sta WANT
+noremap:
  lda WANT
  cmp CUR
  beq same
