@@ -29,7 +29,7 @@
 #define FIRST_JINGLE 0x10 /* requests from here on are events */
 /* Sizes of the three fixed-bank hooks. */
 #define HOOK_YS_SIZE 10
-#define HOOK_RQ_SIZE 90
+#define HOOK_RQ_SIZE 111
 #define HOOK_FRAME_SIZE 29
 #define REQUEST_BATTLE_RESUME 0x18
 #define REQUEST_CREDITS 0x1f
@@ -38,6 +38,7 @@
 #define REQUEST_CAVE 0x1d /* dungeon floor music in a cave, not Charlock */
 #define MAX_PLACED 24
 #define RAM_JINGLE 0x6bfa
+#define RAM_SFX 0x6bf6 /* last sound effect request ($80 + n) */
 #define RAM_WANT 0x6bfc
 #define RAM_CUR 0x6bfd
 #define RAM_BANKSEL 0x6bf9
@@ -1289,13 +1290,25 @@ static BOOL apply_music(dw_rom *rom)
     /* Music requests: remember the id and quiet the channels for the new song. */
     /* The battle sting is part of the game's battle music, so let it play first. */
     rq = find_free_space(rom->content, 0xc422, HOOK_RQ_SIZE);
-    vpatch(rom, rq, HOOK_RQ_SIZE,
+    {
+        static const uint8_t rq_code[] = {
             0xa2, 0xff, 0x8e, 0x05, 0x60,         /* ldx #$ff, stx $6005 (replaced code) */
-            0xc9, 0x80, 0xb0, 0x3e,               /* cmp #$80, bcs done: sound effect */
+            /* cmp #$80, bcc music. A sound effect: keep its number for the driver, which mutes only the
+             * channels that effect uses (gen_driver.py, sfxmask). */
+            /* Effect $82 is the town footstep, which the game plays in its request routine. Return from that
+             * routine instead (pla pla rts: this hook's return address, then the routine's), so nothing plays. */
+            0xc9, 0x80, 0x90, 0x10, 0xc9, 0x82, 0xd0, 0x08,
+            0xa9, 0x00, 0x8d, 0x05, 0x60,                 /* lda #0, sta $6005: the routine's busy flag, as its own end does */
+            0x68, 0x68, 0x60,
+            0x8d, LO8(RAM_SFX), HI8(RAM_SFX), 0x60,
             0x8d, LO8(RAM_WANT), HI8(RAM_WANT),
             0xa2, 0x00, 0x8e, LO8(RAM_DELAY), HI8(RAM_DELAY),
             /* The game's music plays unless the driver starts a song for this request. */
             0xa2, 0x01, 0x8e, LO8(RAM_JINGLE), HI8(RAM_JINGLE),
+            /* Quiet the channels only when a pack song was playing (its notes would hang). After the game's
+             * own music, such as the level-up jingle, the last note rings out as in the original game:
+             * cutting it dead clipped the jingle and popped. */
+            0xae, 0xfb, 0x6b, 0x30, 0x10,         /* ldx SONG ($6BFB), bmi: no pack song playing */
             0xa2, 0x30, 0x8e, 0x00, 0x40, 0x8e, 0x04, 0x40, 0x8e, 0x0c, 0x40,
             0xa2, 0x80, 0x8e, 0x08, 0x40,
             /* Map music requests shared between places: tell them apart by map. */
@@ -1313,7 +1326,11 @@ static BOOL apply_music(dw_rom *rom)
             0xc9, 0x06, 0x90, 0x0d,
             0xe0, SWAMP_CAVE, 0x90, 0x09, 0xe0, ERDRICKS_CAVE_2 + 1, 0xb0, 0x05,
             0xa2, REQUEST_CAVE, 0x8e, LO8(RAM_WANT), HI8(RAM_WANT),
-            0x60);
+            0x60};
+        /* The free-space check above reserves HOOK_RQ_SIZE bytes: the two must agree. */
+        _Static_assert(sizeof(rq_code) == HOOK_RQ_SIZE, "HOOK_RQ_SIZE must match the request hook");
+        patch(rom, rq, sizeof(rq_code), rq_code);
+    }
     vpatch(rom, 0x41a0, 5, 0x20, LO8(rq), HI8(rq), 0xea, 0xea);
 
     /* Each frame: the game's sound code, then the driver in its current bank. */

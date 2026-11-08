@@ -66,6 +66,8 @@ swap_out = ''.join(f' lda ${a:02x}\n sta ${0x6b40 + a - 0xd0:04x}\n lda ${0x6b00
 swap_out += ''.join(f' lda ${0x6b00 + a - 0xd0:04x}\n sta ${a:02x}\n' for a in ZP_SCRATCH)
 # ZP-SWAP-END
 
+NOISE_ONLY = {0, 3, 4, 7, 8, 10, 11, 18}  # 2 (the town footstep) mutes square 2 as the original game does
+SFXMASK = ','.join('$e7' if i in NOISE_ONLY else '$e5' for i in range(32))
 open('wrap.asm', 'w').write(f'''
 INIT={L['ft_music_init']}
 PLAY={L['ft_music_play']}
@@ -75,6 +77,7 @@ MA=$6bf0
 DELAY=$6bf8
 JG=$6bfa
 BANKSEL=$6bf9
+SFX=$6bf6
 SONG=$6bfb
 WANT=$6bfc
 CUR=$6bfd
@@ -162,7 +165,10 @@ nj:
  sta $4015
  lda $fa
  beq idle
- lda #$e5
+ lda SFX
+ and #$1f
+ tax
+ lda sfxmask,x
  sta CH
  lda #1
  sta G
@@ -182,6 +188,10 @@ pl:
  jsr PLAY
 out:
 {swap_out} rts
+; Channels left on while a game sound effect plays, by effect number (SFX holds the request, $80 + n).
+; $E7 for the effects that only use noise (bank 1's table at $8339: 0, 2, 3, 4, 7, 8, 10, 11, 18), so the
+; song keeps square 2. $E5 (square 2 and noise off) for the rest, as the original game does for all.
+sfxmask: .db {SFXMASK}
 map: .dsb 32,$ff
 lo: .dsb 24,0
 hi: .dsb 24,0
