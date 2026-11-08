@@ -29,8 +29,8 @@
 #define FIRST_JINGLE 0x10 /* requests from here on are events */
 /* Sizes of the three fixed-bank hooks. */
 #define HOOK_YS_SIZE 10
-#define HOOK_RQ_SIZE 63
-#define HOOK_FRAME_SIZE 36
+#define HOOK_RQ_SIZE 62
+#define HOOK_FRAME_SIZE 24
 #define REQUEST_BATTLE_RESUME 0x18
 #define REQUEST_CREDITS 0x1f
 #define REQUEST_HAUKSNESS 0x1c
@@ -637,6 +637,8 @@ static BOOL has_tag(const song_t *s, const char *const tags[4])
  * banks 4 and 6, below the driver. Each bank holds its own copy of the driver at FT_BASE. */
 #define MUSIC_BANKS 5
 #define BANK4_HIGH 0xb3e0
+/* The site plans the same room (BANK4_HIGH in site/index.html): if the credits code grows past this, move both. */
+_Static_assert(CREDITS_CODE_END <= BANK4_HIGH, "bank 4 credits code runs into BANK4_HIGH");
 static int music_bank_count = 2;
 static uint16_t music_bank_end[MUSIC_BANKS] = {0xc000, 0xc000, 0xbffa, 0xa000, 0xc000};
 
@@ -1025,16 +1027,15 @@ static void pick_like_site(dw_rom *rom)
  * The tick runs right after the NMI, never just before it: the game's NMI resets the console if it lands
  * on a bank switch while the game waits, and the next NMI is a whole frame away.
  * Code that never calls the wait (three frames without it) gets its ticks from the NMI. */
-/* After lda RAM_BANKSEL: A = the music bank. $00 is bank 6, $40 bank 3, $80 bank 5, $C0 bank 4
- * (see gen_driver.py).
- *   beq six; bpl three; cmp #$c0; beq four; lda #5; BIT $04a9; four: lda #4; BIT $03a9; three: lda #3;
- *   BIT $06a9; six: lda #6
- * Each BIT skips the next load, so every bank falls through to the jsr with its own number. */
-#define BANK_SELECT 0xf0, 0x0f, 0x10, 0x0a, 0xc9, 0xc0, 0xf0, 0x03, 0xa9, 0x05, 0x2c, 0xa9, 0x04, \
-        0x2c, 0xa9, 0x03, 0x2c, 0xa9, 0x06
+/* After lda RAM_BANKSEL: A = the music bank. Bits 7-6 hold the bank minus 3: $00 bank 3, $40 bank 4,
+ * $80 bank 5, $C0 bank 6 (see gen_driver.py). and #$c0 : asl : rol : rol leaves the two bits at the bottom
+ * with the carry clear, then adc #3. Any value gives a bank from 3 to 6, and 0 is bank 3, which always
+ * holds a driver. */
+#define BANK_SELECT 0x29, 0xc0, 0x0a, 0x2a, 0x2a, 0x69, 0x03
 #define MW_PEND 0x6bf2
 #define MW_RUNNING 0x6bf3
 #define MW_INWAIT 0x6bf4
+#define MW_SKIP 0x6bf7 /* set when the game missed a frame: the next wait skips the music once */
 #define MW_TH 3
 #define MW_BANKSEL RAM_BANKSEL
 static void music_wait_loop(dw_rom *rom, uint16_t frame)
@@ -1042,9 +1043,9 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
     static const uint8_t wait_in[9] = {0xa9, 0x01, 0x85, 0x02, 0xa5, 0x02, 0xd0, 0xfc, 0x60};
     static const uint8_t overrun_in[3] = {0x20, 0x2d, 0xff};
     uint8_t *k = rom->content;
-    uint8_t c[48], c2[14], code[128];
-    uint16_t h2, chk, w;
-    int n = 0, beq, spin;
+    uint8_t c[48], c2[20], code[128];
+    int h2, chk, w;
+    int n = 0, n1, n2, beq, beq2, spin;
 
     if (memcmp(k + 0xff74, wait_in, 9) || memcmp(k + 0xfe55, overrun_in, 3)) {
         printf("Music wait loop not recognized, keeping the frame music.\n");
@@ -1062,32 +1063,36 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
      * do that load here, then carry on at the rest of the tail. This saves copying the tail. */
     c[n++] = 0xad; c[n++] = LO8(RAM_BANKSEL); c[n++] = HI8(RAM_BANKSEL);
     c[n++] = 0x4c; c[n++] = LO8(frame + 11); c[n++] = HI8(frame + 11);
-    h2 = find_free_space(k, FIXED_FREE_START, n);
-    patch(rom, h2, n, c);
-    patch(rom, frame + 8, 3, (uint8_t[]){0x4c, LO8(h2), HI8(h2)});
+    n1 = n;
 
-    /* 2. Overrun path of the NMI: while the game waits for a frame, take the full path. */
+    /* 2. Overrun path of the NMI: while the game waits for a frame, take the full path. Otherwise the game
+     * missed this frame: note it, so the next wait skips the music once and the game can catch up instead
+     * of missing frames in a row. */
     n = 0;
     c2[n++] = 0xad; c2[n++] = LO8(MW_INWAIT); c2[n++] = HI8(MW_INWAIT);
     c2[n++] = 0xf0; c2[n++] = 3;
     c2[n++] = 0x4c; c2[n++] = 0x7f; c2[n++] = 0xfe;
+    c2[n++] = 0xa9; c2[n++] = 0x01; c2[n++] = 0x8d; c2[n++] = LO8(MW_SKIP); c2[n++] = HI8(MW_SKIP);
     c2[n++] = 0x20; c2[n++] = 0x2d; c2[n++] = 0xff;
     c2[n++] = 0x4c; c2[n++] = 0x58; c2[n++] = 0xfe;
-    chk = find_free_space(k, FIXED_FREE_START, n);
-    patch(rom, chk, n, c2);
-    patch(rom, 0xfe55, 3, (uint8_t[]){0x4c, LO8(chk), HI8(chk)});
+    n2 = n;
 
-    /* 3. The wait itself: wait for the frame, then run one pending tick and drop any others. */
+    /* 3. The wait itself: run one pending tick and drop any others, then wait for the frame. The tick
+     * runs first so it uses the time the game would spend waiting, not the start of the next frame
+     * (which in scroll frames has little to spare). INWAIT is held through the tick, so an NMI that
+     * lands during it still takes the full path. */
     n = 0;
 #define EMIT(...) do { const uint8_t e_[] = {__VA_ARGS__}; memcpy(code + n, e_, sizeof(e_)); n += sizeof(e_); } while (0)
     EMIT(0xa9, 0x01, 0x85, 0x02, 0x8d, LO8(MW_INWAIT), HI8(MW_INWAIT));  /* lda #1; sta $02; sta INWAIT */
-    EMIT(0xa5, 0x02, 0xd0, 0xfc);                                       /* spin: lda $02; bne spin */
-    EMIT(0xa9, 0x00, 0x8d, LO8(MW_INWAIT), HI8(MW_INWAIT));             /* lda #0; sta INWAIT */
-    EMIT(0xad, LO8(MW_PEND), HI8(MW_PEND));                             /* lda PEND */
-    beq = n; EMIT(0xf0, 0);                                             /* beq done */
+    EMIT(0xad, LO8(MW_SKIP), HI8(MW_SKIP), 0xf0, 0x0a);                 /* lda SKIP; beq run (skips the next 10 bytes) */
+    EMIT(0xa9, 0x00, 0x8d, LO8(MW_SKIP), HI8(MW_SKIP));                 /* lda #0; sta SKIP */
+    EMIT(0x8d, LO8(MW_PEND), HI8(MW_PEND));                             /* sta PEND: drop this frame's tick */
+    beq2 = n; EMIT(0xf0, 0);                                            /* beq spin (always) */
+    EMIT(0xad, LO8(MW_PEND), HI8(MW_PEND));                             /* run: lda PEND */
+    beq = n; EMIT(0xf0, 0);                                             /* beq spin */
     EMIT(0x08, 0x8a, 0x48, 0x98, 0x48);                                 /* php txa pha tya pha */
     EMIT(0xad, 0x04, 0x60, 0x48);                                       /* lda $6004; pha */
-    EMIT(0xa9, 0x01, 0x8d, LO8(MW_RUNNING), HI8(MW_RUNNING));           /* lda #1; sta RUNNING */
+    EMIT(0xee, LO8(MW_RUNNING), HI8(MW_RUNNING));                       /* inc RUNNING: it is 0 here */
     EMIT(0xa9, 0x00, 0x8d, LO8(MW_PEND), HI8(MW_PEND));                 /* lda #0; sta PEND: one tick, drop the rest */
     EMIT(0xad, LO8(MW_BANKSEL), HI8(MW_BANKSEL), BANK_SELECT);
     EMIT(0x20, 0x91, 0xff);                                             /* jsr $ff91 (sets $6004) */
@@ -1097,10 +1102,30 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
     EMIT(0x68, 0xa8, 0x68, 0xaa, 0x28);                                 /* pla tay pla tax plp */
     spin = n;
     code[beq + 1] = (uint8_t)(spin - (beq + 2));
-    EMIT(0xa9, 0x00, 0x60);                                             /* done: lda #0; rts (A=0, Z set, as before) */
+    code[beq2 + 1] = (uint8_t)(spin - (beq2 + 2));
+    EMIT(0xa5, 0x02, 0xd0, 0xfc);                                       /* spin: lda $02; bne spin */
+    EMIT(0xa9, 0x00, 0x8d, LO8(MW_INWAIT), HI8(MW_INWAIT), 0x60);       /* lda #0; sta INWAIT; rts (A=0, Z set) */
 #undef EMIT
-    w = find_free_space(k, FIXED_FREE_START, n);
-    patch(rom, w, n, code);
+
+    /* Place all three or none. Without room the build goes on with the music run from the NMI only, which
+     * plays the same but can slow busy frames, rather than stopping (each piece is held while the next is
+     * looked up). */
+    h2 = dwr_try_free_space(k, FIXED_FREE_START, (uint8_t)n1);
+    if (h2 >= 0) memset(k + h2, 0x00, (size_t)n1);
+    chk = h2 < 0 ? -1 : dwr_try_free_space(k, FIXED_FREE_START, (uint8_t)n2);
+    if (chk >= 0) memset(k + chk, 0x00, (size_t)n2);
+    w = chk < 0 ? -1 : dwr_try_free_space(k, FIXED_FREE_START, (uint8_t)n);
+    if (w < 0) {
+        if (h2 >= 0) memset(k + h2, 0xff, (size_t)n1);
+        if (chk >= 0) memset(k + chk, 0xff, (size_t)n2);
+        printf("No room for the music wait loop, the music runs from the frame only.\n");
+        return;
+    }
+    patch(rom, (uint16_t)h2, n1, c);
+    patch(rom, frame + 8, 3, (uint8_t[]){0x4c, LO8(h2), HI8(h2)});
+    patch(rom, (uint16_t)chk, n2, c2);
+    patch(rom, 0xfe55, 3, (uint8_t[]){0x4c, LO8(chk), HI8(chk)});
+    patch(rom, (uint16_t)w, n, code);
     patch(rom, 0xff74, 3, (uint8_t[]){0x4c, LO8(w), HI8(w)});
 }
 
@@ -1108,7 +1133,7 @@ static BOOL apply_music(dw_rom *rom)
 {
     static const int banks[MUSIC_BANKS] = {6, 3, 5, 4, 4};
     /* Bits 7-6 of a song's high address byte name its bank (gen_driver.py). */
-    static const uint8_t bank_code[MUSIC_BANKS] = {0x80, 0xc0, 0x00, 0x40, 0x40};
+    static const uint8_t bank_code[MUSIC_BANKS] = {0xc0, 0x00, 0x80, 0x40, 0x40};
     /* Where each area must be empty: from the driver up, except bank 4's high piece, which starts
      * above the credits code. */
     static const uint16_t area_start[MUSIC_BANKS] = {0x8100, 0x8100, 0x8100, 0x8100, BANK4_HIGH};
@@ -1147,10 +1172,11 @@ static BOOL apply_music(dw_rom *rom)
         size_t o;
         for (o = area_start[b] - 0x8000; o < music_bank_end[b] - 0x8000u && b4[o] == 0xff; o++)
             ;
+        /* Not dropped on its own: a selector left at bank 4 in battery RAM would then run a bank with no driver,
+         * and the site plans songs there. CREDITS_CODE_END <= BANK4_HIGH is checked when building. */
         if (o < music_bank_end[b] - 0x8000u) {
-            printf("Music bank 4 is in use, so it holds no songs.\n");
-            music_bank_count = 3;
-            break;
+            printf("Music bank 4 is in use, keeping the original music.\n");
+            return FALSE;
         }
     }
 
@@ -1334,7 +1360,7 @@ static BOOL apply_music(dw_rom *rom)
             0x8d, LO8(RAM_RAW), HI8(RAM_RAW),
             0xa2, 0x00, 0x8e, LO8(RAM_DELAY), HI8(RAM_DELAY),
             /* The game's music plays unless the driver starts a song for this request. */
-            0xa2, 0x01, 0x8e, LO8(RAM_JINGLE), HI8(RAM_JINGLE),
+            0xe8, 0x8e, LO8(RAM_JINGLE), HI8(RAM_JINGLE),   /* inx: X was 0 */
             /* Quiet the channels only when a pack song was playing (its notes would hang). After the game's
              * own music, such as the level-up jingle, the last note rings out as in the original game:
              * cutting it dead clipped the jingle and popped. */
@@ -1378,7 +1404,7 @@ static BOOL apply_music(dw_rom *rom)
                  * bank, where the driver would read junk. Stay silent until then. */
                 0xad, LO8(RAM_WANT), HI8(RAM_WANT), 0xc9, REQUEST_CREDITS, 0xf0, 0x06,
                 0xa9, 0x00, 0x8d, 0x15, 0x40, 0x60,
-                0xa9, 0x00, 0x8d, LO8(RAM_BANKSEL), HI8(RAM_BANKSEL),
+                0xa9, 0xc0, 0x8d, LO8(RAM_BANKSEL), HI8(RAM_BANKSEL), /* bank 6 */
                 0xa9, 0x06,
                 0x20, 0x00, 0x00,           /* JSR sw (filled in) */
                 0x20, LO8(FT_WRAP), HI8(FT_WRAP),

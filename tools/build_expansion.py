@@ -16,6 +16,10 @@ CREDITS_LABELS = (
     ('CREDITS_FAMISTUDIO_INIT', 'famistudio_init'),
     ('CREDITS_FAMISTUDIO_PLAY', 'famistudio_music_play'),
     ('CREDITS_FAMISTUDIO_UPDATE', 'famistudio_update'),
+    # End of bank 4's credits code: custom music puts songs above it (BANK4_HIGH in custom_music.c).
+    ('CREDITS_CODE_END', 'credits_code_end'),
+    # End of the bank 3 patch: the unused flag-only routines are cleared up to here (dwr.c).
+    ('BANK_3_PATCH_END', 'bank_3_patch_end'),
 )
 
 # The randomizer places its own code from here up, so the bank 3 patch has to stop here.

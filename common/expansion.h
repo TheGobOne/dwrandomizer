@@ -46,6 +46,8 @@ enum subroutine {
 #define CREDITS_FAMISTUDIO_INIT 0xAA86
 #define CREDITS_FAMISTUDIO_PLAY 0xAB49
 #define CREDITS_FAMISTUDIO_UPDATE 0xAC22
+#define CREDITS_CODE_END 0xB3D9
+#define BANK_3_PATCH_END 0xC41B
 
 void add_hook(dw_rom *rom, enum hooktype type, uint16_t address,
         enum subroutine to_addr);

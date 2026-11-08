@@ -17,7 +17,7 @@
 #define DEFAULT_FLAGS "IVIAAVCEKACAAAAAAAAAAEAUAAQBAAAAABYCAAAA"
 #define CHEST_COUNT 31
 /* Where new fixed-bank code may go: from the first flag-only routine of the bank 3 patch. Routines whose
- * flag is off are cleared to $FF (dwr_free_patch_routine), so their bytes are reused. */
+ * flag is off are cleared to $FF (free_unused_patch_routines in dwr.c), so their bytes are reused. */
 #define FIXED_FREE_START 0xc331
 
 #define SHUFFLE_CHESTS(x)         (x->flags[ 0] & 0xc0)
