@@ -231,7 +231,7 @@ body *{font-size:inherit!important}
 }
 .title h1{white-space:nowrap;font-size:min(24px,calc((100vw - 4rem) / 53))!important}
 .btn.go,.btn.go:hover{background:#fff!important;color:var(--blue)!important;border-color:#fff!important}
-.opt[data-id=flutefast]>.name::after,.opt[data-id=flutefast]>label::after,.opt[data-id=responsive]>.name::after,.opt[data-id=responsive]>label::after,.opt[data-id=autoreturn]>.name::after,.opt[data-id=autoreturn]>label::after,.opt[data-id=freecharlock]>.name::after,.opt[data-id=freecharlock]>label::after,.opt[data-id=safestart]>.name::after,.opt[data-id=safestart]>label::after,.opt[data-id=biome]>.name::after,.opt[data-id=encounters]>.name::after,.opt[data-id=encounters]>label::after,.opt[data-id=quickspell]>.name::after,.opt[data-id=quickspell]>label::after,.opt[data-id=bank]>.name::after,.opt[data-id=bank]>label::after,.opt[data-id=keyherb]>.name::after,.opt[data-id=keyherb]>label::after,.opt[data-id=noshake]>.name::after,.opt[data-id=noshake]>label::after,.opt[data-id=pack]>.name::after,.opt[data-id=pack]>label::after{content:'REMIX';display:inline-block;margin-left:.6em;padding:0 .3em;background:none;border:2px solid #8ff5b0;color:#8ff5b0;font-size:1em;line-height:1.1;white-space:nowrap}
+.opt[data-id=flutefast]>.name::after,.opt[data-id=discardflute]>.name::after,.opt[data-id=discardflute]>label::after,.opt[data-id=flutefast]>label::after,.opt[data-id=responsive]>.name::after,.opt[data-id=responsive]>label::after,.opt[data-id=autoreturn]>.name::after,.opt[data-id=autoreturn]>label::after,.opt[data-id=freecharlock]>.name::after,.opt[data-id=freecharlock]>label::after,.opt[data-id=safestart]>.name::after,.opt[data-id=safestart]>label::after,.opt[data-id=biome]>.name::after,.opt[data-id=encounters]>.name::after,.opt[data-id=encounters]>label::after,.opt[data-id=quickspell]>.name::after,.opt[data-id=quickspell]>label::after,.opt[data-id=bank]>.name::after,.opt[data-id=bank]>label::after,.opt[data-id=keyherb]>.name::after,.opt[data-id=keyherb]>label::after,.opt[data-id=noshake]>.name::after,.opt[data-id=noshake]>label::after,.opt[data-id=pack]>.name::after,.opt[data-id=pack]>label::after{content:'REMIX';display:inline-block;margin-left:.6em;padding:0 .3em;background:none;border:2px solid #8ff5b0;color:#8ff5b0;font-size:1em;line-height:1.1;white-space:nowrap}
 .colorrow{display:flex;gap:.3rem;align-items:center;margin-top:.3rem;flex:none}
 .colorrow select{flex:1 1 0;min-width:0;background:var(--blue);color:#fff;border:2px solid #fff}
 .colorpick{flex:none;width:2.2rem;height:1.6rem;padding:0;background:none;border:2px solid #fff;cursor:pointer}
@@ -630,7 +630,7 @@ function chosenPack(seed){
   const rand=slots.filter(x=>x.v==='random').sort((x,y)=>FILL_ORDER.indexOf(x.tag)-FILL_ORDER.indexOf(y.tag));
   let dungeon=null, shared, left=rand.filter(x=>!x.same||x.tag==='Floor1').length;
   rand.forEach(x=>{ if(x.same&&shared!==undefined){ x.song=shared; return; }
-    const own=all.filter(i=>hasTag(songs[i],x.floor?[x.tags[0]]:x.tags));
+    const own=all.filter(i=>hasTag(songs[i],x.floor?[x.tags[0]]:x.tags)); x.hadOwn=own.length>0;
     if(own.length) x.song=choose(own,x.same?'Dungeon':x.tag,left,x.loop);
     /* No tagged song that loops and fits: a location falls back to any song, a floor to a dungeon song. */
     if(x.song==null&&!x.floor&&x.loop) x.song=choose(all,x.tag,left,x.loop); /* Random on a slot with no tagged songs: any song that loops. */
@@ -647,7 +647,9 @@ function chosenPack(seed){
     if(g) out.groups.push({...g,items:[copy]}); else out.single.push(copy); };
   if(main>=0) add(main,'Dungeon',floors[0].key);
   slots.forEach(x=>{ if(x.song!==null&&!(x.floor&&x.song===main)) add(x.song,x.tag,x.key); });
-  return {text:JSON.stringify(out),count,list};
+  /* Random slots with tagged songs where none fit: the site says so instead of quietly keeping the game's music. */
+  const missed=rand.filter(x=>x.song==null&&x.hadOwn&&!x.floor).map(x=>({name:x.name,key:x.key}));
+  return {text:JSON.stringify(out),count,list,missed};
 }
 /* The ROM and music pack are kept in this browser's own storage, and never leave it. */
 const FileStore={
@@ -709,7 +711,7 @@ function trackBox(){
   const allDefault=el('button',{type:'button',class:'mini',text:'All Default',title:'Every slot goes back to the default game music',onclick:()=>setAll(false)});
   const paintAll=()=>{ allRandom.disabled=allDefault.disabled=!State.pack; };
   State.on(i=>{ if(i==='pack'||i==='*') paintAll(); }); paintAll();
-  State.on(i=>{ if(i==='skipcredits'||i==='*') paint(); });
+  State.on(i=>{ if(i==='skipcredits'||i==='assign'||i==='*') paint(); });
   box.append(el('div',{class:'onlyrow'},el('label',{class:'onlytag',for:'taggedonly'},only,' Only show tagged tracks')),el('div',{class:'packall'},allRandom,allDefault),cols,
     el('p',{class:'packstat',text:'A slot with no tagged tracks only offers Default. Untick Only show tagged tracks to use any track there.'}));
   State.on(i=>{ if(i==='pack'||i==='speed'||i==='flutefast'||i==='*') paint(); }); paint(); return box;
@@ -1165,7 +1167,11 @@ let spaceTimer=null;
 function freeBytes(rom){ let free=0,run=0; for(let i=0x10010+0xc422;i<0x10010+0xfff0;i++){ if(rom[i]===0xff) run++; else { if(run>=6) free+=run; run=0; } } return run>=6?free+run:free; }
 function checkSpace(){ spaceTimer=null;
   if(!State.rom||!wasmReady){ spaceLine.textContent=''; return; }
-  try{ const r=buildOnce(); const left=(r.log||[]).filter(t=>/leaving it out|keeping the|no room/i.test(t)).map(t=>t.replace(/\.$/,''));
+  try{ const r=buildOnce(); /* A Random slot with no room for any tagged song is switched to Default, and the line says so. */
+    const missed=(r.picks&&r.picks.missed)||[], moved=(State.autoDefaulted||[]).concat(missed.map(m=>m.name)); State.autoDefaulted=null;
+    const left=(r.log||[]).filter(t=>/leaving it out|keeping the|no room/i.test(t)).map(t=>t.replace(/\.$/,''))
+      .concat(moved.map(n=>n+' set to Default: no room for a tagged song'));
+    if(missed.length&&State.assign){ missed.forEach(m=>delete State.assign[m.key]); State.autoDefaulted=moved; savePicks(); State.emit('assign'); }
     spaceLine.textContent=r.data?'ROM space: '+freeBytes(r.data)+' bytes'+(left.length?'. Left out: '+left.join('; ')+'.':''):(r.log.some(t=>t.includes('Out of room'))?'ROM space: will not fit. Turn off a flag.':'Build check: '+failMessage(r.log)); }
   catch(e){ spaceLine.textContent=''; } }
 State.on(i=>{ if(i==='seed') return; clearTimeout(spaceTimer);
