@@ -1078,7 +1078,17 @@ bin_table:
    .db $00, $01, $02, $03, $04, $80, $81, $82, $83, $84
 
 load_chr_bank_0:
-    sta $bfff
+    ; The credits NMI writes to the mapper too (the music hook), so keep it off while these five
+    ; serial writes are in flight, or it would finish this write with its own bits.
+    pha
+    lda #$08        ; NMI off, same pattern tables as the credits ($88 with NMI on)
+    sta PPUCTRL
+    pla
+    jsr +
+    lda #$88        ; NMI back on
+    sta PPUCTRL
+    rts
++   sta $bfff
     lsr
     sta $bfff
     lsr

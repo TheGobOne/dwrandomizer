@@ -137,7 +137,7 @@
 
 #define UNGUARDED_OW_SEARCHSPOT(x)((x->flags[22] & 0x80) >> 7) // 1
 #define LEVEL_1_REPEL(x)          ((x->flags[22] & 0x40) >> 6) // 1
-#define NORMAL_FLUTE_SPEED(x)     ((x->flags[22] & 0x20) >> 5) // 1
+#define FAST_FLUTE(x)             (!((x->flags[22] & 0x20) >> 5)) // 1, stored inverted so every older code keeps its flute
 #define HINTS(x)                  ((x->flags[22] & 0x18) >> 3) // 2: vanilla, corrected, useful, one of the above
 #define NORMALIZED_XP_GOLD(x)     ((x->flags[22] & 0x06) >> 1) // 2
 #define WINTER_THEME(x)           ((x->flags[22] & 0x01)     ) // 1
@@ -180,12 +180,10 @@ uint16_t set_text(dw_rom *rom, const size_t address, char *text);
 void dwr_set_spoiler(BOOL enabled);
 uint16_t find_free_space(uint8_t *content, uint16_t start, uint8_t n);
 uint16_t find_free_space_in(uint8_t *content, uint16_t start, uint16_t end, uint8_t n);
-void check_free_space(uint8_t *content, uint16_t start);
 void dwr_no_room(void);
 int dwr_try_free_space(uint8_t *content, uint16_t start, uint8_t n);
 void dwr_give_up(const char *why);
 BOOL dwr_packing(void);
-void print_rom_data(uint8_t *content, uint16_t start, uint8_t n);
 
 #ifdef __cplusplus
 }

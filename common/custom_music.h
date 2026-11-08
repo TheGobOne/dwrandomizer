@@ -21,6 +21,10 @@ void custom_music_clear(void);
  * @param rom The rom struct
  */
 void custom_music_apply(dw_rom *rom);
+/* True when a music pack is loaded. */
+BOOL custom_music_has_pack(void);
+/* The built-in credits song to add if the pack's music does not go in. */
+void custom_music_set_credits_fallback(int track);
 
 /** Pick songs the way the site does with every slot on Random, for the command line. */
 void custom_music_choose_like_site(void);

@@ -37,6 +37,7 @@ static void print_usage(const char *command, char *default_flags)
     printf("\n");
     printf("Options, before the rom file:\n");
     printf("  --music <pack.json5>\n");
+    printf("  --music-exact <pack.json5>   (testing: songs go in as tagged, no site picks)\n");
     printf("  --encounters default|low|medium|high\n");
     printf("  --free-charlock on|off\n");
     printf("  --auto-return on|off\n");
@@ -77,6 +78,10 @@ int main(int argc, char **argv)
             if (!custom_music_load(argv[2]))
                 exit(1);
             custom_music_choose_like_site();
+        } else if (!strcmp(argv[1], "--music-exact")) {
+            /* Testing: every song goes in as tagged, without the site's picks. */
+            if (!custom_music_load(argv[2]))
+                exit(1);
         } else if (!strcmp(argv[1], "--encounters")) {
             for (encounters = 0; encounters < 4; encounters++)
                 if (!strcmp(argv[2], encounter_rates[encounters]))
@@ -132,8 +137,10 @@ int main(int argc, char **argv)
         flags = default_flags;
     }
     if (argc < 5 || sscanf(argv[3], "%"PRIu64, &seed) != 1) {
-        srand(time(NULL));
-        seed = ((uint64_t)rand() << 32) | ((uint64_t)rand() & 0xffffffffL);
+        srand((unsigned)time(NULL) ^ (unsigned)clock());
+        /* RAND_MAX is only 32767 on Windows, so take 16 bits at a time. */
+        seed = ((uint64_t)(rand() & 0xffff) << 48) | ((uint64_t)(rand() & 0xffff) << 32) |
+                ((uint64_t)(rand() & 0xffff) << 16) | (uint64_t)(rand() & 0xffff);
     }
     if (argc > 5) {
         sprite = argv[4];
