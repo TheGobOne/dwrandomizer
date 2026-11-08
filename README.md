@@ -67,6 +67,16 @@ dwrandomizer --encounters low --bank-level easy --music pack.json5 dw.nes out/
 
 Every option is listed in [docs/FLAGS.md](docs/FLAGS.md#command-line-options). Run the program with no arguments to see the sprite names.
 
+## Custom music and lag
+
+Custom music runs its driver every frame, and that work takes time the game needs for walking and text. The remix budgets for it, so walking should not stutter.
+
+- **Walking:** a beat can be dropped during a walking step, never two in a row, so the music stays at least half speed. In a test walk through Garinham, 93% of steps took the normal 16 frames. With no custom music it was 89%.
+- **Battles and text:** every beat plays, even while you hold A through a fight or a message.
+- **Stepping off a standstill in towns:** the first step can take 10 to 25 frames, because the game waits for its NPCs. The music is not the cause.
+
+Everything here was measured in FCEUX. It has not been checked on hardware or in other emulators.
+
 ## Escapes at a glance
 
 Run Mechanics (Battle tab) and Run Bank are separate things. Run Mechanics changes how a run attempt is decided (Vanilla, Safer Vanilla, DW2, DW4, or Costs XP). Run Bank is a stockpile you spend for a sure escape, and it cannot be used on the Dragonlord. Tables for both are in [docs/FLAGS.md](docs/FLAGS.md#run-bank).
