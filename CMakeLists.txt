@@ -1,6 +1,4 @@
-# This is the cmake build file for the project. This works on Linux, but
-# not Windows, so I will be using qmake instead. Keeping this around for
-# a bit, just in case.
+# CMake build for the command-line randomizer. Checked on Windows with Ninja and GCC.
 
 cmake_minimum_required(VERSION 3.7)
 project(dwrandomizer)

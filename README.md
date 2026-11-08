@@ -88,6 +88,12 @@ Run Mechanics (Battle tab) and Run Bank are separate things. Run Mechanics chang
 - Custom music cannot replace sound effects, and each ROM fits at most 24 songs from a pack, in about 17 KB.
 - Phone play is not a supported way to use it.
 
+## Known issues
+
+- Some random flag sets fail to build with "Not enough space" (about 1 in 18 random sets). Turn off one of `Build Options`, `Hurtmore Doors` or `Warp Whistle`.
+- The first step off a standstill in towns can take up to 25 frames.
+- Tested in FCEUX only, not on hardware.
+
 ## Troubleshooting
 
 - **Custom music squeals or sounds off-key in FCEUX:** set FCEUX's sound rate to match your audio device. Open `fceux.cfg` and set `soundrate` to `44100` (the default is 48000). Pick the rate your device uses.

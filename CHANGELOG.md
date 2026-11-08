@@ -1,3 +1,17 @@
+# 1.0 - TheGobOne Remix #
+###### Released Nov 8, 2026 ######
+* Custom music packs: JSON5 packs of FamiTracker modules, with tagged scenes and events (Dn-FamiTracker driver)
+* Biome, Safe Start, Encounter Rate, Run Bank, Auto Return, Free Charlock, Quick Spell
+* Show Key, Herb & Fairy Water Counter, Disable Screen Shake
+* Auto Stairs, Responsive Controls, Fast Flute, DK Flute
+* Music keeps its speed in battles and text; walking can drop a beat during a step, never two in a row
+* Website with search, a Changed filter, a live ROM space line and Copy
+
+Known issues:
+* Some random flag sets fail to build with "Not enough space" (about 1 in 18 random sets). Turn off one of Build Options, Hurtmore Doors or Warp Whistle.
+* The first step off a standstill in towns can take up to 25 frames.
+* Tested in FCEUX only.
+
 # 3.0 - So many changes! #
 ###### Released Nov 30, 2021 ######
 * Entirely new web-based user interface
