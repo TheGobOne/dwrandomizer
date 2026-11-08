@@ -4085,6 +4085,18 @@ static void auto_stairs(dw_rom *rom)
  *
  * @param rom The rom struct
  */
+/* Room for Responsive Controls: first the spare end of the overworld map in bank 0 ($9D5D-$A652, which a map
+ * never fills), then the fixed bank. Bank 0 is always the one in use where these hooks run (the step routines
+ * are in it), so code there costs the fixed bank nothing. Returns a content index. */
+static int search_free_space(uint8_t *content, uint16_t start, uint16_t end, uint8_t n);
+static uint16_t rc_space(dw_rom *rom, uint8_t n)
+{
+    int at = search_free_space(rom->content, 0x1d5d, 0x2653, n);
+
+    return at >= 0 ? (uint16_t)at : find_free_space(rom->content, FIXED_FREE_START, n);
+}
+#define RC_CPU(x) ((uint16_t)((x) < 0x4000 ? (x) + 0x8000 : (x)))
+
 static void responsive_controls(dw_rom *rom)
 {
     const uint16_t state = 0x680c, buf = 0x680d, prev = 0x680e, pend = 0x680f;
@@ -4095,7 +4107,7 @@ static void responsive_controls(dw_rom *rom)
     if (!RESPONSIVE_CONTROLS(rom))
         return;
     printf("Making the controls responsive...\n");
-    read_hook = find_free_space(rom->content, FIXED_FREE_START, 109);
+    read_hook = rc_space(rom, 109);
     vpatch(rom, read_hook, 109,
         0xad, LO(prev), HI(prev), 0x49, 0xff, 0x25, 0x47, 0x29, 0xf9, 0x85, 0x46, /* new presses, not B or Select */
         0xa5, 0x47, 0x8d, LO(prev), HI(prev),
@@ -4114,7 +4126,7 @@ static void responsive_controls(dw_rom *rom)
         0xa9, 0x00, 0x8d, LO(buf), HI(buf),
         0xa9, READING, 0x8d, LO(state), HI(state),
         0xa5, 0x47, 0x29, 0x08, 0x60);                        /* the code this replaced */
-    frame_hook = find_free_space(rom->content, FIXED_FREE_START, 59);
+    frame_hook = rc_space(rom, 59);
     vpatch(rom, frame_hook, 59,
         0x08, /* callers count on the carry surviving a frame wait */
         0xad, LO(state), HI(state), 0xc9, READING, 0xd0, 0x2e,
@@ -4127,19 +4139,19 @@ static void responsive_controls(dw_rom *rom)
         0xa5, 0x46, 0x8d, LO(prev), HI(prev),
         0x68, 0xa8,
         0x28, 0x4c, 0x74, 0xff, 0xea); /* The real frame wait: NMI only runs its work from there. The nop keeps $FF from looking free. */
-    step_end = find_free_space(rom->content, FIXED_FREE_START, 8);
+    step_end = rc_space(rom, 8);
     vpatch(rom, step_end, 8, 0xa9, DONE, 0x8d, LO(state), HI(state), 0x4c, 0x19, 0xb2);
-    vpatch(rom, 0xcaa2, 4, 0x20, LO(read_hook), HI(read_hook), 0xea);
+    vpatch(rom, 0xcaa2, 4, 0x20, LO(RC_CPU(read_hook)), HI(RC_CPU(read_hook)), 0xea);
     /* The frame waits in the four step routines, so nothing else pays for reading the buttons, as it would
      * while booting and in menus if $FF74 itself were hooked. */
     for (i = 0x3252; i < 0x36da; i++) {
         if (rom->content[i] == 0x20 && rom->content[i + 1] == 0x74 && rom->content[i + 2] == 0xff)
-            vpatch(rom, i + 1, 2, LO(frame_hook), HI(frame_hook));
+            vpatch(rom, i + 1, 2, LO(RC_CPU(frame_hook)), HI(RC_CPU(frame_hook)));
     }
-    vpatch(rom, 0xcaf0 + 1, 2, LO(step_end), HI(step_end));
-    vpatch(rom, 0xcb04 + 1, 2, LO(step_end), HI(step_end));
-    vpatch(rom, 0xcb18 + 1, 2, LO(step_end), HI(step_end));
-    vpatch(rom, 0xcb2a + 1, 2, LO(step_end), HI(step_end));
+    vpatch(rom, 0xcaf0 + 1, 2, LO(RC_CPU(step_end)), HI(RC_CPU(step_end)));
+    vpatch(rom, 0xcb04 + 1, 2, LO(RC_CPU(step_end)), HI(RC_CPU(step_end)));
+    vpatch(rom, 0xcb18 + 1, 2, LO(RC_CPU(step_end)), HI(RC_CPU(step_end)));
+    vpatch(rom, 0xcb2a + 1, 2, LO(RC_CPU(step_end)), HI(RC_CPU(step_end)));
     gameplay_patches |= 4;
 }
 
