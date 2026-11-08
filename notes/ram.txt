@@ -53,3 +53,12 @@ Address         | Function                | Notes
 0x320           | Treasure chest array    |
 0x6000-0x8000   | SRAM                    |
 
+Randomizer RAM (not in the original game; vanilla use of $6900-$6BFF is unverified)
+0x6800-0x6801   | Return/Whistle index    | Return to Town and Warp Whistle: town indexes
+0x6802-0x6803   | Visited towns           | Return to Town and Warp Whistle: bit per town
+0x6804-0x6805   | Step counter            | Steps since the start (kept on continue unless XP is 0)
+0x6810-0x6812   | Visited towns per slot  | Saved copy of the visited towns for each save slot
+0x6813-0x6815   | Return town per slot    | Saved Return to Town index for each save slot
+0x6900-0x6AFF   | Music driver work RAM   | Dn-FamiTracker driver BSS (tools/custom-music/gen_driver.py)
+0x6B00-0x6B4D   | Music zero page swap    | Game and driver copies of $D0-$DD
+0x6BF0-0x6BFE   | Music state             | Song address, wait loop counters, bank select, jingle, song, want, current

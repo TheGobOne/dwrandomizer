@@ -605,7 +605,7 @@ function chosenPack(seed){
   const placed=[];
   const fits=(tag,size)=>{ const a=[...placed,{tag,size}], b=[0,0,0],
       rank=e=>PLACE_ORDER.indexOf(e.tag);
-    a.sort((x,y)=>rank(x)-rank(y));
+    a.sort((x,y)=>((rank(x)===0?0:1)-(rank(y)===0?0:1))||(y.size-x.size));
     return a.length<=MAX_MUSIC_SONGS&&a.every(e=>{ const k=ROOMS.findIndex((r,j)=>b[j]+e.size<=r); if(k<0) return false; b[k]+=e.size; return true; }); };
   /* Songs that fit; while many slots remain, leave room for them by preferring songs near a fair share. */
   /* A song that stops would leave these places silent, so Random only gives them songs that loop. */
@@ -903,7 +903,9 @@ function goBlock(out){
         } else {
           /* The log shows 'Group: Title', so match on the end. */
           const missed=picks.list.filter(p=>{ const k=Object.keys(left).find(t=>left[t]>0&&(t===p.title||t.endsWith(': '+p.title))); if(k){ left[k]--; return false; } return true; });
-          lines.push({text:'Music: '+(picks.count-missed.length)+' of '+picks.count+' songs placed ('+(bytes/1024).toFixed(1)+' KB of about 17 KB). Slots without a song play the default game music.'});
+          /* Banks 6 and 3, plus bank 5 when the log says it held songs. */
+          const b5=last.map(t=>/Music bank 5: (\d+) bytes/.exec(t)).find(Boolean), room=2*BANK_ROOM+(b5?+b5[1]:0);
+          lines.push({text:'Music: '+(picks.count-missed.length)+' of '+picks.count+' songs placed ('+(bytes/1024).toFixed(1)+' KB of '+(room/1024).toFixed(1)+' KB). Slots without a song play the default game music.'});
           if(noCredits) lines.push({text:'The credits song did not fit.'});
           if(missed.length) lines.push({text:'These songs did not fit, so their slots play the default game music:',items:missed.map(p=>p.tag+': '+p.title),keys:missed.map(p=>p.key)});
         }

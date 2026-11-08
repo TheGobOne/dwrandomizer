@@ -180,12 +180,10 @@ uint16_t set_text(dw_rom *rom, const size_t address, char *text);
 void dwr_set_spoiler(BOOL enabled);
 uint16_t find_free_space(uint8_t *content, uint16_t start, uint8_t n);
 uint16_t find_free_space_in(uint8_t *content, uint16_t start, uint16_t end, uint8_t n);
-void check_free_space(uint8_t *content, uint16_t start);
 void dwr_no_room(void);
 int dwr_try_free_space(uint8_t *content, uint16_t start, uint8_t n);
 void dwr_give_up(const char *why);
 BOOL dwr_packing(void);
-void print_rom_data(uint8_t *content, uint16_t start, uint8_t n);
 
 #ifdef __cplusplus
 }

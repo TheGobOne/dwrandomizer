@@ -81,6 +81,7 @@ static void update_flags(dw_rom *rom)
     rom->flags[6] &= ~0x02;
     /* mcgrew's last 2 bytes do not contain maybe flags. */
     /* flags[12] holds the Run Bank cap, not maybe flags. */
+    /* This also resolves Biome "Random" ($22 in byte 2 on the site) into one of the four biomes. */
     for (i=0; i < 12; i++) {
         rom->flags[i] |= (rom->flags[i] >> 1) & 0x55 & mt_rand(0, 0xff);
         rom->flags[i] &= 0x55;
@@ -106,11 +107,6 @@ static void update_flags(dw_rom *rom)
     if (RANDOM_MAP_SIZE(rom) == 0xc0) {
         rom->flags[13] &= 0x3f;
         rom->flags[13] |= mt_rand(0, 2) << 6;
-    }
-    /* Biome "Random" is $22 in this byte on the site: pick one of the four biomes. */
-    if ((rom->flags[2] & 0x22) == 0x22) {
-        const int b = mt_rand(0, 3);
-        rom->flags[2] = (uint8_t)((rom->flags[2] & ~0x33) | ((b & 2) << 3) | (b & 1));
     }
 
     // Tristates / "One of the above"s  group of 5's #         same       bitmask  nbOptions-1  back to bitmask   --   all but bitmask
@@ -146,42 +142,6 @@ static void update_flags(dw_rom *rom)
     if(BUILD_OPTIONS(rom) == 4)         rom->flags[24] = (rom->flags[24] | 0x1c) & ((mt_rand(0, 3) << 2) | 0xe3);
     if(RANDOM_TOWN_ENTRANCES(rom) == 2) rom->flags[24] = (rom->flags[24] | 0x03) & ((mt_rand(0, 1)     ) | 0xfc);
 
-    /*
-    printf("----------- NEW FLAGS -----------\n");
-    printf("Level 1 Radiant: %d\n", LEVEL_1_RADIANT(rom));
-    printf("No red flash: %d\n", NO_RED_FLASH(rom));
-    printf("Inn in Charlock: %d\n", INN_IN_CHARLOCK(rom));
-    printf("Only healmore: %d\n", ONLY_HEALMORE(rom));
-    printf("Inn prices: %d\n", SHUFFLE_INN_PRICES(rom));
-    printf("Key prices: %d\n", SHUFFLE_KEY_PRICES(rom));
-    printf("Shuffle vendors: %d\n", SHUFFLE_VENDORS(rom));
-    printf("Disguised DL: %d\n", DISGUISED_DRAGONLORD(rom));
-    printf("Magic herbs: %d\n", MAGIC_HERBS(rom));
-    printf("Crit DL1: %d\n", CRIT_DL1(rom));
-    printf("Crit DL2: %d\n", CRIT_DL2(rom));
-    printf("Crit chance: %d\n", CRIT_CHANCE(rom));
-    printf("Damage bonks: %d\n", DAMAGE_BONKS(rom));
-    printf("Discardable flute: %d\n", DISCARDABLE_FLUTE(rom));
-    printf("Formidable flute: %d\n", FORMIDABLE_FLUTE(rom));
-    printf("Return escapes: %d\n", RETURN_ESCAPES(rom));
-    printf("Warp whistle: %d\n", WARP_WHISTLE(rom));
-    printf("Levelup Refill: %d\n", LEVELUP_REFILL(rom));
-    printf("Max Keys: %d\n", MAX_KEYS(rom));
-    printf("Radish finish: %d\n", RADISH_FINISH(rom));
-    printf("Unbreakable keys: %d\n", UNBREAKABLE_KEYS(rom));
-    printf("Ascetic king: %d\n", ASCETIC_KING(rom));
-    printf("DWX run mechanics: %d\n", DWX_RUN_MECHANICS(rom));
-    printf("Chest gold amount: %d\n", CHEST_GOLD_AMOUNT(rom));
-    printf("Random Princess Location: %d\n", RANDOM_PRINCESS_LOC(rom));
-    printf("Normalized XP/Gold: %d\n", NORMALIZED_XP_GOLD(rom));
-    printf("Return to zoom: %d\n", RETURN_TO_ZOOM(rom));
-    printf("Hurtmore Doors: %d\n", HURTMORE_DOORS(rom));
-    printf("Max Herbs: %d\n", MAX_HERBS(rom));
-    printf("Masked Overworld Locations: %d\n", MASK_OW_LOCATIONS(rom));
-    printf("Random Spell Costs: %d\n", RANDOM_SPELL_COSTS(rom));
-    printf("Build Options: %d\n", BUILD_OPTIONS(rom));
-    printf("----------- /NEW FLAGS -----------\n");
-    */
 }
 
 /**
@@ -370,22 +330,6 @@ uint16_t set_text(dw_rom *rom, const size_t address, char *text)
 }
 
 
-/**
- * Searches for a string inside the rom and replaces it with the new string
- *
- * @param rom The rom struct
- * @param text An ASCII version of the string to be replaced
- * @param replacement An ASCII version of the replacement string
- * @return returns a pointer to the beginning of the string that was replaced,
- *      or NULL if the string is not found.
- */
-// static uint8_t *dwr_str_replace(dw_rom *rom, const char *text,
-//                                 const char *replacement)
-// {
-//     int len;
-//     uint8_t *start, *end;
-//     char dw_text[256], dw_repl[256];
-//
 //     len = strlen(text);
 //     if (!len)
 //         return NULL;
@@ -2041,7 +1985,6 @@ static void other_patches(dw_rom *rom)
         vpatch(rom, 0xf131, 2, 0x69, 0x03); /* Lock the stat build modifier at 3 */
 
     /* I always hated this wording */
-//     dwr_str_replace(rom, "The spell will not work", "The spell had no effect");
     set_text(rom, 0xad85,  "The spell had no effect");
 
     /* Disable the continue thy quest? dialogue */
@@ -2323,7 +2266,7 @@ static void treasure_guards(dw_rom *rom)
         if(i == 0 && UNGUARDED_OW_SEARCHSPOT(rom)) continue;
         if (should_be_guarded(search->item[i])) {
             /* if it's a maybe flag, only apply about half the time */
-            if (TREASURE_GUARDS(rom) & 0xAA && mt_rand_bool())
+            if (TREASURE_GUARDS(rom) == 2 && mt_rand_bool())
                 continue;
             spike->map[spike_entry] = search->map[i];
             spike->x[spike_entry] = search->x[i];
@@ -2721,7 +2664,7 @@ static void winter_theme(dw_rom *rom)
 static void begin_quest_checksum(dw_rom *rom, uint64_t crc)
 {
     char crc_text[] = " CRC: XXXXXX";
-    const uint16_t newcode = find_free_space(rom->content, 0xc422, 40);
+    const uint16_t newcode = find_free_space(rom->content, 0xc422, 39);
 
     // This grabs the checksum
     snprintf(crc_text+6, 7, "%016"PRIX64, crc);
@@ -4247,47 +4190,53 @@ static void run_bank(dw_rom *rom)
             patch(rom, 0x709a, sizeof(both), both);
     }
 
-    /* Window code $F0: print the bank left aligned in a 3 tile field. */
-    c = find_free_space_in(rom->content, 0x7f0a, BANK_1_FREE_END, 43);
-    vpatch(rom, c, 43,
-        0xa9, 0x03, 0x8d, 0xe2, 0x64, 0xad, LO(ram), HI(ram), 0x85, 0x1a,
-        0xa9, 0x00, 0x85, 0x1b, 0x85, 0x1c,
-        0x20, 0x53, 0xa7, 0x20, 0x64, 0xa7,
-        0xad, 0xcb, 0x64, 0xc9, 0x5f, 0xd0, 0x0b,
-        0xad, 0xca, 0x64, 0x8d, 0xcb, 0x64, 0xa9, 0x5f, 0x8d, 0xca, 0x64,
-        0x4c, 0x2b, 0xa6);
-    vpatch(rom, 0x66df, 2, LO(c + 0x4000), HI(c + 0x4000));
-    /* After a one digit bank, one dot at 32 points and two at 64: progress to the next run. */
-    {
-        const uint16_t dots = find_free_space(rom->content, 0xc422, 30);
-        vpatch(rom, dots, 30,
-            0x48,
-            0xad, 0xca, 0x64, 0xc9, 0x5f, 0xd0, 0x12,
-            0xad, LO(points), HI(points), 0xc9, 0x20, 0x90, 0x0b,
-            0xc9, 0x40, 0xa9, 0x47, 0x90, 0x02, 0xa9, 0x45,
-            0x8d, 0xca, 0x64,
-            0x68, 0x4c, 0x2b, 0xa6);
-        vpatch(rom, c + 40, 3, 0x4c, LO(dots), HI(dots));
+    /* Window code $F0 is only in the window when Run Bank is on. */
+    if (RUN_BANK(rom)) {
+        /* Window code $F0: print the bank left aligned in a 3 tile field. */
+        c = find_free_space_in(rom->content, 0x7f0a, BANK_1_FREE_END, 43);
+        vpatch(rom, c, 43,
+            0xa9, 0x03, 0x8d, 0xe2, 0x64, 0xad, LO(ram), HI(ram), 0x85, 0x1a,
+            0xa9, 0x00, 0x85, 0x1b, 0x85, 0x1c,
+            0x20, 0x53, 0xa7, 0x20, 0x64, 0xa7,
+            0xad, 0xcb, 0x64, 0xc9, 0x5f, 0xd0, 0x0b,
+            0xad, 0xca, 0x64, 0x8d, 0xcb, 0x64, 0xa9, 0x5f, 0x8d, 0xca, 0x64,
+            0x4c, 0x2b, 0xa6);
+        vpatch(rom, 0x66df, 2, LO(c + 0x4000), HI(c + 0x4000));
+        /* After a one digit bank, one dot at 32 points and two at 64: progress to the next run. */
+        {
+            const uint16_t dots = find_free_space(rom->content, 0xc422, 30);
+            vpatch(rom, dots, 30,
+                0x48,
+                0xad, 0xca, 0x64, 0xc9, 0x5f, 0xd0, 0x12,
+                0xad, LO(points), HI(points), 0xc9, 0x20, 0x90, 0x0b,
+                0xc9, 0x40, 0xa9, 0x47, 0x90, 0x02, 0xa9, 0x45,
+                0x8d, 0xca, 0x64,
+                0x68, 0x4c, 0x2b, 0xa6);
+            vpatch(rom, c + 40, 3, 0x4c, LO(dots), HI(dots));
+        }
     }
 
-    /* Window code $F8: print the last spell's short name, in the fixed bank. */
-    c = find_free_space(rom->content, 0xc422, 99);
-    vpatch(rom, c, 49,
-        0xa9, 0x05, 0x8d, 0xe2, 0x64,
-        0xae, LO(last), HI(last), 0xf0, 0x1a,
-        0xca, 0x86, 0x1a, 0x8a, 0x0a, 0x0a, 0x18, 0x65, 0x1a, 0xaa,
-        0xea,
-        0xa0, 0x05,
-        0xbd, LO(c + 49), HI(c + 49),
-        0x99, 0xc9, 0x64, 0xe8, 0x88, 0xd0, 0xf6, 0x4c, 0x2b, 0xa6,
-        0xa0, 0x05, 0xa9, 0x5f, 0x99, 0xc9, 0x64, 0x88, 0xd0, 0xfa,
-        0x4c, 0x2b, 0xa6);
-    names = MODERN_SPELLS(rom) ? modern_names : vanilla_names;
-    for (i = 0; i < 50; i++) {
-        char ch = names[i];
-        rom->content[c + 49 + i] = (ch == ' ') ? 0x5f : (uint8_t)(0x24 + ch - 'A');
+    /* Window code $F8 is only in the window when Quick Spell is on. */
+    if (QUICK_SPELL(rom)) {
+        /* Window code $F8: print the last spell's short name, in the fixed bank. */
+        c = find_free_space(rom->content, 0xc422, 99);
+        vpatch(rom, c, 49,
+            0xa9, 0x05, 0x8d, 0xe2, 0x64,
+            0xae, LO(last), HI(last), 0xf0, 0x1a,
+            0xca, 0x86, 0x1a, 0x8a, 0x0a, 0x0a, 0x18, 0x65, 0x1a, 0xaa,
+            0xea,
+            0xa0, 0x05,
+            0xbd, LO(c + 49), HI(c + 49),
+            0x99, 0xc9, 0x64, 0xe8, 0x88, 0xd0, 0xf6, 0x4c, 0x2b, 0xa6,
+            0xa0, 0x05, 0xa9, 0x5f, 0x99, 0xc9, 0x64, 0x88, 0xd0, 0xfa,
+            0x4c, 0x2b, 0xa6);
+        names = MODERN_SPELLS(rom) ? modern_names : vanilla_names;
+        for (i = 0; i < 50; i++) {
+            char ch = names[i];
+            rom->content[c + 49 + i] = (ch == ' ') ? 0x5f : (uint8_t)(0x24 + ch - 'A');
+        }
+        vpatch(rom, 0x66e1, 2, LO(c), HI(c));
     }
-    vpatch(rom, 0x66e1, 2, LO(c), HI(c));
 
     /* Up in window 4 moves one row and wraps; other windows run the old code. */
     c = find_free_space_in(rom->content, 0x7f0a, BANK_1_FREE_END, 45);
@@ -4496,30 +4445,35 @@ static void run_bank_win_hook(dw_rom *rom)
  */
 void new_flags_ram_init(dw_rom *rom)
 {
-    const uint16_t newcode = find_free_space(rom->content, 0xc82b, 29); // Starting address for new code
     const uint16_t address = 0x6800; // First RAM byte used by new flags
-
     const uint16_t ram_i = address; // Return index
     const uint16_t ram_j = address + 1; // Whistle index
     const uint16_t ram_v = address + 2; // List of visited towns
     const uint16_t ram_s = address + 4; // Number of steps
     //             ram_s = address + 5; // Number of steps (2nd byte)
+    /* The town indexes and visited list are only used by Return to Town and the Warp Whistle. */
+    const uint8_t towns[13] = {
+        0xa9, 0,	// LDA 0
+        0x8d, ram_i & 0xff, (ram_i >> 8) & 0xff, // STA (set Return index to Tantegel)
+        0x8d, ram_j & 0xff, (ram_j >> 8) & 0xff, // STA (set Whistle index to Tantegel)
+        0xa9, 1,	// LDA 1
+        0x8d, ram_v & 0xff, (ram_v >> 8) & 0xff, // STA (only Tantegel has been visited)
+    };
+    const uint8_t steps[16] = {
+        0xa5, 0xba, 0x05, 0xbb, 0xd0, 0x06,      // This runs on a continue too: keep the steps unless XP is 0
+        0x8d, ram_s & 0xff, (ram_s >> 8) & 0xff, // STA (set byte 1 of step counter to 0)
+        0x8d, (ram_s+1) & 0xff, ((ram_s+1) >> 8) & 0xff, // STA (set byte 2 of step counter to 0)
+        0x20, 0x47, 0xcb,   // Go to vanilla subroutine
+        0x60                // RTS
+    };
+    const size_t n = (RETURN_TO_ZOOM(rom) || WARP_WHISTLE(rom)) ? sizeof(towns) : 0;
+    const uint16_t newcode = find_free_space(rom->content, 0xc82b, n + sizeof(steps)); // Starting address for new code
 
     // Hook start of the game
     vpatch(rom, 0xca1a, 3, 0x20, newcode & 0xff, (newcode >> 8) & 0xff); // JSR new code
-
-    vpatch(rom, newcode, 29,
-        0xa9, 0,	// LDA 0
-        0x8d, ram_i & 0xff, (ram_i >> 8) & 0xff, // STA (set Return index to Tantegel)
-		0x8d, ram_j & 0xff, (ram_j >> 8) & 0xff, // STA (set Whistle index to Tantegel)
-		0xa9, 1,	// LDA 1
-		0x8d, ram_v & 0xff, (ram_v >> 8) & 0xff, // STA (only Tantegel has been visited)
-        0xa5, 0xba, 0x05, 0xbb, 0xd0, 0x06,      // This runs on a continue too: keep the steps unless XP is 0
-        0x8d, ram_s & 0xff, (ram_s >> 8) & 0xff, // STA (set byte 1 of step counter to 0)
-		0x8d, (ram_s+1) & 0xff, ((ram_s+1) >> 8) & 0xff, // STA (set byte 2 of step counter to 0)
-        0x20, 0x47, 0xcb,   // Go to vanilla subroutine
-        0x60                // RTS
-    );
+    if (n)
+        patch(rom, newcode, n, towns);
+    patch(rom, newcode + n, sizeof(steps), steps);
 }
 
 /**
@@ -5292,35 +5246,3 @@ BOOL dwr_packing(void)
     return fit_best;
 }
 
-// Looks through the ROM for free space and prints it
-void check_free_space(uint8_t *content, uint16_t start)
-{
-    uint32_t i, j;
-    for(i = start; i < 0xffff; i++)
-    {
-        for(j = 0; j < 0xffff - i; j++)
-        {
-            if (content[i + j] != 0xff)
-            {
-                i += j;
-                break;
-            }
-        }
-        if(j >= 10)
-            printf("%04x" PRIx16 ": %d bytes \n", i-j, j);
-    }
-    return;
-}
-
-// Prints n bytes from the ROM at given starting address
-void print_rom_data(uint8_t *content, uint16_t start, uint8_t n)
-{
-    uint32_t i, j;
-    for(i = start; i < start+n; i+=16)
-    {
-        printf("%04x" PRIx16 ": ", i);
-        for(j = 0; j < 16 && i+j < 0xffff && i-start+j<n; j++)
-            printf("%02x" PRIx8 ", ", content[i + j]);
-        printf("\n");
-    }
-}
