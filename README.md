@@ -69,6 +69,8 @@ Every option is listed in [docs/FLAGS.md](docs/FLAGS.md#command-line-options). R
 
 ## Custom music and lag
 
+To make a pack, use the [NES Custom Music Tool](https://github.com/TheGobOne/NES-Custom-Music-Tool).
+
 Custom music runs its driver every frame, and that work takes time the game needs for walking and text. The remix budgets for it, so walking should not stutter.
 
 - **Walking:** a beat can be dropped during a walking step, never two in a row, so the music stays at least half speed. In a test walk through Garinham, 93% of steps took the normal 16 frames. With no custom music it was 89%.

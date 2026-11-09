@@ -356,6 +356,7 @@ input[type=file]::file-selector-button{color:buttontext}
 .searchrow{display:flex;gap:1rem;margin-top:.25rem}
 .onlyrow{display:flex;flex-wrap:wrap;gap:0 2rem}
 .spoilertag{margin-top:.5rem}
+.toolnote{margin:.4rem 0;font-size:.9em}
 .searchwin .animrow{margin:0;white-space:nowrap}
 body.compact .opt .desc,body.compact .opt .secnote{display:none}
 body.compact .opt{padding-top:.2rem;padding-bottom:.2rem}
@@ -740,7 +741,7 @@ function packControls(){
     try{ const songs=songsFromPack(await f.text()); if(!songs.length) throw 0; const pk={name:f.name,songs,text:await f.text()}; setPack(pk); rememberPack(pk); }
     catch(e){ inp.value=''; status.textContent='"'+f.name+'" could not be read as a music pack.'+(State.pack?' Your pack "'+State.pack.name+'" is still loaded.':''); } });
   const clr=el('button',{type:'button',class:'mini',text:'Clear',onclick:()=>{ inp.value=''; setPack(null); rememberPack(null); }});
-  wrap.append(el('label',{for:uid,class:'sublab',text:'Pack file (.json5)'}),el('span',{class:'caprow'},inp,clr),status,trackBox());
+  wrap.append(el('label',{for:uid,class:'sublab',text:'Pack file (.json5)'}),el('span',{class:'caprow'},inp,clr),status,el('p',{class:'toolnote'},'Make a pack with the ',el('a',{href:'https://github.com/TheGobOne/NES-Custom-Music-Tool',target:'_blank',rel:'noopener',text:'NES Custom Music Tool'}),'.'),trackBox());
   State.on(i=>{ if(i==='pack'||i==='*') paint(); }); paint(); return wrap;
 }
 function selectCtl(it){
