@@ -7,7 +7,7 @@ Known issues:
 * Some random flag sets fail to build with "Not enough space" (about 1 in 18 random sets). Turn off one of Build Options, Hurtmore Doors or Warp Whistle.
 * With every flag on and a large music pack, the pack is skipped and the original music plays.
 * The first step off a standstill in towns can take up to 25 frames.
-* Tested in FCEUX only.
+* Tested in FCEUX and Mesen.
 
 # 1.0 - TheGobOne Remix #
 ###### Released Nov 8, 2026 ######
