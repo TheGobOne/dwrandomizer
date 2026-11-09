@@ -15,6 +15,8 @@ The first part covers what this remix added. The second part is inherited from j
 
 Each win earns points toward a guaranteed escape, and the `BANK` battle command spends one. It can't be used on the Dragonlord. A dot after a one digit bank means a third of the way to the next run, and two dots mean two thirds.
 
+Recommended: use the `Vanilla` Run Mechanics setting with Run Bank. The banked escapes are the only thing that changes how a run works, so the bank stays predictable.
+
 Stronger monsters earn more. Kills per run, from the weakest tier of monster to the strongest:
 
 | Earn level | Kills per run |

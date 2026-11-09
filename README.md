@@ -79,7 +79,7 @@ Everything here was measured in FCEUX. It has not been checked on hardware or in
 
 ## Escapes at a glance
 
-Run Mechanics (Battle tab) and Run Bank are separate things. Run Mechanics changes how a run attempt is decided (Vanilla, Safer Vanilla, DW2, DW4, or Costs XP). Run Bank is a stockpile you spend for a sure escape, and it cannot be used on the Dragonlord. Tables for both are in [docs/FLAGS.md](docs/FLAGS.md#run-bank).
+Run Mechanics (Battle tab) and Run Bank are separate things. Run Mechanics changes how a run attempt is decided (Vanilla, Safer Vanilla, DW2, DW4, or Costs XP). Run Bank is a stockpile you spend for a sure escape, and it cannot be used on the Dragonlord. Tables for both are in [docs/FLAGS.md](docs/FLAGS.md#run-bank). We recommend Run Mechanics set to `Vanilla` when you use Run Bank.
 
 ## What this does not do
 
