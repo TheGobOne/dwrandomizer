@@ -1,3 +1,14 @@
+# 1.0.1 - TheGobOne Remix #
+###### Released Nov 9, 2026 ######
+* Auto Stairs skips the stair in the top left of Mountain Cave
+* Frees about 70 bytes of fixed ROM space in every build, so more flag sets and music packs fit: spike encounter code, a NOP run in the "continue thy quest" dialogue and dead zone 0 encounter code are now reused
+
+Known issues:
+* Some random flag sets fail to build with "Not enough space" (about 1 in 18 random sets). Turn off one of Build Options, Hurtmore Doors or Warp Whistle.
+* With every flag on and a large music pack, the pack is skipped and the original music plays.
+* The first step off a standstill in towns can take up to 25 frames.
+* Tested in FCEUX only.
+
 # 1.0 - TheGobOne Remix #
 ###### Released Nov 8, 2026 ######
 * Custom music packs: JSON5 packs of FamiTracker modules, with tagged scenes and events (Dn-FamiTracker driver)

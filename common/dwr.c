@@ -1989,6 +1989,9 @@ static void other_patches(dw_rom *rom)
     set_dungeon_tile(rom, CHARLOCK_CAVE_6, 9, 0, DUNGEON_TILE_BRICK);
     /* Sets the encounter rate of Zone 0 to be the same as other zones. */
     vpatch(rom, 0xcebf, 3, 0x4c, 0x04, 0xcf);  /* skip over the zone 0 code */
+    /* $CEC2-$CED7, the rest of the zone 0 code, is now never reached ($CED8 has its own entry
+     * from $CE80), so it is free space. */
+    memset(&rom->content[0xcec2], 0xff, 0xced8 - 0xcec2);
     vpatch(rom, 0xe74d, 1, 9);  /* buff the hurt spell */
     vpatch(rom, 0xdbc1, 1, 18);  /* buff the heal spell */
 
@@ -2006,7 +2009,10 @@ static void other_patches(dw_rom *rom)
     set_text(rom, 0xad85,  "The spell had no effect");
 
     /* Disable the continue thy quest? dialogue */
-    nop(rom, 0xD446, 0x19);
+    /* Jump over it instead of filling it with NOPs, and free the rest. $D446 must stay an
+     * instruction start: the bne at $D43D and the return from jsr $C7C5 land there. */
+    vpatch(rom, 0xd446, 3, 0x4c, 0x5f, 0xd4);  /* jmp $d45f */
+    memset(&rom->content[0xd449], 0xff, 0xd45f - 0xd449);
 }
 
 /**
@@ -2160,31 +2166,26 @@ static void spike_rewrite(dw_rom *rom)
         spikes[0], spikes[1], spikes[2], spikes[3], spikes[4], spikes[5], spikes[6], spikes[7]
     );
 
-    /* All three checks below share one search, at $e90e. It returns the matching index in X
-     * with N clear, or X = $ff with N set when no spike is at this spot. */
+    /* All three checks below share one search, at $e907. When a spike is at this spot it returns
+     * its index in X and A = its flag AND QUEST_PROGRESS, so Z set means the spike is still live.
+     * Otherwise it returns X = $ff with N set and Z clear. */
 
-    /* start of a spike encounter */
+    /* start of a spike encounter. $CD5C-$CD79 is left free; Auto Stairs uses it. */
     vpatch(rom, 0x0cd51, 41,
-            0x20, 0x0e, 0xe9, /*   jsr find_spike                          */
-            0x30, 0x4c,       /*   bmi +done                               */
-            0xbd, 0x92, 0xcd, /*   lda spike_flags,x                       */
-            0x25, 0xe4,       /*   and QUEST_PROGRESS                      */
-            0xd0, 0x45,       /*   bne +done                               */
+            0x20, 0x07, 0xe9, /*   jsr find_spike                          */
+            0xd0, 0x4c,       /*   bne +done : none here, or already beaten */
             0xbd, 0x9a, 0xcd, /*   lda spike_monster,x                     */
             0x4c, 0xdf, 0xe4, /*   jmp start_combat                        */
-            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            0xff
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
       );
 
     /* ran away from a spike encounter */
     vpatch(rom, 0x0e8d4, 108,
-            0x20, 0x0e, 0xe9, /*    jsr find_spike                           */
-            0x30, 0x67,       /*    bmi +done                                */
-            0xbd, 0x92, 0xcd, /*    lda spike_flags,x                        */
-            0x25, 0xe4,       /*    and QUEST_PROGRESS                       */
-            0xd0, 0x60,       /*    bne +done                                */
-0x20, 0xbb, 0xc6, /*    jsr b3_c6bb                              */
+            0x20, 0x07, 0xe9, /*    jsr find_spike                           */
+            0xd0, 0x67,       /*    bne +done                                */
+            0x20, 0xbb, 0xc6, /*    jsr b3_c6bb                              */
             0xa5, 0xdc,       /*    lda _UNUSED_DC                           */
             0x85, 0x3a,       /*    sta X_POS                                */
             0x85, 0x8e,       /*    sta X_POS_2                              */
@@ -2207,7 +2208,7 @@ static void spike_rewrite(dw_rom *rom)
             0x8d, 0x2f, 0x60, /*    sta $602f     ;                          */
             0x4c, 0x97, 0xb0, /*    jmp $b097                                */
 
-            /* e90e: find_spike */
+            /* e907: find_spike */
             0xa2, 0x07,       /*    ldx #7                                   */
             0xa5, 0x45,       /* -- lda MAP_INDEX                            */
             0xdd, 0x7a, 0xcd, /*    cmp spike_map,x                          */
@@ -2217,18 +2218,21 @@ static void spike_rewrite(dw_rom *rom)
             0xd0, 0x07,       /*    bne +                                    */
             0xa5, 0x3b,       /*    lda Y_POS                                */
             0xdd, 0x8a, 0xcd, /*    cmp spike_y,x                            */
-            0xf0, 0x03,       /*    beq found                                */
+            0xf0, 0x04,       /*    beq found                                */
             0xca,             /* +  dex                                      */
             0x10, 0xe8,       /*    bpl --                                   */
-            0x60,             /* found: rts                                  */
+            0x60,             /*    rts : none here, N set, Z clear          */
+            0xbd, 0x92, 0xcd, /* found: lda spike_flags,x                    */
+            0x25, 0xe4,       /*    and QUEST_PROGRESS                       */
+            0x60,             /*    rts                                      */
 
-            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
-            0xff);
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
 
-    /* defeated a spike encounter */
+    /* defeated a spike encounter. A found spike whose flag is already set can return N set
+     * (flag $80); the bmi then skips setting a flag that is already set. */
     vpatch(rom, 0x0e96b, 36,
-            0x20, 0x0e, 0xe9, /*   jsr find_spike                            */
+            0x20, 0x07, 0xe9, /*   jsr find_spike                            */
             0x30, 0x07,       /*   bmi +                                     */
             0xbd, 0x92, 0xcd, /*   lda spike_flags,x                         */
             0x05, 0xe4,       /*   ora QUEST_PROGRESS                        */
@@ -4038,46 +4042,56 @@ static void auto_return(dw_rom *rom)
 /**
  * Stepping onto stairs takes them, the way stepping onto a town or cave enters it.
  *
- * After each step the game reads the tile under the hero at $CDB4 and enters tiles 7 to 9
- * (town, cave, castle) through $D941. This adds stairs (3 up, 5 down), which go to $D9AF, the
- * start of the STAIRS command, so stair shuffle and the other stair patches still apply.
- * Arriving on stairs is not a step, so taking stairs never loops. The hidden Charlock stairs read
- * as floor until they are found, so they work once found and the hero steps onto them again.
+ * After each step the game reads the tile under the hero ($CDAD), and at $CDB4 does
+ * cmp #$07 : bcc $cdbf, so tiles 7 to 9 (town, cave, castle) go on to $D941. This points that
+ * bcc at a block in the spike hole at $CD5C instead, which takes stairs (3 up, 5 down) through
+ * $D9BA, inside the STAIRS command, so stair shuffle and the other stair patches still apply.
+ * $D9BA skips the command's own tile read ($D9AF-$D9B9), the same read $CDAD just did; X, Y and
+ * $3C are unchanged since then. Arriving on stairs is not a step, so taking stairs never loops.
+ * The hidden Charlock stairs read as floor until they are found, so they work once found and the
+ * hero steps onto them again. The stair at Mountain Cave (map 22) x 0, y 0 is skipped.
+ *
+ * This must run right after spike_rewrite, which frees $CD5C-$CD79, before any free space search.
  *
  * @param rom The rom struct
  */
 static void auto_stairs(dw_rom *rom)
 {
-    int c;
+    const uint16_t c = 0xcd5c;
+    const uint8_t n = RESPONSIVE_CONTROLS(rom) ? 24 : 18;
+    uint8_t i;
 
     if (!AUTO_STAIRS(rom))
         return;
-    c = dwr_try_free_space(rom->content, FIXED_FREE_START, 29);
-    if (c < 0) {
-        printf("No room for Auto Stairs.\n");
-        dwr_no_room();
+    for (i = 0; i < n; i++) {
+        if (rom->content[c + i] != 0xff) {
+            printf("No room for Auto Stairs.\n");
+            dwr_no_room();
+        }
     }
     printf("Taking stairs automatically...\n");
-    vpatch(rom, c, 29,
-        0xc9, 0x07,       /*   cmp #$07 : below towns, look for stairs     */
-        0x90, 0x03,       /*   bcc stairs                                  */
-        0x4c, 0xb8, 0xcd, /*   jmp $cdb8 : the game's own town check       */
-                          /* stairs:                                       */
-        0xc9, 0x03,       /*   cmp #$03 : stairs up                        */
-        0xf0, 0x04,       /*   beq take                                    */
-        0xc9, 0x05,       /*   cmp #$05 : stairs down                      */
-        0xd0, 0x0b,       /*   bne done                                    */
-        0xad, 0x0d, 0x68, /* take: lda $680d : Responsive Controls keeps   */
-        0x29, 0xfe,       /*   and #$fe : the presses made during the step */
-        0x8d, 0x0d, 0x68, /*   sta $680d : and adds them to the pad after  */
-                          /*   it. Drop only A, which would open the menu  */
-                          /*   after the stairs; directions still carry.   */
-        0x4c, 0xaf, 0xd9, /*   jmp $d9af : the STAIRS command              */
-        0x4c, 0xbf, 0xcd  /* done: jmp $cdbf                               */
+    vpatch(rom, c, 15,
+        0x4a,             /*   lsr a : of tiles 0-6, only 3 and 5 leave    */
+        0x90, 0x60,       /*   bcc $cdbf : carry set and A not 0           */
+        0xf0, 0x5e,       /*   beq $cdbf                                   */
+        0xa5, 0x45,       /*   lda $45 : map number                        */
+        0x49, 0x16,       /*   eor #22 : Mountain Cave                     */
+        0x05, 0x3a,       /*   ora $3a : hero X                            */
+        0x05, 0x3b,       /*   ora $3b : hero Y; 0 only at map 22 (0,0)    */
+        0xf0, 0x54        /*   beq $cdbf : that stair stays a normal tile  */
     );
-    /* Was: cmp #$07 : bcc $cdbf | $CDB8: cmp #$0a : bcs $cdbf : jmp $d941 (enter the town). Only the first
-     * three bytes change; the code from $CDB8 on is kept and used. */
-    vpatch(rom, 0xcdb4, 3, 0x4c, LO(c), HI(c));
+    if (RESPONSIVE_CONTROLS(rom))
+        vpatch(rom, c + 15, 9,
+            0x4e, 0x0d, 0x68, /* lsr $680d : Responsive Controls keeps the    */
+            0x0e, 0x0d, 0x68, /* asl $680d : presses made during the step and */
+                              /* adds them to the pad after it. Drop only A,  */
+                              /* which would open the menu after the stairs.  */
+            0x4c, 0xba, 0xd9  /* jmp $d9ba : the STAIRS command               */
+        );
+    else
+        vpatch(rom, c + 15, 3, 0x4c, 0xba, 0xd9); /* jmp $d9ba : the STAIRS command */
+    /* Was: bcc $cdbf (offset 7). Now bcc $cd5c; $CDB8 on (the town check) is unchanged. */
+    vpatch(rom, 0xcdb7, 1, 0xa4);
     gameplay_patches |= 8;
 }
 
@@ -4891,6 +4905,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     check_quest_items(rom);
     map_generate_terrain(rom);
     spike_rewrite(rom);
+    auto_stairs(rom);  /* must follow spike_rewrite: it uses the spike hole at $CD5C */
     randomize_attack_patterns(rom);
     randomize_zone_layout(rom);
     randomize_zones(rom);
@@ -4970,7 +4985,6 @@ void apply_stuff_to_rom(dw_rom *rom)
     free_charlock(rom);
     auto_return(rom);
     responsive_controls(rom);
-    auto_stairs(rom);
 }
 
 
