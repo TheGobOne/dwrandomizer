@@ -83,9 +83,9 @@ Stepping onto stairs takes them at once, the way stepping onto a town enters it,
 Entering Charlock from the overworld puts you beside the Dragonlord and starts the fight, with no dialogue. Run away and you stay in his room; the fight starts by itself again only after you leave and come back. Short Charlock, Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. On a very full ROM the build stops, as it does for other flags that need space. It is part of the checksum, along with Auto Return. Command line: `--free-charlock on`.
 
 
-#### Show Key, Herb & Fairy Water Counter ####
+#### Show Key & Herb Counter ####
 
-Adds a row to the bottom of the stats window that reads `KnHnFn`: keys, herbs and fairy waters. Command line: `--key-herb on`.
+Adds a row to the bottom of the stats window that reads `K n  H n`: keys and herbs. Command line: `--key-herb on`.
 
 
 #### Disable Screen Shake ####
@@ -277,7 +277,7 @@ King Lorik is feeling fair today and will let you keep your hard-earned gold whe
 
 #### Show Death Counter ####
 
-Adds a row to the stats window showing how many times you've died. With Show Key, Herb & Fairy Water Counter on as well, that row sits under it.
+Adds a row to the stats window showing how many times you've died. With Show Key & Herb Counter on as well, that row sits under it.
 
 
 #### Step Counter ####
@@ -390,6 +390,7 @@ When on your status screen, hold Start and Select to warp to the end of the game
 Which stats the hero grows best in. Set on the Hero & Magic tab. Another huge piece of work from Crump's Brother!
 
 * `By name (original)`: the game as you know it. The first four letters of the hero's name pick the stat build.
+* `By name, text says Hero` (Fair Name Frames): the name still picks the build, but all text (NPCs, the king, battles, the ending) calls the hero `Hero`, so a short name saves no frames. With Fast Text off, a short name otherwise saves about 1 frame per attack. The status window and the save menu still show the real name. Command line: `--fair-names on`.
 * `Pick from 4 builds`: the player picks one of the four normal stat builds on a menu at the start, so any name works. Text speed is set to `Fast` automatically.
 * `Pick from 6 builds`: same menu, with two more builds that are usually not possible in the vanilla game (HP-Agility and Strength-MP).
 * `No stat cuts`: no stat is reduced, so every stat grows at the good long-term rate, with early game bonuses for strength and MP.
@@ -417,6 +418,7 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--quick-spell` | `on` |
 | `--key-herb` | `on`: adds a keys and herbs row to the stats window |
 | `--auto-stairs` | `on`: stepping onto stairs takes them |
+| `--fair-names` | `on`: Build Options becomes By name, text says Hero |
 | `--spoiler` | `on`: writes a `.spoiler.txt` next to the ROM. It changes the checksum, so a spoiler seed never matches one without |
 
 Most of these also exist as options on the website, including the spoiler log.

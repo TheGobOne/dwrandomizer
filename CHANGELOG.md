@@ -1,3 +1,7 @@
+# Unreleased #
+* Build Options: clearer names, and a new value, By name, text says Hero (Fair Name Frames). All text calls the hero Hero, so a short name saves no frames. Command line: `--fair-names on`
+* Show Key & Herb Counter shows keys and herbs only again (fairy waters removed), which frees 36 bytes of fixed ROM space
+
 # 1.0.1 - TheGobOne Remix #
 ###### Released Nov 9, 2026 ######
 * Auto Stairs skips the stair in the top left of Mountain Cave

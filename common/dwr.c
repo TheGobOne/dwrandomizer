@@ -61,6 +61,10 @@ static int compare(const void *a, const void *b)
     return *(uint8_t*)a - *(uint8_t*)b;
 }
 
+/* Fair Name Frames: Build Options value 5, "By name, text says Hero". update_flags turns it into
+ * By name (0) and remembers it here, so every check of Build Options sees By name. */
+static BOOL fair_names = FALSE;
+
 /**
  * Updates the "maybe" flags to be either on or off
  *
@@ -69,6 +73,10 @@ static void update_flags(dw_rom *rom)
 {
     size_t i;
     const uint8_t safe_start = rom->flags[8] & 0x20;
+
+    fair_names = BUILD_OPTIONS(rom) == 5;
+    if (fair_names)
+        rom->flags[24] &= (uint8_t)~0x1c;
     const uint8_t free_charlock_flag = rom->flags[11] & 0x02;
     const uint8_t auto_return_flag = rom->flags[3] & 0x02;
     const uint8_t responsive_flag = rom->flags[6] & 0x02;
@@ -1822,7 +1830,7 @@ static void key_herb_counter(dw_rom *rom)
 
     if (!KEY_HERB_COUNTER(rom))
         return;
-    window = find_free_space(rom->content, FIXED_FREE_START, 4 + rows + (DEATH_COUNTER(rom) ? 2 : 0) + 6);
+    window = find_free_space(rom->content, FIXED_FREE_START, 4 + rows + (DEATH_COUNTER(rom) ? 2 : 0) + 5);
     w = window;
 
     /* The window starts one block higher, so its bottom stays clear of the battle text. */
@@ -1834,7 +1842,7 @@ static void key_herb_counter(dw_rom *rom)
         vpatch(rom, w, 2, 0x27, 0x99);            /* D nnnnn */
         w += 2;
     }
-    vpatch(rom, w, 6, 0x2e, 0x9a, 0x2b, 0x9b, 0x29, 0x9c); /* KnHnFn on the bottom row, in the same width */
+    vpatch(rom, w, 5, 0x2e, 0x9a, 0x82, 0x2b, 0x9b); /* K n  H n, with n under the other numbers */
     vpatch(rom, 0x6f6c, 2, LO(window), HI(window));
 
     /* The cleanup after a fight only clears the area under the original window.
@@ -1846,20 +1854,13 @@ static void key_herb_counter(dw_rom *rom)
     vpatch(rom, 0xee7d, 5, 0x20, LO(e), HI(e), 0xea, 0xea);
 
     /* Codes $9A and $9B share the gold code's slot, so they arrive at its hook. */
-    c = find_free_space(rom->content, FIXED_FREE_START, 57);
-    vpatch(rom, c, 57,
+    c = find_free_space(rom->content, FIXED_FREE_START, 22);
+    vpatch(rom, c, 22,
         0xad, 0xdf, 0x64, 0xc9, 0x02, 0xb0, 0x03, /* gold or deaths: the old code */
         0x4c, LO(chain), HI(chain),
         0xaa, 0xa9, 0x01, 0x8d, 0xe2, 0x64,       /* one digit */
-        0xe0, 0x04, 0xf0, 0x06,                   /* code $9C: fairy waters */
         0xb5, 0xbd, 0x8d, 0xca, 0x64,             /* $BF keys, $C0 herbs */
-        0x60,
-        /* count the fairy waters (item 2) in the eight inventory nibbles at $C1-$C4 */
-        0xa0, 0x00, 0xa2, 0x03,
-        0xb5, 0xc1, 0x29, 0x0f, 0xc9, 0x02, 0xd0, 0x01, 0xc8,
-        0xb5, 0xc1, 0x4a, 0x4a, 0x4a, 0x4a, 0xc9, 0x02, 0xd0, 0x01, 0xc8,
-        0xca, 0x10, 0xe9,
-        0x8c, 0xca, 0x64, 0x60);
+        0x60);
     vpatch(rom, 0x6378, 3, 0x20, LO(c), HI(c));
 }
 
@@ -4815,6 +4816,37 @@ static void random_town_entrances(dw_rom *rom)
 }
 
 /**
+ * Fair Name Frames: text always calls the hero "Hero", so a short name saves no frames.
+ * The name itself is untouched ($B5-$B8 still pick the build); only the copy the text uses changes.
+ *
+ * @param rom The rom struct
+ */
+static void fair_name_frames(dw_rom *rom)
+{
+    if (!fair_names)
+        return;
+    printf("Calling the hero Hero in all text...\n");
+
+    /* DoNAME ($B7F9): jsr $B883 instead of $B87F, the name copy rewritten below. */
+    vpatch(rom, 0x77fa, 2, 0x83, 0xb8);
+    /* $B87F-$B898, replacing the copy of the 8 name letters into $6554. Falls into the original
+     * $B899: lda #$FA, sta $6554,y, rts (Y = 4), which $B8D6 also jumps to. */
+    vpatch(rom, 0x787f, 26,
+        0x2b, 0x0e, 0x1b, 0x18, /* "Hero" */
+        0xa2, 0x03,             /*   ldx #3                                       */
+        0xbd, 0x7f, 0xb8,       /* - lda $B87F,x                                  */
+        0x9d, 0x54, 0x65,       /*   sta $6554,x                                  */
+        0xca,                   /*   dex                                          */
+        0x10, 0xf7,             /*   bpl -                                        */
+        0xa0, 0x04,             /*   ldy #4                                       */
+        0xa5, 0xe5,             /*   lda $E5 ; Insta-print sets it to $FF here    */
+        0xc9, 0xff,             /*   cmp #$FF                                     */
+        0xd0, 0x02,             /*   bne +                                        */
+        0x84, 0xe5,             /*   sty $E5 ; and wants the name length          */
+        0xea);                  /* + nop                                          */
+}
+
+/**
  * Makes the hero name print instantly, regardless of its length or the message speed.
  * This resets message speed to Fast, so if you're using normal or slow, too bad.
  *
@@ -4846,6 +4878,8 @@ void instant_name_print(dw_rom *rom)
     );
 
     // When finding name length, we know the buffer contains the player name if we set MessageSpeed to 0xff: replace it with the name length
+    // With Fair Name Frames on, fair_name_frames sets the length (4) itself, in the code this hook would change.
+    if (!fair_names) {
     newcodeFindNameLength = find_free_space(rom->content, 0xc82b, 15);
     vpatch(rom, 0x7897, 2, newcodeFindNameLength & 0xff, (newcodeFindNameLength >> 8) & 0xff); // Hook in NameToNameBuf at JSR FindNameEnd
     vpatch(rom, newcodeFindNameLength, 15,
@@ -4859,6 +4893,7 @@ void instant_name_print(dw_rom *rom)
         0x68,               // PLA
         0x60                // RTS
     );
+    }
 
     // Set MessageSpeed = ff when we know we're about to print the name.
     newcodeSetSpeed = find_free_space(rom->content, 0xc82b, 9);
@@ -4919,6 +4954,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     lower_xp_reqs(rom);
     dwr_death_necklace(rom);
     instant_name_print(rom);
+    fair_name_frames(rom);
     dwr_menu_wrap(rom);
     npc_guillotine(rom);
     randomize_flute_song(rom);
