@@ -1,6 +1,8 @@
+# Unreleased #
+* Build Options is renamed: Original, Free Selection, Free Selection Plus, Free Selection Unified, Random. Flag codes are unchanged; the site lists what each one does under the box
+
 # 1.0.2 - TheGobOne Remix #
 ###### Released Nov 10, 2026 ######
-* Build Options: clearer names, and a new value, By name, text says Hero (Fair Name Frames). All text calls the hero Hero, so a short name saves no frames. Command line: `--fair-names on`
 * Show Key & Herb Counter shows keys and herbs only again (fairy waters removed), which frees 36 bytes of fixed ROM space
 
 Known issues:

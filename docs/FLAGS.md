@@ -389,11 +389,10 @@ When on your status screen, hold Start and Select to warp to the end of the game
 
 Which stats the hero grows best in. Set on the Hero & Magic tab. Another huge piece of work from Crump's Brother!
 
-* `By name (original)`: the game as you know it. The first four letters of the hero's name pick the stat build.
-* `By name, text says Hero` (Fair Name Frames): the name still picks the build, but all text (NPCs, the king, battles, the ending) calls the hero `Hero`, so a short name saves no frames. With Fast Text off, a short name otherwise saves about 1 frame per attack. The status window and the save menu still show the real name. Command line: `--fair-names on`.
-* `Pick from 4 builds`: the player picks one of the four normal stat builds on a menu at the start, so any name works. Text speed is set to `Fast` automatically.
-* `Pick from 6 builds`: same menu, with two more builds that are usually not possible in the vanilla game (HP-Agility and Strength-MP).
-* `No stat cuts`: no stat is reduced, so every stat grows at the good long-term rate, with early game bonuses for strength and MP.
+* `Original`: the name impacts your stat build. All builds are -3/+10% for the selected stats.
+* `Free Selection`: stat builds are freely chosen on a menu at the start and are not tied to name length. Text speed is set to `Fast` automatically.
+* `Free Selection Plus`: two new stat builds are added to Free Selection (HP-Agility and Strength-MP).
+* `Free Selection Unified`: all stat builds are merged into one that has the best of all of them and no Str/MP penalties.
 * `Random`: one of the options above, chosen at random.
 
 
@@ -418,7 +417,6 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--quick-spell` | `on` |
 | `--key-herb` | `on`: adds a keys and herbs row to the stats window |
 | `--auto-stairs` | `on`: stepping onto stairs takes them |
-| `--fair-names` | `on`: Build Options becomes By name, text says Hero |
 | `--spoiler` | `on`: writes a `.spoiler.txt` next to the ROM. It changes the checksum, so a spoiler seed never matches one without |
 
 Most of these also exist as options on the website, including the spoiler log.

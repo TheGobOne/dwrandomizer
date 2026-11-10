@@ -43,7 +43,6 @@ static void print_usage(const char *command, char *default_flags)
     printf("  --auto-return on|off\n");
     printf("  --responsive-controls on|off\n");
     printf("  --auto-stairs on|off\n");
-    printf("  --fair-names on|off\n");
     printf("  --spoiler on|off\n");
     printf("  --key-herb on|off\n");
     printf("  --quick-spell on|off\n");
@@ -70,7 +69,7 @@ int main(int argc, char **argv)
     char *input_file, *output_dir;
     static const char *const bank_levels[4] = {"normal", "easy", "strict", "verystrict"};
     /* -1 and 0 for the cap: not given, so the flags decide. */
-    int responsive = -1, bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, key_herb = -1, free_charlock = -1, auto_return = -1, auto_stairs = -1, fair_names = -1;
+    int responsive = -1, bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, key_herb = -1, free_charlock = -1, auto_return = -1, auto_stairs = -1;
     static const char *const encounter_rates[4] = {"default", "low", "medium", "high"};
     char encoded[64] = {0};
 
@@ -98,8 +97,6 @@ int main(int argc, char **argv)
             key_herb = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--auto-return")) {
             auto_return = on_off(argv[1], argv[2]);
-        } else if (!strcmp(argv[1], "--fair-names")) {
-            fair_names = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--auto-stairs")) {
             auto_stairs = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--responsive-controls")) {
@@ -154,7 +151,7 @@ int main(int argc, char **argv)
         sprite = "Random";
     }
 
-    if (bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0 || responsive >= 0 || auto_stairs >= 0 || fair_names >= 0) {
+    if (bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0 || responsive >= 0 || auto_stairs >= 0) {
         uint8_t raw[25] = {0};
         strncpy(encoded, flags, 40);
         base32_decode((uint8_t *)encoded, raw);
@@ -174,10 +171,6 @@ int main(int argc, char **argv)
             raw[6] = (uint8_t)((raw[6] & 0xfd) | (responsive ? 0x02 : 0));
         if (auto_return >= 0)
             raw[3] = (uint8_t)((raw[3] & 0xfd) | (auto_return ? 0x02 : 0));
-        if (fair_names > 0)  /* Build Options 5: By name, text says Hero */
-            raw[24] = (uint8_t)((raw[24] & 0xe3) | (5 << 2));
-        else if (fair_names == 0 && ((raw[24] >> 2) & 7) == 5)
-            raw[24] &= 0xe3;
         if (auto_stairs >= 0)
             raw[22] = (uint8_t)((raw[22] & 0xef) | (auto_stairs ? 0x10 : 0));
         if (free_charlock >= 0)
