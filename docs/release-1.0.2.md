@@ -1,6 +1,6 @@
 # TheGobOne Remix 1.0.2 is out
 
-https://github.com/TheGobOne/dwrandomizer/releases/tag/v1.0.2
+Play it in your browser: https://thegobone.github.io/dwrandomizer/ (you supply your own vanilla Dragon Warrior ROM).
 
 Seeds and flags from 1.0 and 1.0.1 still work. Build Options codes stay the same. Only the Show Key & Herb Counter row and the Build Options choices change, so the same seed can give a different ROM when the counter flag is on.
 
