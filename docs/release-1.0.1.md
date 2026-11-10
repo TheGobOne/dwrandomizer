@@ -1,6 +1,6 @@
 # Dragon Warrior Randomizer, TheGobOne Remix 1.0.1
 
-Play it in your browser: https://thegobone.github.io/dwrandomizer/ (you supply your own vanilla Dragon Warrior ROM).
+Build your own ROM at https://thegobone.github.io/dwrandomizer/ (you supply your own vanilla Dragon Warrior ROM).
 
 Seeds and flags from 1.0 still work, but the same seed and flags can give a different ROM, because patches now land in different spots.
 
