@@ -387,11 +387,13 @@ When on your status screen, hold Start and Select to warp to the end of the game
 
 #### Build Options ####
 
-Another huge piece of work from Crump's Brother!
-* `Unchanged`: just what you're used to.
-* `Vanilla`: decouples the player's name from the stats build. Instead of choosing a text speed (which will automatically be set to `Fast`), the player chooses one of the normal stats build (and therefore can use whatever name they like).
-* `All Builds`: same as above, but adds two builds that have stats combination usually not possible in the vanilla game (HP-Agility and Strength-MP).
-* `No Builds`: the player gets the good long-term growth for all stats, and early game bonuses for strength and MP.
+Which stats the hero grows best in. Set on the Hero & Magic tab. Another huge piece of work from Crump's Brother!
+
+* `By name (original)`: the game as you know it. The first four letters of the hero's name pick the stat build.
+* `Pick from 4 builds`: the player picks one of the four normal stat builds on a menu at the start, so any name works. Text speed is set to `Fast` automatically.
+* `Pick from 6 builds`: same menu, with two more builds that are usually not possible in the vanilla game (HP-Agility and Strength-MP).
+* `No stat cuts`: no stat is reduced, so every stat grows at the good long-term rate, with early game bonuses for strength and MP.
+* `Random`: one of the options above, chosen at random.
 
 
 #### Insta-print Player Name ####
