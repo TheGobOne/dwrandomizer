@@ -1,6 +1,14 @@
-# Unreleased #
+# 1.0.2 - TheGobOne Remix #
+###### Released Nov 10, 2026 ######
 * Build Options: clearer names, and a new value, By name, text says Hero (Fair Name Frames). All text calls the hero Hero, so a short name saves no frames. Command line: `--fair-names on`
 * Show Key & Herb Counter shows keys and herbs only again (fairy waters removed), which frees 36 bytes of fixed ROM space
+
+Known issues:
+* Some random flag sets fail to build with "Not enough space" (about 1 in 18 random sets). Turn off one of Build Options, Hurtmore Doors or Warp Whistle.
+* With every flag on and a large music pack, the pack is skipped and the original music plays.
+* With All builds and a large music pack, the music wait loop can be left out on some seeds (the site says "No room for the music wait loop"). Turning off Run Bank makes room.
+* The first step off a standstill in towns can take up to 25 frames.
+* Tested in Mesen.
 
 # 1.0.1 - TheGobOne Remix #
 ###### Released Nov 9, 2026 ######
