@@ -9,7 +9,6 @@ Seeds and flags from 1.0 and 1.0.1 still work. Build Options codes stay the same
 - Build Options has clearer names: "By name (original)", "Pick from 4 builds", "No stat cuts", "Pick from 6 builds" and "Random".
 - New Build Options value, "By name, text says Hero" (Fair Name Frames). The name still picks the stat build, but all text calls the hero "Hero", so a short name saves no frames. Command line: `--fair-names on`.
 - Show Key & Herb Counter shows keys and herbs only. The fairy water row is gone, which frees 36 bytes of fixed ROM space.
-- The title screen, the command line and the site all say 1.0.2.
 
 ## Known issues
 
