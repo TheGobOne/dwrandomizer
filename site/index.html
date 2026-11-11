@@ -1229,7 +1229,11 @@ sizeBtn.addEventListener('click',async()=>{
   const tick=()=>new Promise(r=>setTimeout(r,0));
   try{
     const free=()=>{ const r=buildOnce(); return r.data?freeBytes(r.data):null; };
-    const now=free();
+    const r0=buildOnce(), now=r0.data?freeBytes(r0.data):null;
+    /* Music: the placed songs are the log lines ending in (N bytes, bank B), from the build attempt that made the ROM. */
+    const l0=r0.log||[], l1=l0.slice(l0.map(t=>t.includes('Out of room')).lastIndexOf(true)+1);
+    let musicBytes=0, musicSongs=0;
+    l1.forEach(t=>{ const m=/\((\d+) bytes, bank \d\)\s*$/.exec(t); if(m){ musicBytes+=+m[1]; musicSongs++; } });
     if(now===null){ sizeOut.textContent='These flags do not fit, so sizes cannot be measured. Turn some flags off.'; return; }
     const items=State.all().filter(it=>(it[3]==='c'||it[3]==='t')&&it[3]!=='pack'&&FLAG_MAP[it[1]]);
     const rows=[];
@@ -1245,6 +1249,7 @@ sizeBtn.addEventListener('click',async()=>{
     const part=(title,list)=>{ if(!list.length) return; sizeOut.append(el('div',{class:'fsh',text:title}));
       list.sort((a,b)=>(b.bytes??1e9)-(a.bytes??1e9)).forEach(r=>sizeOut.append(el('div',{class:'fsrow'},el('span',{text:r.name}),el('span',{text:fmt(r.bytes)})))); };
     sizeOut.append(el('div',{class:'fsh',text:'ROM space now: '+now+' bytes'}));
+    sizeOut.append(el('div',{class:'fsh',text:musicSongs?'Music: '+musicBytes+' bytes ('+musicSongs+' songs, in the music banks)':'Music: none (default game music)'}));
     part('On: bytes each takes',rows.filter(r=>r.on&&r.bytes>0));
     part('Off: bytes each would take',rows.filter(r=>!r.on&&(r.bytes===null||r.bytes>0)));
     const zero=rows.filter(r=>r.bytes!==null&&r.bytes<=0).length; if(zero) sizeOut.append(el('div',{class:'fsh',text:zero+' flags take no ROM space.'}));
