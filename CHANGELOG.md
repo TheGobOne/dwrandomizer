@@ -1,5 +1,6 @@
 # Unreleased #
 * Build Options is renamed: Original, Free Selection, Free Selection Plus, Free Selection Unified, Random. Flag codes are unchanged; the site lists what each one does under the box
+* Fixed: with Don't Require Magic Keys on, the king was missing from the throne room and Gwaelin could not be returned (reported by Artorious308)
 
 # 1.0.2 - TheGobOne Remix #
 ###### Released Nov 10, 2026 ######

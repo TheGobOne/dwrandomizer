@@ -3199,19 +3199,9 @@ static void npc_shenanigans(dw_rom *rom)
         // Remove key vendors if NO_KEYS is on
         if(NO_KEYS(rom) && (NPCData[i][3] & 0x04))
         {
-            // If there's one less NPC in the NPC tables before rescued Gwaelin (i.e. one less NPC in Tantegel),
-            // we need to change the "Gwaelin is not saved, hide her" code.
-            // We know there should only be one less NPC before Gwaelin in the NPC lists and that is if NO_KEYS is on.
-            // Compared to vanilla, we just shifted the values down by 9. We check this here and now because of vendor shuffle.
-            // Same thing when we return her: we subtract from to the first two NPC bytes for returning Gwaelin so she doesn't overwrite a guard.
-            if(NPCData[i][4] == 0x01) {
-                vpatch(rom, 0x3029, 1, 0x6f);
-                vpatch(rom, 0x302b, 1, 0x70);
-                vpatch(rom, 0x302d, 1, 0x71);
-                vpatch(rom, 0xd402, 1, 0x6f);
-                vpatch(rom, 0xd406, 1, 0x70);
-            }
-
+            /* Upstream moved the "hide Gwaelin" and "return Gwaelin" RAM slots here ($78 to $6f).
+               That matched its unsorted NPC order. compareLocation keeps the original order,
+               so Gwaelin stays in her vanilla slot and the move would hide the king instead. */
             NPCData[i][4] = 0xff;
         }
 
