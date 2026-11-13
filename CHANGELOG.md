@@ -1,4 +1,5 @@
-# Unreleased #
+# 1.1.0 - TheGobOne Remix #
+###### Released Nov 13, 2026 ######
 * New Biome: Lake. A ring of land around a lake, with Charlock on an island reached by 2 to 4 long bridges
 * Flag codes can now be 42 characters. The extra byte holds the biome number for Lake and later biomes. Old 40-character codes build the same ROMs as before
 * New Biome: Earth. A map of the world: bridges to Australia, Japan, the Arctic and Antarctica, and rafts (piers: a bridge tile out on the water) between the Americas and Europe, Asia or Africa
