@@ -6,6 +6,8 @@
 * Biome Random now includes Lake, Earth and Westeros, and the site writes it as a 42-character code
 * Responsive Controls: hills no longer slow you down (the original game waits 3 extra frames on every hill step)
 * Biome without Random Map does nothing: the CLI and build log now say so, and the site keeps the flag code at 40 letters
+* Lake, Earth and Westeros maps are walked from Tantegel before they are used, and redrawn if any town, cave, dock, the Rainbow Drop spot, the Return point or the token spot can't be reached
+* Gob Standard preset: Biome Random now picks from all seven biomes (new 42-letter code)
 * CLI: new --biome option (continent, caldera, wasteland, riverlands, lake, earth, westeros, random)
 * Build Options is renamed: Original, Free Selection, Free Selection Plus, Free Selection Unified, Random. Flag codes are unchanged; the site lists what each one does under the box
 * Fixed: with Don't Require Magic Keys on, the king was missing from the throne room and Gwaelin could not be returned (reported by Artorious308)

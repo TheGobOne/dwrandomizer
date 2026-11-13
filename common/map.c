@@ -1749,6 +1749,89 @@ static BOOL biome_terrain(dw_rom *rom)
  *
  * @param map The map struct
  */
+/* Where an entrance is on the overworld: its own tile, or for one inside Tantegel or Garinham, that town's
+ * tile. FALSE for anything else. */
+static BOOL overworld_spot(dw_map *map, const dw_warp *w, int *x, int *y)
+{
+    if (w->map == TANTEGEL)
+        w = &map->warps_from[WARP_TANTEGEL];
+    else if (w->map == GARINHAM)
+        w = &map->warps_from[WARP_GARINHAM];
+    if (w->map != 1)
+        return FALSE;
+    *x = w->x;
+    *y = w->y;
+    return TRUE;
+}
+
+/* Walks the finished map from Tantegel and checks every place the hero needs can be reached. Towns, caves
+ * and castles can be walked through, since leaving one puts the hero back on its tile. A raft dock (a warp
+ * from the overworld to the overworld) is not: stepping on it moves the hero to its landing tile. The swamp
+ * cave joins its two entrances. Dungeon insides are left to stair_shuffle's own checks. */
+static BOOL places_reachable(dw_rom *rom)
+{
+    static uint8_t seen[120][120];
+    static uint8_t qx[120 * 120], qy[120 * 120];
+    dw_map *map = &rom->map;
+    int head = 0, tail = 0, i, x, y, nx, ny, swamp[2][2], swamps = 0;
+    BOOL dock;
+
+    memset(seen, 0, sizeof(seen));
+    for (i = 0; i < 2; i++) {
+        if (overworld_spot(map, &map->warps_from[i ? WARP_SWAMP_SOUTH : WARP_SWAMP_NORTH], &x, &y)) {
+            swamp[swamps][0] = x;
+            swamp[swamps][1] = y;
+            swamps++;
+        }
+    }
+#define VISIT(vx, vy) do { if (!map_ob(vx) && !map_ob(vy) && !seen[vx][vy] && \
+        tile_is_walkable(map->tiles[vx][vy])) { seen[vx][vy] = 1; qx[tail] = (vx); qy[tail++] = (vy); } } while (0)
+    VISIT(map->warps_from[WARP_TANTEGEL].x, map->warps_from[WARP_TANTEGEL].y);
+    while (head < tail) {
+        x = qx[head];
+        y = qy[head++];
+        dock = FALSE;
+        for (i = 0; i < 51; i++) {
+            if (map->warps_from[i].map == 1 && map->warps_to[i].map == 1 &&
+                    map->warps_from[i].x == x && map->warps_from[i].y == y) {
+                VISIT(map->warps_to[i].x, map->warps_to[i].y);
+                dock = TRUE;
+            }
+        }
+        if (dock)
+            continue;
+        if (swamps == 2) {
+            for (i = 0; i < 2; i++) {
+                if (swamp[i][0] == x && swamp[i][1] == y)
+                    VISIT(swamp[!i][0], swamp[!i][1]);
+            }
+        }
+        for (i = 0; i < 4; i++) {
+            nx = x + dir4[i][0];
+            ny = y + dir4[i][1];
+            VISIT(nx, ny);
+        }
+    }
+#undef VISIT
+
+    /* Every entrance on the overworld (Charlock's castle is behind its moat), the docks, the Rainbow Drop
+     * spot, where Return and Wings land, and the token. */
+    for (i = 0; i < 51; i++) {
+        const dw_warp *w = &map->warps_from[i];
+        if (w->map == 1 && i != WARP_CHARLOCK && !seen[w->x][w->y])
+            return FALSE;
+    }
+    x = map->warps_from[WARP_CHARLOCK].x + 3;
+    y = map->warps_from[WARP_CHARLOCK].y;
+    if (map_ob(x) || !seen[x][y])
+        return FALSE;
+    if (!seen[map->return_point->x][map->return_point->y])
+        return FALSE;
+    if (!seen[rom->search_table->x[0]][rom->search_table->y[0]])
+        return FALSE;
+    return TRUE;
+}
+
 static void safe_start(dw_map *map)
 {
     const dw_warp *t = &map->warps_from[WARP_TANTEGEL];
@@ -1929,6 +2012,12 @@ retry_map:
 
     if (SAFE_START(rom))
         safe_start(&rom->map);
+
+    /* Older biomes are left alone so their flag codes keep making the same maps. */
+    if (RANDOM_MAP(rom) && BIOME(rom) >= BIOME_LAKE && !places_reachable(rom)) {
+        printf("A place cannot be reached, retrying...\n");
+        goto retry_map;
+    }
 
     if (!map_encode(&rom->map))
         goto retry_map;
