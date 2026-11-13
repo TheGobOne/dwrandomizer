@@ -1,4 +1,9 @@
 # Unreleased #
+* New Biome: Lake. A ring of land around a lake, with Charlock on an island reached by 2 to 4 long bridges
+* Flag codes can now be 42 characters. The extra byte holds the biome number for Lake and later biomes. Old 40-character codes build the same ROMs as before
+* Biome Random now includes Lake, and the site writes it as a 42-character code
+* Responsive Controls: hills no longer slow you down (the original game waits 3 extra frames on every hill step)
+* CLI: new --biome option (continent, caldera, wasteland, riverlands, lake, random)
 * Build Options is renamed: Original, Free Selection, Free Selection Plus, Free Selection Unified, Random. Flag codes are unchanged; the site lists what each one does under the box
 * Fixed: with Don't Require Magic Keys on, the king was missing from the throne room and Gwaelin could not be returned (reported by Artorious308)
 

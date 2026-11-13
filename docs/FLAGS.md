@@ -42,7 +42,10 @@ Needs Random Map. Chooses the shape of the generated overworld. The choice is pa
 - **Caldera**: a mountain ring with two passes. Charlock sits in the middle of the basin and Tantegel is always outside the ring.
 - **Wasteland**: mostly desert and swamp, with few forests. Pair it with a lower Encounter Rate.
 - **Riverlands**: one large land cut up by rivers, joined by bridges.
-- **Random**: picks one of the four.
+- **Lake**: a ring of land around a lake. Charlock sits on an island in the middle, reached by 2 to 4 long bridges. You still need the Rainbow Drop to cross from the island to the castle. Tantegel is never on the island.
+- **Random**: picks one of the five.
+
+Lake and later biomes are stored in a 26th flag byte, so their flag codes are 42 characters. Codes for the first four biomes stay 40 characters. Old codes with Biome set to Random keep picking from the first four.
 
 
 #### Safe Start ####
@@ -70,7 +73,7 @@ When the Dragonlord's second form dies, Return is cast for you and you arrive in
 
 #### Responsive Controls ####
 
-On the overworld, walking, the command window and pause answer a press at once instead of waiting up to 15 frames. In towns and dungeons a short press is kept until the game can act on it, because NPCs move in time with that wait. A button newly pressed during a step is kept for when the step ends. Very full ROMs may not build with it on. It is part of the checksum. Command line: `--responsive-controls on`.
+On the overworld, walking, the command window and pause answer a press at once instead of waiting up to 15 frames. In towns and dungeons a short press is kept until the game can act on it, because NPCs move in time with that wait. A button newly pressed during a step is kept for when the step ends. Hills no longer slow you down: the original game waits 3 extra frames on every hill step. Very full ROMs may not build with it on. It is part of the checksum. Command line: `--responsive-controls on`.
 
 
 #### Auto Stairs ####

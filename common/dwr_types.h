@@ -318,8 +318,10 @@ typedef struct {
     uint8_t *header;
     uint8_t *content;
     uint8_t *expansion;
-    unsigned char flags_encoded[41];
-    uint8_t flags[25];
+    /* 40 characters for the 25 original bytes, 42 when byte 25 (the biome number) is set. */
+    unsigned char flags_encoded[43];
+    /* 26 flag bytes. Decoding 42 characters also writes 2 spare bits into flags[26]. */
+    uint8_t flags[27];
     uint8_t chest_access[31];
     uint64_t seed;
     dw_map map;

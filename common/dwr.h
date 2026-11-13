@@ -31,11 +31,16 @@
 #define HEAL_HURT_B4_MORE(x)      (x->flags[ 2] & 0xc0)
 #define STAIR_SHUFFLE(x)          (x->flags[ 2] & 0x0c)
 /* 0 continent, 1 caldera, 2 wasteland, 3 riverlands. Two maybe pairs, so "random" is both set to maybe. */
-#define BIOME(x)                  (((x->flags[2] & 0x10) >> 3) | (x->flags[2] & 0x01))
+/* Biomes 4 and up are a number in byte 25, which is 0 for the first four. */
+#define BIOME(x)                  (x->flags[25] ? x->flags[25] : (((x->flags[2] & 0x10) >> 3) | (x->flags[2] & 0x01)))
 #define BIOME_CONTINENT 0
 #define BIOME_CALDERA 1
 #define BIOME_WASTELAND 2
 #define BIOME_RIVERLANDS 3
+#define BIOME_LAKE 4
+#define BIOME_COUNT 5
+/* Byte 25 value for "any biome". update_flags turns it into one of them. */
+#define BIOME_RANDOM 0xff
 
 #define RUN_BANK(x)               (x->flags[11] & 0x0c)
 #define KEY_HERB_COUNTER(x)       (x->flags[ 8] & 0x10)

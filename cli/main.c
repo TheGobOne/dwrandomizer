@@ -39,6 +39,7 @@ static void print_usage(const char *command, char *default_flags)
     printf("  --music <pack.json5>\n");
     printf("  --music-exact <pack.json5>   (testing: songs go in as tagged, no site picks)\n");
     printf("  --encounters default|low|medium|high\n");
+    printf("  --biome continent|caldera|wasteland|riverlands|lake|random\n");
     printf("  --free-charlock on|off\n");
     printf("  --auto-return on|off\n");
     printf("  --responsive-controls on|off\n");
@@ -69,8 +70,10 @@ int main(int argc, char **argv)
     char *input_file, *output_dir;
     static const char *const bank_levels[4] = {"normal", "easy", "strict", "verystrict"};
     /* -1 and 0 for the cap: not given, so the flags decide. */
-    int responsive = -1, bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, key_herb = -1, free_charlock = -1, auto_return = -1, auto_stairs = -1;
+    int responsive = -1, bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, key_herb = -1, free_charlock = -1, auto_return = -1, auto_stairs = -1, biome = -1;
     static const char *const encounter_rates[4] = {"default", "low", "medium", "high"};
+    /* Same order as BIOME_* in dwr.h, then "random". */
+    static const char *const biome_names[6] = {"continent", "caldera", "wasteland", "riverlands", "lake", "random"};
     char encoded[64] = {0};
 
     printf("DWRandomizer version %s\n", VERSION);
@@ -89,6 +92,14 @@ int main(int argc, char **argv)
                     break;
             if (encounters == 4) {
                 fprintf(stderr, "--encounters must be default, low, medium or high\n");
+                exit(1);
+            }
+        } else if (!strcmp(argv[1], "--biome")) {
+            for (biome = 0; biome < 6; biome++)
+                if (!strcmp(argv[2], biome_names[biome]))
+                    break;
+            if (biome == 6) {
+                fprintf(stderr, "--biome must be continent, caldera, wasteland, riverlands, lake or random\n");
                 exit(1);
             }
         } else if (!strcmp(argv[1], "--spoiler")) {
@@ -151,9 +162,10 @@ int main(int argc, char **argv)
         sprite = "Random";
     }
 
-    if (bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0 || responsive >= 0 || auto_stairs >= 0) {
-        uint8_t raw[25] = {0};
-        strncpy(encoded, flags, 40);
+    if (bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0 || responsive >= 0 || auto_stairs >= 0 || biome >= 0) {
+        /* 26 bytes plus room for the 2 spare bits a 42 character code decodes into. */
+        uint8_t raw[27] = {0};
+        strncpy(encoded, flags, 42);
         base32_decode((uint8_t *)encoded, raw);
         if (bank_cap)
             raw[12] = (uint8_t)((raw[12] & 0x80) | bank_cap);
@@ -177,8 +189,19 @@ int main(int argc, char **argv)
             raw[11] = (uint8_t)((raw[11] & 0xfd) | (free_charlock ? 0x02 : 0));
         if (quick_spell >= 0)
             raw[11] = (uint8_t)((raw[11] & 0xfe) | (quick_spell ? 0x01 : 0));
-        base32_encode(raw, 25, (uint8_t *)encoded);
-        encoded[40] = '\0';
+        if (biome >= 0) {
+            raw[2] &= (uint8_t)~0x33;
+            raw[25] = 0;
+            if (biome == 5)
+                raw[25] = BIOME_RANDOM;
+            else if (biome >= 4)
+                raw[25] = (uint8_t)biome;
+            else
+                raw[2] |= (uint8_t)(((biome & 2) << 3) | (biome & 1));
+        }
+        /* Byte 25 (biome number) only goes in the code when it is set, so old codes stay 40 characters. */
+        base32_encode(raw, raw[25] ? 26 : 25, (uint8_t *)encoded);
+        encoded[raw[25] ? 42 : 40] = '\0';
         flags = encoded;
     }
 

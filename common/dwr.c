@@ -147,6 +147,19 @@ static void update_flags(dw_rom *rom)
     if(BUILD_OPTIONS(rom) == 4)         rom->flags[24] = (rom->flags[24] | 0x1c) & ((mt_rand(0, 3) << 2) | 0xe3);
     if(RANDOM_TOWN_ENTRANCES(rom) == 2) rom->flags[24] = (rom->flags[24] | 0x03) & ((mt_rand(0, 1)     ) | 0xfc);
 
+    /* Byte 25 is the biome number for biomes past the first four. BIOME_RANDOM picks any biome. */
+    rom->flags[26] = 0;
+    if (rom->flags[25] == BIOME_RANDOM) {
+        uint8_t b = (uint8_t)mt_rand(0, BIOME_COUNT - 1);
+        rom->flags[25] = 0;
+        rom->flags[2] &= (uint8_t)~0x33;
+        if (b < 4)
+            rom->flags[2] |= (uint8_t)(((b & 2) << 3) | (b & 1));
+        else
+            rom->flags[25] = b;
+    } else if (rom->flags[25] >= BIOME_COUNT) {
+        rom->flags[25] = 0;   /* a biome this version does not have */
+    }
 }
 
 /**
@@ -193,10 +206,10 @@ static BOOL dwr_init(dw_rom *rom, const char *input_file, char *flags)
     }
 
     rom->content = &rom->header[0x10];
-    strncpy((char *)rom->flags_encoded, flags, 40);
-    rom->flags_encoded[40] = '\0'; /* Make sure it's null terminated */
+    strncpy((char *)rom->flags_encoded, flags, 42);
+    rom->flags_encoded[42] = '\0'; /* Make sure it's null terminated */
     rom->map.flags = rom->flags;
-    memset(rom->flags, 0, 25);
+    memset(rom->flags, 0, sizeof(rom->flags));
     base32_decode(rom->flags_encoded, rom->flags);
 
     update_flags(rom);
@@ -4164,6 +4177,8 @@ static void responsive_controls(dw_rom *rom)
     vpatch(rom, 0xcb04 + 1, 2, LO(RC_CPU(step_end)), HI(RC_CPU(step_end)));
     vpatch(rom, 0xcb18 + 1, 2, LO(RC_CPU(step_end)), HI(RC_CPU(step_end)));
     vpatch(rom, 0xcb2a + 1, 2, LO(RC_CPU(step_end)), HI(RC_CPU(step_end)));
+    /* Hills: the step code waits 3 extra frames on a hill (3 x JSR WaitForNMI at $CE0A). Walk at the normal speed. */
+    vpatch(rom, 0xce0a, 9, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea);
     gameplay_patches |= 4;
 }
 
@@ -5016,7 +5031,7 @@ static void spoiler_log(dw_rom *rom, const char *path)
     }
     fprintf(out, "Seed %"PRIu64"\nFlags %s\n", rom->seed, rom->flags_encoded);
     if (RANDOM_MAP(rom)) {
-        static const char *const biomes[] = {"Continent", "Caldera", "Wasteland", "Riverlands"};
+        static const char *const biomes[] = {"Continent", "Caldera", "Wasteland", "Riverlands", "Lake"};
         fprintf(out, "Biome %s\n", biomes[BIOME(rom)]);
     }
     fprintf(out, "\nPlaces (x, y on the overworld unless noted)\n");

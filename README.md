@@ -11,7 +11,7 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 | Feature | In one line |
 |---|---|
 | **Custom music** | Load a JSON5 pack of FamiTracker modules; tagged scenes and events play your songs. |
-| **Biome** | Generated maps can be a Caldera, a Wasteland or Riverlands (needs Random Map). |
+| **Biome** | Generated maps can be a Caldera, a Wasteland, Riverlands or a Lake (needs Random Map). |
 | **Safe Start** | Swamp within 3 tiles of Tantegel becomes grass. |
 | **Encounter Rate** | Low, Medium or High use a danger meter instead of a roll on every step. |
 | **Run Bank** | Wins earn banked escapes; spend one with the `BANK` battle command. |
@@ -21,7 +21,7 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 | **Show Key & Herb Counter** | Keys and herbs on the bottom row of the stats window. |
 | **Disable Screen Shake** | Keeps the screen still when you take damage. |
 | **Auto Stairs** | Stepping onto stairs takes them right away, with no STAIRS command. |
-| **Responsive Controls** | Short presses are no longer missed; on the overworld, walking and the command window answer at once. |
+| **Responsive Controls** | Short presses are no longer missed; on the overworld, walking and the command window answer at once, and hills no longer slow you down. |
 | **Fast Flute** | The Fairy Flute music plays much faster, with or without Speed Hacks. |
 | **DK Flute** | With a full inventory, the flute can be dropped for a new item, or sold to a shop for 1 gold. |
 | **Website** | A single-page generator with the options grouped into tabs. |

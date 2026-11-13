@@ -314,6 +314,10 @@ max_candidates:
     return FALSE;
 }
 
+/* Lake sizes, shared by the terrain, the Tantegel check and the area check. */
+#define LAKE_RADIUS(m) ((m)->size * 22 / 100)
+#define LAKE_ISLAND 7
+
 /* Set when a land mass has no free spot left, so the map is thrown away and drawn again. */
 static BOOL land_missing;
 
@@ -446,8 +450,8 @@ static void place_charlock(dw_map *map, int largest, int next)
     } else {
         warp = &map->warps_from[WARP_CHARLOCK];
 
-        if (BIOME(map) == BIOME_CALDERA) {
-            /* The castle sits in the middle of the basin. */
+        if (BIOME(map) == BIOME_CALDERA || BIOME(map) == BIOME_LAKE) {
+            /* The castle sits in the middle of the basin, or of the lake's island. */
             x = 63;
             y = 60;
         } else {
@@ -880,6 +884,16 @@ static BOOL place_landmarks(dw_map *map)
             return FALSE;
         }
     }
+    if (RANDOM_MAP(map) && BIOME(map) == BIOME_LAKE) {
+        /* Tantegel on Charlock's island would skip the whole journey. */
+        const dw_warp *t = &map->warps_from[WARP_TANTEGEL];
+        const int dx = (int)t->x - 60, dy = (int)t->y - 60, r = LAKE_ISLAND + 2;
+
+        if (dx * dx + dy * dy < r * r) {
+            printf("Tantegel is on the lake island, retrying...\n");
+            return FALSE;
+        }
+    }
 
     if (need_rimuldar(map)) {
         /* rimuldar needs to be on the same land mass as tantegel (for keys) */
@@ -1112,6 +1126,64 @@ static void biome_river(dw_map *map, BOOL vertical)
     }
 }
 
+/* Lays a straight bridge from the island out to the shore. dx, dy is the direction.
+ * The ring may be mountains or hills there, so the tile past the bridge is made grass. */
+static BOOL lake_bridge(dw_map *map, int dx, int dy, int offset)
+{
+    int x = 60 + (dy ? offset : 0), y = 60 + (dx ? offset : 0);
+
+    /* Off the island, then over the water. */
+    while (map->tiles[x][y] != TILE_WATER) {
+        x += dx; y += dy;
+        if (x < 1 || x > 118 || y < 1 || y > 118)
+            return FALSE;
+    }
+    while (map->tiles[x][y] == TILE_WATER) {
+        map->tiles[x][y] = TILE_BRIDGE;
+        x += dx; y += dy;
+        if (x < 1 || x > 118 || y < 1 || y > 118)
+            return FALSE;
+    }
+    map->tiles[x][y] = TILE_GRASS;
+    map->tiles[x + dx][y + dy] = TILE_GRASS;
+    return TRUE;
+}
+
+/* A ring of land around a lake. Charlock is on an island in the middle, reached by 2 to 4 long bridges. */
+static BOOL biome_lake(dw_map *map)
+{
+    int x, y, dy, inner, i, count, dist;
+    int left = 0, right = 0;
+    int r_lake = LAKE_RADIUS(map);
+    /* N, S, W, E as dx, dy. */
+    int dirs[4][2] = {{0, -1}, {0, 1}, {-1, 0}, {1, 0}};
+
+    for (y = 60 - r_lake; y <= 60 + r_lake; y++) {
+        dy = y < 60 ? 60 - y : y - 60;
+        left = biome_drift(left, 2);
+        right = biome_drift(right, 2);
+        inner = biome_isqrt(r_lake * r_lake - dy * dy);
+        for (x = 60 - inner + left; x <= 60 + inner + right; x++)
+            map->tiles[x][y] = TILE_WATER;
+    }
+    /* The island. place_charlock cuts the moat and castle out of its middle. */
+    for (y = 60 - LAKE_ISLAND; y <= 60 + LAKE_ISLAND; y++) {
+        for (x = 60 - LAKE_ISLAND; x <= 60 + LAKE_ISLAND; x++) {
+            dist = (x - 60) * (x - 60) + (y - 60) * (y - 60);
+            if (dist <= LAKE_ISLAND * LAKE_ISLAND)
+                map->tiles[x][y] = dist <= 9 ? TILE_GRASS : (mt_rand(0, 3) ? TILE_GRASS : TILE_TREES);
+        }
+    }
+    mt_shuffle(dirs, 4, sizeof(dirs[0]));
+    count = (int)mt_rand(2, 4);
+    for (i = 0; i < count; i++) {
+        if (!lake_bridge(map, dirs[i][0], dirs[i][1], (int)mt_rand(0, 4) - 2))
+            return FALSE;
+    }
+    printf("Lake with %d bridges\n", count);
+    return TRUE;
+}
+
 /* Connects land masses across a one tile river in either direction. */
 static BOOL biome_add_bridge(dw_map *map)
 {
@@ -1142,7 +1214,7 @@ static BOOL biome_add_bridge(dw_map *map)
  *
  * @param rom The rom struct
  */
-static void biome_terrain(dw_rom *rom)
+static BOOL biome_terrain(dw_rom *rom)
 {
     int i, lm_sizes[256], largest, next, layers;
     dw_map *map = &rom->map;
@@ -1175,6 +1247,11 @@ static void biome_terrain(dw_rom *rom)
             biome_coast(map);
             biome_caldera(map);
             break;
+        case BIOME_LAKE:
+            printf("Drawing a lake\n");
+            biome_fill(rom, tiles, TILE_GRASS, layers);
+            biome_coast(map);
+            return biome_lake(map);
         case BIOME_WASTELAND:
             printf("Drawing a wasteland\n");
             biome_fill(rom, tiles, TILE_DESERT, layers);
@@ -1193,6 +1270,7 @@ static void biome_terrain(dw_rom *rom)
                 biome_river(map, FALSE);
             break;
     }
+    return TRUE;
 }
 
 #define SAFE_START_RADIUS 3
@@ -1277,7 +1355,8 @@ retry_map:
     } else {
 
         if (BIOME(rom) != BIOME_CONTINENT) {
-            biome_terrain(rom);
+            if (!biome_terrain(rom))
+                goto retry_map;
         } else {
             dw_tile tiles[16] = {
                     TILE_GRASS, TILE_GRASS, TILE_GRASS, TILE_SWAMP,
@@ -1326,7 +1405,9 @@ retry_map:
         total_area = lm_sizes[largest - 1];
         if (largest != next)
             total_area += lm_sizes[next - 1];
-        if (total_area < rom->map.size * 42) {
+        /* A lake takes out about 3 * r * r tiles of land, so it needs that much less. */
+        if (total_area < rom->map.size * 42 - (BIOME(rom) == BIOME_LAKE ?
+                3 * LAKE_RADIUS(&rom->map) * LAKE_RADIUS(&rom->map) : 0)) {
             printf("Total map area (%d) is too small, retrying...\n",
                     total_area);
             goto retry_map;
