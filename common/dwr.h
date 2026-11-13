@@ -51,6 +51,8 @@
 /* The other half of the Key & Herb pair. update_flags keeps it out of the maybe step. */
 #define SAFE_START(x)             (x->flags[ 8] & 0x20)
 #define QUICK_SPELL(x)            (x->flags[11] & 0x01)
+/* First spare bit of a 42 character code. With Quick Spell on, SPELL takes the top right slot and the quick spell goes under it. */
+#define QUICK_SPELL_SWAP(x)       (x->flags[26] & 0x80)
 /* The other half of the Quick Spell pair. update_flags keeps it out of the maybe step. */
 #define FREE_CHARLOCK(x)          (x->flags[11] & 0x02)
 /* 0 default, 1 low, 2 medium, 3 high. These bits sit alone in their pairs, so they are never maybe flags. */

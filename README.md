@@ -18,6 +18,7 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 | **Auto Return** | Winning against the Dragonlord returns you to Tantegel. |
 | **Free Charlock** | Entering Charlock starts the Dragonlord fight at once. |
 | **Quick Spell** | A battle command that casts your last spell again. |
+| **Swap Quick Spell** | Puts SPELL in the top right slot and the quick spell under it. |
 | **Show Key & Herb Counter** | Keys and herbs on the bottom row of the stats window. |
 | **Disable Screen Shake** | Keeps the screen still when you take damage. |
 | **Auto Stairs** | Stepping onto stairs takes them right away, with no STAIRS command. |

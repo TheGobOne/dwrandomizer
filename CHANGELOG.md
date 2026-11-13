@@ -1,3 +1,7 @@
+# Unreleased #
+* New flag: Swap Quick Spell. With Quick Spell on, SPELL takes the top right slot of the battle window and the quick spell goes under it. It is the first spare bit of a 42-character code. CLI: --quick-spell-swap
+* Site: the Run Bank description explains the dots after the bank number, and several option descriptions are reworded
+
 # 1.1.0 - TheGobOne Remix #
 ###### Released Nov 13, 2026 ######
 * New Biome: Lake. A ring of land around a lake, with Charlock on an island reached by 2 to 4 long bridges

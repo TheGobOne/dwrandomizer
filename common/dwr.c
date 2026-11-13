@@ -148,7 +148,11 @@ static void update_flags(dw_rom *rom)
     if(RANDOM_TOWN_ENTRANCES(rom) == 2) rom->flags[24] = (rom->flags[24] | 0x03) & ((mt_rand(0, 1)     ) | 0xfc);
 
     /* Byte 25 is the biome number for biomes past the first four. BIOME_RANDOM picks any biome. */
-    rom->flags[26] = 0;
+    rom->flags[26] &= 0x80;   /* the second spare bit stays unused */
+    if (QUICK_SPELL_SWAP(rom) && !QUICK_SPELL(rom)) {
+        rom->flags[26] = 0;
+        printf("Swap Quick Spell needs Quick Spell, so it is ignored.\n");
+    }
     if (rom->flags[25] == BIOME_RANDOM) {
         uint8_t b = (uint8_t)mt_rand(0, BIOME_COUNT - 1);
         rom->flags[25] = 0;
@@ -4354,12 +4358,23 @@ static void run_bank(dw_rom *rom)
             0x81, 0x29, 0x2c, 0x2a, 0x2b, 0x37, 0x83, 0xf8,                         /* FIGHT last */
             0x81, 0x35, 0x38, 0x31, 0x85, 0x36, 0x33, 0x28, 0x2f, 0x2f,             /* RUN SPELL */
             0x81, 0x25, 0x24, 0x31, 0x2e, 0xf0, 0x81, 0x2c, 0x37, 0x28, 0x30, 0x80}; /* BANK nnn ITEM */
+        /* Swap Quick Spell: SPELL is the top right slot and the quick spell is under it. */
+        static const uint8_t quick_swap[] = {0x21, 0x88,
+            0x81, 0x29, 0x2c, 0x2a, 0x2b, 0x37, 0x83, 0x36, 0x33, 0x28, 0x2f, 0x2f, /* FIGHT SPELL */
+            0x81, 0x35, 0x38, 0x31, 0x85, 0xf8,                                     /* RUN last */
+            0x81, 0x2c, 0x37, 0x28, 0x30, 0x80};                                    /* ITEM */
+        static const uint8_t both_swap[] = {0x21, 0x88,
+            0x81, 0x29, 0x2c, 0x2a, 0x2b, 0x37, 0x83, 0x36, 0x33, 0x28, 0x2f, 0x2f, /* FIGHT SPELL */
+            0x81, 0x35, 0x38, 0x31, 0x85, 0xf8,                                     /* RUN last */
+            0x81, 0x25, 0x24, 0x31, 0x2e, 0xf0, 0x81, 0x2c, 0x37, 0x28, 0x30, 0x80}; /* BANK nnn ITEM */
         if (!QUICK_SPELL(rom))
             patch(rom, 0x709a, sizeof(bank_only), bank_only);
         else if (!RUN_BANK(rom))
-            patch(rom, 0x709a, sizeof(quick_only), quick_only);
+            patch(rom, 0x709a, QUICK_SPELL_SWAP(rom) ? sizeof(quick_swap) : sizeof(quick_only),
+                QUICK_SPELL_SWAP(rom) ? quick_swap : quick_only);
         else
-            patch(rom, 0x709a, sizeof(both), both);
+            patch(rom, 0x709a, QUICK_SPELL_SWAP(rom) ? sizeof(both_swap) : sizeof(both),
+                QUICK_SPELL_SWAP(rom) ? both_swap : both);
     }
 
     /* Window code $F0 is only in the window when Run Bank is on. */
@@ -4444,7 +4459,8 @@ static void run_bank(dw_rom *rom)
         0x85, 0xd7, 0x68, 0x68, 0x60, 0x60,
         /* Slots: left column top to bottom, then right. Empty slots use a command that goes back to the prompt. */
         0x00, 0x01, RUN_BANK(rom) ? 0x04 : 0x03,
-        QUICK_SPELL(rom) ? 0x05 : 0x02, QUICK_SPELL(rom) ? 0x02 : 0x03,
+        QUICK_SPELL(rom) ? (QUICK_SPELL_SWAP(rom) ? 0x02 : 0x05) : 0x02,
+        QUICK_SPELL(rom) ? (QUICK_SPELL_SWAP(rom) ? 0x05 : 0x02) : 0x03,
         QUICK_SPELL(rom) ? (RUN_BANK(rom) ? 0x03 : 0x04) : 0x05);
     vpatch(rom, 0x6b64, 3, 0x20, LO(c + 0x4000), HI(c + 0x4000));
 

@@ -34,6 +34,11 @@ The bank holds 9 runs unless a cap of 1 to 99 is chosen.
 Adds a battle command that casts your last spell again, without opening the spell menu.
 
 
+#### Swap Quick Spell ####
+
+Needs Quick Spell. Puts SPELL in the top right slot of the battle window and the quick spell command under it. Without it the quick spell is the top right slot and SPELL is under it. The flag is the first spare bit after the 26th byte, so a code with it on is 42 characters.
+
+
 #### Biome ####
 
 Needs Random Map. Chooses the shape of the generated overworld. The choice is part of the flags, so it is part of the checksum.
@@ -420,6 +425,7 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--bank-level` | `normal`, `easy`, `strict`, `verystrict` |
 | `--encounters` | `default`, `low`, `medium`, `high` |
 | `--quick-spell` | `on` |
+| `--quick-spell-swap` | `on`: SPELL top right, quick spell under it. Needs Quick Spell |
 | `--key-herb` | `on`: adds a keys and herbs row to the stats window |
 | `--auto-stairs` | `on`: stepping onto stairs takes them |
 | `--spoiler` | `on`: writes a `.spoiler.txt` next to the ROM. It changes the checksum, so a spoiler seed never matches one without |
