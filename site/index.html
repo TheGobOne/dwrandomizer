@@ -464,7 +464,8 @@ const State = {
     let bits=0,n=0; const bytes=[];
     for(const c of text.toUpperCase()){ const i=FLAG_CHARS.indexOf(c); if(i<0) return false;
       bits=(bits<<5)|i; n+=5; if(n>=8){ bytes.push((bits>>(n-8))&255); n-=8; bits&=(1<<n)-1; } }
-    if(bytes.length!==25&&bytes.length!==26) return false;
+    /* 40 letters are 25 bytes, 42 are 26. 41 or 43 would also round down to those, so check the length itself. */
+    if(text.length!==40&&text.length!==42) return false;
     this.all().forEach(it=>{ const m=FLAG_MAP[it[1]]; if(!m) return;
       if(m.values){ const raw=(bytes[m.byte]>>m.shift)&m.mask, name=Object.keys(m.values).find(k=>m.values[k]===raw);
         const i=it[4].indexOf(name); if(i<0) this.oddFlags=true; this.v[it[0]]=i<0?0:i; }
