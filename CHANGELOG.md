@@ -1,9 +1,11 @@
 # Unreleased #
 * New Biome: Lake. A ring of land around a lake, with Charlock on an island reached by 2 to 4 long bridges
 * Flag codes can now be 42 characters. The extra byte holds the biome number for Lake and later biomes. Old 40-character codes build the same ROMs as before
-* Biome Random now includes Lake, and the site writes it as a 42-character code
+* New Biome: Earth. A map of the world: bridges to Australia, Japan, the Arctic and Antarctica, and rafts (dock caves) between the Americas and Europe, Asia or Africa
+* New Biome: Westeros. Charlock is beyond the Wall, which has one pass; Tantegel is south of it; the Neck is swamp
+* Biome Random now includes Lake, Earth and Westeros, and the site writes it as a 42-character code
 * Responsive Controls: hills no longer slow you down (the original game waits 3 extra frames on every hill step)
-* CLI: new --biome option (continent, caldera, wasteland, riverlands, lake, random)
+* CLI: new --biome option (continent, caldera, wasteland, riverlands, lake, earth, westeros, random)
 * Build Options is renamed: Original, Free Selection, Free Selection Plus, Free Selection Unified, Random. Flag codes are unchanged; the site lists what each one does under the box
 * Fixed: with Don't Require Magic Keys on, the king was missing from the throne room and Gwaelin could not be returned (reported by Artorious308)
 

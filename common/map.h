@@ -66,7 +66,13 @@ typedef enum {
     WARP_CHARLOCK_POINTLESS_2 = 25,
     WARP_CHARLOCK_THRONE = 38,
     WARP_MOUNTAIN_CAVE_POINTLESS = 39,
-    WARP_GARINS_GRAVE_POINTLESS = 45
+    WARP_GARINS_GRAVE_POINTLESS = 45,
+    /* Stair warps the Earth biome takes for its 2 rafts. Each one only repeats another way between the
+     * same 2 floors, and no chest spot needs it (tested with Random Chest Locations). */
+    WARP_RAFT_1_OUT = 24,
+    WARP_RAFT_1_BACK = 25,
+    WARP_RAFT_2_OUT = 41,
+    WARP_RAFT_2_BACK = 47
 } dw_warp_index;
 
 enum {

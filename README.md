@@ -11,7 +11,7 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 | Feature | In one line |
 |---|---|
 | **Custom music** | Load a JSON5 pack of FamiTracker modules; tagged scenes and events play your songs. |
-| **Biome** | Generated maps can be a Caldera, a Wasteland, Riverlands or a Lake (needs Random Map). |
+| **Biome** | Generated maps can be a Caldera, a Wasteland, Riverlands, a Lake, Earth or Westeros (needs Random Map). |
 | **Safe Start** | Swamp within 3 tiles of Tantegel becomes grass. |
 | **Encounter Rate** | Low, Medium or High use a danger meter instead of a roll on every step. |
 | **Run Bank** | Wins earn banked escapes; spend one with the `BANK` battle command. |

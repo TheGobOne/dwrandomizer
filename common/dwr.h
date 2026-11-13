@@ -38,7 +38,11 @@
 #define BIOME_WASTELAND 2
 #define BIOME_RIVERLANDS 3
 #define BIOME_LAKE 4
-#define BIOME_COUNT 5
+#define BIOME_EARTH 5
+#define BIOME_WESTEROS 6
+#define BIOME_COUNT 7
+/* Earth links the Americas to the rest of the world with rafts, which use 4 spare stair warps. */
+#define RAFT_BIOME(x)             (RANDOM_MAP(x) && BIOME(x) == BIOME_EARTH)
 /* Byte 25 value for "any biome". update_flags turns it into one of them. */
 #define BIOME_RANDOM 0xff
 

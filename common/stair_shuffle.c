@@ -332,6 +332,13 @@ static BOOL indexes_contains(const dw_map_index *indexes, dw_map_index index)
 /**
  * Builds maps an initializes other data needed for stair shuffling
  */
+/* Whether a warp belongs to an Earth raft. Those stay out of the shuffle and out of the dungeon maps. */
+static BOOL raft_warp(dw_rom *rom, size_t i)
+{
+    return RAFT_BIOME(rom) && (i == WARP_RAFT_1_OUT || i == WARP_RAFT_1_BACK ||
+                               i == WARP_RAFT_2_OUT || i == WARP_RAFT_2_BACK);
+}
+
 static void stair_shuffle_init(dw_rom *rom)
 {
     size_t i, j;
@@ -345,7 +352,8 @@ static void stair_shuffle_init(dw_rom *rom)
     for (i=0; i < 102; i++) {
 //         if (SHORT_CHARLOCK(rom) && (i % 51) == WARP_CHARLOCK_SURFACE_1)
 //             continue;
-        if (indexes_contains(indexes, rom->map.warps_from[i%51].map) &&
+        if (!raft_warp(rom, i % 51) &&
+            indexes_contains(indexes, rom->map.warps_from[i%51].map) &&
             indexes_contains(indexes, rom->map.warps_to[i%51].map)) {
             warps_from[j] = rom->map.warps_from[i];
             j++;
@@ -507,7 +515,8 @@ static void write_back_warps(dw_rom *rom)
     size_t i, j;
     j = 0;
     for (i=0; i < 51; i++) {
-        if (indexes_contains(indexes, rom->map.warps_from[i].map) &&
+        if (!raft_warp(rom, i) &&
+            indexes_contains(indexes, rom->map.warps_from[i].map) &&
             indexes_contains(indexes, rom->map.warps_to[i].map)) {
             rom->map.warps_from[i] = warps_from[j];
             rom->map.warps_to[i] = warps_to[j];

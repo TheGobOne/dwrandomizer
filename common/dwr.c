@@ -5031,7 +5031,7 @@ static void spoiler_log(dw_rom *rom, const char *path)
     }
     fprintf(out, "Seed %"PRIu64"\nFlags %s\n", rom->seed, rom->flags_encoded);
     if (RANDOM_MAP(rom)) {
-        static const char *const biomes[] = {"Continent", "Caldera", "Wasteland", "Riverlands", "Lake"};
+        static const char *const biomes[] = {"Continent", "Caldera", "Wasteland", "Riverlands", "Lake", "Earth", "Westeros"};
         fprintf(out, "Biome %s\n", biomes[BIOME(rom)]);
     }
     fprintf(out, "\nPlaces (x, y on the overworld unless noted)\n");
@@ -5041,6 +5041,15 @@ static void spoiler_log(dw_rom *rom, const char *path)
         if (w->map != 1 && w->map < sizeof(maps) / sizeof(maps[0]))
             fprintf(out, "  inside %s", maps[w->map]);
         fprintf(out, "\n");
+    }
+    if (RAFT_BIOME(rom)) {
+        /* Each raft is a pair of docks; the warps say where each dock is. */
+        static const dw_warp_index docks[4] = {WARP_RAFT_1_OUT, WARP_RAFT_1_BACK, WARP_RAFT_2_OUT, WARP_RAFT_2_BACK};
+        static const char *const dock_names[4] = {"Raft 1 dock A", "Raft 1 dock B", "Raft 2 dock A", "Raft 2 dock B"};
+        for (i = 0; i < 4; i++) {
+            const dw_warp *w = &rom->map.warps_from[docks[i]];
+            fprintf(out, "  %-18s %3d, %3d\n", dock_names[i], w->x, w->y);
+        }
     }
     fprintf(out, "\nChests\n");
     for (i = 0; i < CHEST_COUNT; i++) {

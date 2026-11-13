@@ -39,7 +39,7 @@ static void print_usage(const char *command, char *default_flags)
     printf("  --music <pack.json5>\n");
     printf("  --music-exact <pack.json5>   (testing: songs go in as tagged, no site picks)\n");
     printf("  --encounters default|low|medium|high\n");
-    printf("  --biome continent|caldera|wasteland|riverlands|lake|random\n");
+    printf("  --biome continent|caldera|wasteland|riverlands|lake|earth|westeros|random\n");
     printf("  --free-charlock on|off\n");
     printf("  --auto-return on|off\n");
     printf("  --responsive-controls on|off\n");
@@ -73,7 +73,8 @@ int main(int argc, char **argv)
     int responsive = -1, bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, key_herb = -1, free_charlock = -1, auto_return = -1, auto_stairs = -1, biome = -1;
     static const char *const encounter_rates[4] = {"default", "low", "medium", "high"};
     /* Same order as BIOME_* in dwr.h, then "random". */
-    static const char *const biome_names[6] = {"continent", "caldera", "wasteland", "riverlands", "lake", "random"};
+    static const char *const biome_names[BIOME_COUNT + 1] = {"continent", "caldera", "wasteland", "riverlands", "lake",
+        "earth", "westeros", "random"};
     char encoded[64] = {0};
 
     printf("DWRandomizer version %s\n", VERSION);
@@ -95,11 +96,11 @@ int main(int argc, char **argv)
                 exit(1);
             }
         } else if (!strcmp(argv[1], "--biome")) {
-            for (biome = 0; biome < 6; biome++)
+            for (biome = 0; biome <= BIOME_COUNT; biome++)
                 if (!strcmp(argv[2], biome_names[biome]))
                     break;
-            if (biome == 6) {
-                fprintf(stderr, "--biome must be continent, caldera, wasteland, riverlands, lake or random\n");
+            if (biome > BIOME_COUNT) {
+                fprintf(stderr, "--biome must be continent, caldera, wasteland, riverlands, lake, earth, westeros or random\n");
                 exit(1);
             }
         } else if (!strcmp(argv[1], "--spoiler")) {
@@ -192,7 +193,7 @@ int main(int argc, char **argv)
         if (biome >= 0) {
             raw[2] &= (uint8_t)~0x33;
             raw[25] = 0;
-            if (biome == 5)
+            if (biome == BIOME_COUNT)
                 raw[25] = BIOME_RANDOM;
             else if (biome >= 4)
                 raw[25] = (uint8_t)biome;

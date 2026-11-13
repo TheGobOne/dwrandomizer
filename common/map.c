@@ -6,6 +6,8 @@
 
 #include "mt64.h"
 #include "map.h"
+#include "dungeon_maps.h"
+#include "biome_maps.h"
 
 #define MIN_LM_SIZE     250   /* minimum size for a land_mass to use */
 #define RIVER_COUNT     25
@@ -321,6 +323,32 @@ max_candidates:
 /* Set when a land mass has no free spot left, so the map is thrown away and drawn again. */
 static BOOL land_missing;
 
+/* Earth and Westeros are drawn from an outline. This holds the outline letter under each tile, '.' for sea.
+ * The letters are listed in biome_maps.h. */
+static char map_region[120][120];
+#define TEMPLATE_BIOME(m) (RANDOM_MAP(m) && (BIOME(m) == BIOME_EARTH || BIOME(m) == BIOME_WESTEROS))
+#define EARTH_MAIN(c)     ((c) == 'E' || (c) == 'A' || (c) == 'F')
+#define EARTH_AMERICAS(c) ((c) == 'N' || (c) == 'S')
+
+/* Whether Charlock's castle, walls and moat (x-7..x+1, y-4..y+4, for a drop spot at x, y) fit on the outline:
+ * on Earth not over the sea (bridges are there), on Westeros wholly beyond the Wall. */
+static BOOL charlock_fits(dw_map *map, int x, int y)
+{
+    int i, j;
+    char c;
+
+    for (i = x - 7; i <= x + 1; i++) {
+        for (j = y - 4; j <= y + 4; j++) {
+            if (map_ob(i) || map_ob(j))
+                return FALSE;
+            c = map_region[i][j];
+            if (BIOME(map) == BIOME_WESTEROS ? c != 'B' : c == '.')
+                return FALSE;
+        }
+    }
+    return TRUE;
+}
+
 /**
  * Finds a land area where something can be placed and will be accessible.
  *
@@ -398,6 +426,33 @@ static dw_border_tile border_for(dw_tile tile)
  * @param lm_two The second acceptable land mass for the location
  * @return The tile type on the overworld which was replaced by the new tile
  */
+/* Extra rules for where a town or cave may go in the newer biomes (Lake and later). Older biomes keep
+ * their old picks, so their flag codes still make the same maps. */
+static BOOL new_biome_spot(dw_map *map, int x, int y)
+{
+    const dw_warp *charlock = &map->warps_from[WARP_CHARLOCK];
+    int dx, dy;
+
+    if (!RANDOM_MAP(map) || BIOME(map) < BIOME_LAKE)
+        return TRUE;
+    /* On a bridge it would cut the land beyond it off. */
+    if (map->tiles[x][y] == TILE_BRIDGE)
+        return FALSE;
+    /* Keep the Rainbow Drop spot and the tiles beside it clear, or the only way to it can be a town. */
+    dx = x - (charlock->x + 3);
+    dy = y - charlock->y;
+    if (abs(dx) + abs(dy) <= 1)
+        return FALSE;
+    /* The Lake island is Charlock's alone. */
+    if (BIOME(map) == BIOME_LAKE) {
+        dx = x - 60;
+        dy = y - 60;
+        if (dx * dx + dy * dy <= (LAKE_ISLAND + 1) * (LAKE_ISLAND + 1))
+            return FALSE;
+    }
+    return TRUE;
+}
+
 static dw_border_tile place(dw_map *map, dw_warp_index warp_idx, dw_tile tile,
         int lm_one, int lm_two)
 {
@@ -419,7 +474,7 @@ static dw_border_tile place(dw_map *map, dw_warp_index warp_idx, dw_tile tile,
             return BORDER_GRASS;
         }
     } while (old_tile == TILE_CASTLE || old_tile == TILE_TOWN ||
-             old_tile == TILE_CAVE);
+             old_tile == TILE_CAVE || !new_biome_spot(map, x, y));
 
     warp->map = 1;
     warp->x = x;
@@ -454,6 +509,14 @@ static void place_charlock(dw_map *map, int largest, int next)
             /* The castle sits in the middle of the basin, or of the lake's island. */
             x = 63;
             y = 60;
+        } else if (TEMPLATE_BIOME(map)) {
+            int spots = 0;
+            do {
+                if (!map_find_land(map, largest, next, &x, &y, FALSE) || ++spots > 50000) {
+                    land_missing = TRUE;
+                    return;
+                }
+            } while (x < 7 || x > 118 || y < 3 || y > 116 || !charlock_fits(map, x, y));
         } else {
             int spots = 0;
             while(x < 7 || x > 118 || y < 3 || y > 116) {
@@ -894,6 +957,16 @@ static BOOL place_landmarks(dw_map *map)
             return FALSE;
         }
     }
+    if (RANDOM_MAP(map) && BIOME(map) == BIOME_WESTEROS) {
+        /* Tantegel stays south of the Wall, so the journey always ends beyond it. */
+        const dw_warp *t = &map->warps_from[WARP_TANTEGEL];
+        const char c = map_region[t->x][t->y];
+
+        if (c == 'B' || c == 'W') {
+            printf("Tantegel is beyond the Wall, retrying...\n");
+            return FALSE;
+        }
+    }
 
     if (need_rimuldar(map)) {
         /* rimuldar needs to be on the same land mass as tantegel (for keys) */
@@ -915,6 +988,24 @@ static BOOL place_landmarks(dw_map *map)
     if (land_missing) {
         printf("No room for every town and cave, retrying...\n");
         return FALSE;
+    }
+    if (RANDOM_MAP(map) && BIOME(map) == BIOME_WESTEROS) {
+        /* The swamp cave must not be a second way past the Wall. An entrance inside Tantegel or Garinham
+         * counts as where that town is. */
+        int side[2];
+
+        for (i = 0; i < 2; i++) {
+            const dw_warp *w = &map->warps_from[i ? WARP_SWAMP_SOUTH : WARP_SWAMP_NORTH];
+            if (w->map == TANTEGEL)
+                w = &map->warps_from[WARP_TANTEGEL];
+            else if (w->map == GARINHAM)
+                w = &map->warps_from[WARP_GARINHAM];
+            side[i] = map_region[w->x][w->y] == 'B';
+        }
+        if (side[0] != side[1]) {
+            printf("The swamp cave goes under the Wall, retrying...\n");
+            return FALSE;
+        }
     }
     return TRUE;
 }
@@ -1184,6 +1275,369 @@ static BOOL biome_lake(dw_map *map)
     return TRUE;
 }
 
+/* Draws an outline over the filled land: sea outside it. Each row is nudged left or right and each column
+ * up or down, a little at a time, so coasts are not 2x2 stair steps. A whole row moves together (and a whole
+ * column), so the sea between two landmasses keeps its width. */
+static void biome_template(dw_map *map, const char *const *tpl)
+{
+    int x, y, tx, ty, s, shift_x[120], shift_y[120];
+    char c;
+
+    for (s = 0, y = 0; y < 120; y++) {
+        s = biome_drift(s, 2);
+        shift_x[y] = s;
+    }
+    for (s = 0, x = 0; x < 120; x++) {
+        s = biome_drift(s, 2);
+        shift_y[x] = s;
+    }
+    for (y = 0; y < 120; y++) {
+        for (x = 0; x < 120; x++) {
+            tx = x + shift_x[y];
+            ty = y + shift_y[x];
+            c = '.';
+            if (x > 0 && x < 119 && y > 0 && y < 119 && tx >= 0 && tx < 120 && ty >= 0 && ty < 120)
+                c = tpl[ty / 2][tx / 2];
+            map_region[x][y] = c;
+            if (c == '.')
+                map->tiles[x][y] = TILE_WATER;
+        }
+    }
+}
+
+static const int dir4[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
+/* Whether a walkable tile of the given region touches this tile. Region 0 means the main continent
+ * (Europe, Asia or Africa). */
+static BOOL earth_touches(dw_map *map, int x, int y, char region)
+{
+    int i, nx, ny;
+    char c;
+
+    for (i = 0; i < 4; i++) {
+        nx = x + dir4[i][0];
+        ny = y + dir4[i][1];
+        if (map_ob(nx) || map_ob(ny) || !tile_is_walkable(map->tiles[nx][ny]))
+            continue;
+        c = map_region[nx][ny];
+        if (region ? c == region : EARTH_MAIN(c))
+            return TRUE;
+    }
+    return FALSE;
+}
+
+/* A bridge may go on open sea that does not touch the Americas, which are reached only by raft. */
+static BOOL earth_sea(dw_map *map, int x, int y)
+{
+    int i, nx, ny;
+
+    if (x < 1 || x > 118 || y < 1 || y > 118)
+        return FALSE;
+    if (map->tiles[x][y] != TILE_WATER || map_region[x][y] != '.')
+        return FALSE;
+    for (i = 0; i < 4; i++) {
+        nx = x + dir4[i][0];
+        ny = y + dir4[i][1];
+        if (EARTH_AMERICAS(map_region[nx][ny]))
+            return FALSE;
+    }
+    return TRUE;
+}
+
+/* Walks a straight or L-shaped bridge from (sx, sy) to (tx, ty). bend 0 goes across first, bend 1 goes
+ * down or up first. With draw FALSE it only checks the way is open sea. */
+static BOOL earth_path(dw_map *map, int sx, int sy, int tx, int ty, int bend, BOOL draw)
+{
+    int x = sx, y = sy;
+
+    for (;;) {
+        if (draw)
+            map->tiles[x][y] = TILE_BRIDGE;
+        else if (!earth_sea(map, x, y))
+            return FALSE;
+        if (x == tx && y == ty)
+            return TRUE;
+        if (bend == 0 ? x != tx : y == ty)
+            x += tx > x ? 1 : -1;
+        else
+            y += ty > y ? 1 : -1;
+    }
+}
+
+/* Joins an island (Australia, Japan, the Arctic or Antarctica) to the main continent with a bridge that is
+ * straight or bends once. It picks among the shortest ways, up to 2 tiles longer than the shortest. */
+static BOOL earth_bridge(dw_map *map, char target)
+{
+    static uint8_t from[120 * 120][2], to[120 * 120][2];
+    int nf = 0, nt = 0, i, j, bend, len, best = 1000, count = 0, pass;
+    int pick_f = 0, pick_t = 0, pick_bend = 0;
+    int x, y;
+
+    for (x = 1; x < 119; x++) {
+        for (y = 1; y < 119; y++) {
+            if (!earth_sea(map, x, y))
+                continue;
+            if (earth_touches(map, x, y, 0)) {
+                from[nf][0] = x; from[nf][1] = y; nf++;
+            }
+            if (earth_touches(map, x, y, target)) {
+                to[nt][0] = x; to[nt][1] = y; nt++;
+            }
+        }
+    }
+    /* The first pass finds the shortest way, the second picks one of the ways close to it. */
+    for (pass = 0; pass < 2; pass++) {
+        for (i = 0; i < nf; i++) {
+            for (j = 0; j < nt; j++) {
+                len = abs(from[i][0] - to[j][0]) + abs(from[i][1] - to[j][1]);
+                if (len > (pass ? best + 2 : best))
+                    continue;
+                for (bend = 0; bend < 2; bend++) {
+                    if (!earth_path(map, from[i][0], from[i][1], to[j][0], to[j][1], bend, FALSE))
+                        continue;
+                    if (!pass) {
+                        best = len;
+                    } else if (mt_rand(0, count++) == 0) {
+                        pick_f = i; pick_t = j; pick_bend = bend;
+                    }
+                    break;
+                }
+            }
+        }
+        if (best == 1000)
+            return FALSE;
+    }
+    earth_path(map, from[pick_f][0], from[pick_f][1], to[pick_t][0], to[pick_t][1], pick_bend, TRUE);
+    return TRUE;
+}
+
+/* The world: the Americas in the west, Europe, Asia and Africa as one continent in the east, and Australia,
+ * Japan, the Arctic and Antarctica joined to it by bridges. The rafts to the Americas come later, once the
+ * towns are placed. */
+static BOOL biome_earth(dw_map *map)
+{
+    static const char islands[] = "UJRT";
+    int i;
+
+    biome_template(map, earth_template);
+    for (i = 0; islands[i]; i++) {
+        if (!earth_bridge(map, islands[i])) {
+            printf("No way to bridge to an island, retrying...\n");
+            return FALSE;
+        }
+    }
+    return TRUE;
+}
+
+/* A plain land tile a dock or a raft arrival can use. */
+static BOOL dock_land(dw_tile tile)
+{
+    return tile == TILE_GRASS || tile == TILE_DESERT || tile == TILE_HILL || tile == TILE_TREES;
+}
+
+/* Whether a cave at x, y would block a way through: its walkable neighbours must still reach each other
+ * nearby without crossing it (or any other town, cave or castle). */
+static BOOL dock_blocks(dw_map *map, int x, int y)
+{
+    static uint8_t seen[17][17];
+    int qx[17 * 17], qy[17 * 17], head = 0, tail = 0, i, nx, ny, first = -1, cx, cy;
+    dw_tile t;
+
+    memset(seen, 0, sizeof(seen));
+    seen[8][8] = 1;   /* the dock itself */
+    for (i = 0; i < 4; i++) {
+        nx = x + dir4[i][0];
+        ny = y + dir4[i][1];
+        t = map->tiles[nx][ny];
+        if (tile_is_walkable(t) && t != TILE_TOWN && t != TILE_CAVE && t != TILE_CASTLE) {
+            first = i;
+            break;
+        }
+    }
+    if (first < 0)
+        return FALSE;
+    qx[tail] = x + dir4[first][0];
+    qy[tail++] = y + dir4[first][1];
+    seen[8 + dir4[first][0]][8 + dir4[first][1]] = 1;
+    while (head < tail) {
+        cx = qx[head];
+        cy = qy[head++];
+        for (i = 0; i < 4; i++) {
+            nx = cx + dir4[i][0];
+            ny = cy + dir4[i][1];
+            if (nx - x < -8 || nx - x > 8 || ny - y < -8 || ny - y > 8 || map_ob(nx) || map_ob(ny))
+                continue;
+            if (seen[8 + nx - x][8 + ny - y])
+                continue;
+            t = map->tiles[nx][ny];
+            if (!tile_is_walkable(t) || t == TILE_TOWN || t == TILE_CAVE || t == TILE_CASTLE)
+                continue;
+            seen[8 + nx - x][8 + ny - y] = 1;
+            qx[tail] = nx;
+            qy[tail++] = ny;
+        }
+    }
+    for (i = 0; i < 4; i++) {
+        nx = x + dir4[i][0];
+        ny = y + dir4[i][1];
+        t = map->tiles[nx][ny];
+        if (tile_is_walkable(t) && t != TILE_TOWN && t != TILE_CAVE && t != TILE_CASTLE &&
+                !seen[8 + dir4[i][0]][8 + dir4[i][1]])
+            return TRUE;
+    }
+    return FALSE;
+}
+
+/* Picks a dock on the coast of a region: a plain tile beside open sea, away from Charlock, with a plain
+ * tile of the same land beside it for the raft to land on. The dock becomes a cave tile. */
+static BOOL earth_dock(dw_map *map, char region, uint8_t *dock_x, uint8_t *dock_y,
+        uint8_t *land_x, uint8_t *land_y)
+{
+    const dw_warp *charlock = &map->warps_from[WARP_CHARLOCK];
+    int x, y, i, nx, ny, wet, land, count = 0;
+
+    for (x = 1; x < 119; x++) {
+        for (y = 1; y < 119; y++) {
+            if (map_region[x][y] != region || !dock_land(map->tiles[x][y]))
+                continue;
+            if (abs(x - (int)charlock->x) < 8 && abs(y - (int)charlock->y) < 8)
+                continue;
+            wet = FALSE;
+            land = -1;
+            for (i = 0; i < 4; i++) {
+                nx = x + dir4[i][0];
+                ny = y + dir4[i][1];
+                if (map->tiles[nx][ny] == TILE_WATER && map_region[nx][ny] == '.')
+                    wet = TRUE;
+                else if (dock_land(map->tiles[nx][ny]) && map_region[nx][ny] == region &&
+                         map->walkable[nx][ny] == map->walkable[x][y])
+                    land = i;
+            }
+            if (!wet || land < 0 || dock_blocks(map, x, y))
+                continue;
+            if (mt_rand(0, count++) == 0) {
+                *dock_x = x;
+                *dock_y = y;
+                *land_x = x + dir4[land][0];
+                *land_y = y + dir4[land][1];
+            }
+        }
+    }
+    if (!count)
+        return FALSE;
+    map->tiles[*dock_x][*dock_y] = TILE_CAVE;
+    /* Keep later docks off this one's landing tile. */
+    map_region[*land_x][*land_y] = '*';
+    return TRUE;
+}
+
+/* Two rafts: one from North America and one from South America, each to a different one of Europe, Asia
+ * and Africa. A raft is 2 warps, one each way, and each lands beside the other dock. */
+static BOOL earth_rafts(dw_map *map)
+{
+    static const char *const names = "NSEAF";
+    static const char *const long_names[] = {"North America", "South America", "Europe", "Asia", "Africa"};
+    static const dw_warp_index out[2] = {WARP_RAFT_1_OUT, WARP_RAFT_2_OUT};
+    static const dw_warp_index back[2] = {WARP_RAFT_1_BACK, WARP_RAFT_2_BACK};
+    char dest[3] = {'E', 'A', 'F'};
+    uint8_t ax, ay, bx, by, alx, aly, blx, bly;
+    int r;
+
+    mt_shuffle(dest, 3, sizeof(char));
+    for (r = 0; r < 2; r++) {
+        if (!earth_dock(map, r ? 'S' : 'N', &ax, &ay, &alx, &aly) ||
+                !earth_dock(map, dest[r], &bx, &by, &blx, &bly))
+            return FALSE;
+        map->warps_from[out[r]] = (dw_warp){ 1, ax, ay };
+        map->warps_to[out[r]] = (dw_warp){ 1, blx, bly };
+        map->warps_from[back[r]] = (dw_warp){ 1, bx, by };
+        map->warps_to[back[r]] = (dw_warp){ 1, alx, aly };
+        printf("Raft from %s (%d, %d) to %s (%d, %d)\n", long_names[r], ax, ay,
+                long_names[strchr(names, dest[r]) - names], bx, by);
+    }
+    return TRUE;
+}
+
+/* The stairs the rafts take over lead nowhere now, so they become floor. Run once, before the rafts
+ * overwrite the warps. */
+static void free_raft_stairs(dw_rom *rom)
+{
+    static const dw_warp_index slots[4] = {WARP_RAFT_1_OUT, WARP_RAFT_1_BACK, WARP_RAFT_2_OUT, WARP_RAFT_2_BACK};
+    const dw_warp *w;
+    dw_dungeon_tile tile;
+    int i, end;
+
+    for (i = 0; i < 4; i++) {
+        for (end = 0; end < 2; end++) {
+            w = end ? &rom->map.warps_to[slots[i]] : &rom->map.warps_from[slots[i]];
+            if (w->map == 1)
+                continue;
+            tile = get_dungeon_tile(rom, w->map, w->x, w->y);
+            if (tile == DUNGEON_TILE_STAIRS_UP || tile == DUNGEON_TILE_STAIRS_DOWN)
+                set_dungeon_tile(rom, w->map, w->x, w->y, DUNGEON_TILE_BRICK);
+        }
+    }
+}
+
+/* Westeros: the Wall across the North with one pass, the swampy Neck, and Charlock beyond the Wall. */
+static BOOL biome_westeros(dw_map *map)
+{
+    int x, y, i, count = 0, gap = -1, top, bottom, lm_sizes[256], largest, next;
+
+    biome_template(map, westeros_template);
+    for (x = 0; x < 120; x++) {
+        for (y = 0; y < 120; y++) {
+            if (map_region[x][y] == 'W')
+                map->tiles[x][y] = TILE_MOUNTAIN;
+            else if (map_region[x][y] == 'K')
+                map->tiles[x][y] = TILE_SWAMP;
+        }
+    }
+    /* The pass: 2 columns of the Wall, at least 4 tiles of Wall to each side so it is not at the coast. */
+    for (x = 5; x < 114; x++) {
+        for (i = -4; i <= 5; i++) {
+            for (y = 1; y < 119 && map_region[x + i][y] != 'W'; y++)
+                ;
+            if (y == 119)
+                break;
+        }
+        if (i <= 5)
+            continue;
+        if (mt_rand(0, count++) == 0)
+            gap = x;
+    }
+    if (gap < 0)
+        return FALSE;
+    for (x = gap; x <= gap + 1; x++) {
+        for (top = 1; map_region[x][top] != 'W'; top++)
+            ;
+        for (bottom = top; map_region[x][bottom + 1] == 'W'; bottom++)
+            ;
+        for (y = top; y <= bottom; y++)
+            map->tiles[x][y] = TILE_HILL;
+        /* Clear mountains on the way to the pass from both sides. */
+        for (i = -1; i <= 1; i++) {
+            for (y = top - 4; y <= bottom + 4; y++) {
+                if (map_region[x + i][y] != 'W' && map->tiles[x + i][y] == TILE_MOUNTAIN)
+                    map->tiles[x + i][y] = TILE_GRASS;
+            }
+        }
+    }
+    /* North and south have to be one land through the pass. */
+    for (top = 1; map_region[gap][top] != 'W'; top++)
+        ;
+    for (bottom = top; map_region[gap][bottom + 1] == 'W'; bottom++)
+        ;
+    find_walkable_area(map, lm_sizes, &largest, &next);
+    if (!map->walkable[gap][top - 1] || map->walkable[gap][top - 1] != map->walkable[gap][bottom + 1] ||
+            map->walkable[gap][top - 1] != largest) {
+        printf("The pass through the Wall is blocked, retrying...\n");
+        return FALSE;
+    }
+    printf("The pass through the Wall is at x %d\n", gap);
+    return TRUE;
+}
+
 /* Connects land masses across a one tile river in either direction. */
 static BOOL biome_add_bridge(dw_map *map)
 {
@@ -1247,6 +1701,14 @@ static BOOL biome_terrain(dw_rom *rom)
             biome_coast(map);
             biome_caldera(map);
             break;
+        case BIOME_EARTH:
+            printf("Drawing the Earth\n");
+            biome_fill(rom, tiles, TILE_GRASS, layers);
+            return biome_earth(map);
+        case BIOME_WESTEROS:
+            printf("Drawing Westeros\n");
+            biome_fill(rom, tiles, TILE_GRASS, layers);
+            return biome_westeros(map);
         case BIOME_LAKE:
             printf("Drawing a lake\n");
             biome_fill(rom, tiles, TILE_GRASS, layers);
@@ -1334,6 +1796,13 @@ void map_generate_terrain(dw_rom *rom)
         printf("Generating a normal size map\n");
         rom->map.size = 120;
     }
+    if (TEMPLATE_BIOME(rom) && rom->map.size != 120) {
+        /* The outline needs the whole map. */
+        printf("This biome is always normal size\n");
+        rom->map.size = 120;
+    }
+    if (RAFT_BIOME(rom))
+        free_raft_stairs(rom);
     //rom->map.size /= 3;
 
 retry_map:
@@ -1405,15 +1874,18 @@ retry_map:
         total_area = lm_sizes[largest - 1];
         if (largest != next)
             total_area += lm_sizes[next - 1];
-        /* A lake takes out about 3 * r * r tiles of land, so it needs that much less. */
-        if (total_area < rom->map.size * 42 - (BIOME(rom) == BIOME_LAKE ?
-                3 * LAKE_RADIUS(&rom->map) * LAKE_RADIUS(&rom->map) : 0)) {
+        /* A lake takes out about 3 * r * r tiles of land, so it needs that much less. An outline sets its
+         * own amount of land, so it only has to keep most of it. */
+        if (total_area < (TEMPLATE_BIOME(rom) ? rom->map.size * 30 :
+                rom->map.size * 42 - (BIOME(rom) == BIOME_LAKE ?
+                3 * LAKE_RADIUS(&rom->map) * LAKE_RADIUS(&rom->map) : 0))) {
             printf("Total map area (%d) is too small, retrying...\n",
                     total_area);
             goto retry_map;
         }
 
-        if (BIOME(rom) != BIOME_RIVERLANDS) {
+        /* Earth keeps its seas: the Americas are reached only by raft. */
+        if (BIOME(rom) != BIOME_RIVERLANDS && !RAFT_BIOME(rom)) {
             while (add_bridges(&rom->map)) {
                 find_walkable_area(&rom->map, lm_sizes, &largest, &next);
             }
@@ -1424,6 +1896,13 @@ retry_map:
     if (!place_landmarks(&rom->map)) {
         goto retry_map;
     }
+    if (RAFT_BIOME(rom)) {
+        find_walkable_area(&rom->map, lm_sizes, &largest, &next);
+        if (!earth_rafts(&rom->map)) {
+            printf("No room for the rafts, retrying...\n");
+            goto retry_map;
+        }
+    }
 
     /* place the token */
     find_walkable_area(&rom->map, lm_sizes, &largest, &next);
@@ -1431,6 +1910,16 @@ retry_map:
     if (!map_find_land(&rom->map, largest, next, &rom->search_table->x[0],
             &rom->search_table->y[0], TRUE))
         goto retry_map;
+    if (RAFT_BIOME(rom)) {
+        /* The token can't be under a dock, where the hero never stands. */
+        for (i = 0; rom->map.tiles[rom->search_table->x[0]][rom->search_table->y[0]] == TILE_CAVE ||
+                rom->map.tiles[rom->search_table->x[0]][rom->search_table->y[0]] == TILE_TOWN ||
+                rom->map.tiles[rom->search_table->x[0]][rom->search_table->y[0]] == TILE_CASTLE; i++) {
+            if (i > 1000 || !map_find_land(&rom->map, largest, next, &rom->search_table->x[0],
+                    &rom->search_table->y[0], TRUE))
+                goto retry_map;
+        }
+    }
 
     if (SAFE_START(rom))
         safe_start(&rom->map);
