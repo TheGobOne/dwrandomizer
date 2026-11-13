@@ -1,7 +1,7 @@
 # Unreleased #
 * New Biome: Lake. A ring of land around a lake, with Charlock on an island reached by 2 to 4 long bridges
 * Flag codes can now be 42 characters. The extra byte holds the biome number for Lake and later biomes. Old 40-character codes build the same ROMs as before
-* New Biome: Earth. A map of the world: bridges to Australia, Japan, the Arctic and Antarctica, and rafts (dock caves) between the Americas and Europe, Asia or Africa
+* New Biome: Earth. A map of the world: bridges to Australia, Japan, the Arctic and Antarctica, and rafts (piers: a bridge tile out on the water) between the Americas and Europe, Asia or Africa
 * New Biome: Westeros. Charlock is beyond the Wall, which has one pass; Tantegel is south of it; the Neck is swamp
 * Biome Random now includes Lake, Earth and Westeros, and the site writes it as a 42-character code
 * Responsive Controls: hills no longer slow you down (the original game waits 3 extra frames on every hill step)

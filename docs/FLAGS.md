@@ -43,7 +43,7 @@ Needs Random Map. Chooses the shape of the generated overworld. The choice is pa
 - **Wasteland**: mostly desert and swamp, with few forests. Pair it with a lower Encounter Rate.
 - **Riverlands**: one large land cut up by rivers, joined by bridges.
 - **Lake**: a ring of land around a lake. Charlock sits on an island in the middle, reached by 2 to 4 long bridges. You still need the Rainbow Drop to cross from the island to the castle. Tantegel is never on the island.
-- **Earth**: a map of the world. Europe, Asia and Africa are one continent, joined by bridges (straight or bent once) to Australia, Japan, the Arctic and Antarctica. North and South America are reached only by raft: each has a dock (a cave tile on the coast) that takes you to a dock in Europe, Asia or Africa, a different one for each, and back. Always normal size.
+- **Earth**: a map of the world. Europe, Asia and Africa are one continent, joined by bridges (straight or bent once) to Australia, Japan, the Arctic and Antarctica. North and South America are reached only by raft: each has a pier (a single bridge tile out on the water, next to the coast) that takes you to a pier in Europe, Asia or Africa, a different one for each, and back. Step from the land onto the pier to cross; you arrive on the land beside the other pier. Always normal size.
 - **Westeros**: one long continent. The Wall, a line of mountains across the North, has a single pass, and Charlock is always beyond it while Tantegel is always south of it. The Neck, partway down, is swamp. Always normal size.
 - **Random**: picks one of the seven.
 

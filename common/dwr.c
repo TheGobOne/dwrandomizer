@@ -4186,6 +4186,46 @@ static void responsive_controls(dw_rom *rom)
 }
 
 /**
+ * Earth's rafts: a dock is a bridge tile out on the water. The step code at $CDB4 only looks for a warp on
+ * blocks 7 to 9 (town, cave, castle), so a bridge (block $0A) would do nothing. Blocks up to $0A now go to a
+ * small routine that, for a bridge, runs the warp only when the warp table has an overworld entry at the hero's
+ * spot, and otherwise carries on as before, so ordinary bridges stay silent.
+ *
+ * @param rom The rom struct
+ */
+static void raft_piers(dw_rom *rom)
+{
+    uint16_t c;
+
+    if (!RAFT_BIOME(rom))
+        return;
+    printf("Installing the raft piers...\n");
+    c = find_free_space(rom->content, FIXED_FREE_START, 42);
+    vpatch(rom, c, 42,
+        0xa5, 0xe0,                   /* lda $e0       ; the block under the hero          */
+        0xc9, 0x0a,                   /* cmp #$0a                                          */
+        0xd0, 0x21,                   /* bne go        ; town, cave or castle: warp        */
+        0xa2, 0x00,                   /* ldx #0                                            */
+        0xbd, 0xc8, 0xf3,             /* loop: lda $f3c8,x  ; warp from: map               */
+        0xc5, 0x45,                   /* cmp $45                                           */
+        0xd0, 0x0e,                   /* bne next                                          */
+        0xbd, 0xc9, 0xf3,             /* lda $f3c9,x   ; x                                 */
+        0xc5, 0x3a,                   /* cmp $3a                                           */
+        0xd0, 0x07,                   /* bne next                                          */
+        0xbd, 0xca, 0xf3,             /* lda $f3ca,x   ; y                                 */
+        0xc5, 0x3b,                   /* cmp $3b                                           */
+        0xf0, 0x0a,                   /* beq go                                            */
+        0xe8, 0xe8, 0xe8,             /* next: inx x3                                      */
+        0xe0, 0x99,                   /* cpx #153      ; 51 warps                          */
+        0xd0, 0xe4,                   /* bne loop                                          */
+        0x4c, 0xbf, 0xcd,             /* jmp $cdbf     ; a plain bridge: carry on          */
+        0x4c, 0x41, 0xd9              /* go: jmp $d941 ; the warp, as for a town or cave   */
+    );
+    vpatch(rom, 0xcdb9, 1, 0x0b);                  /* cmp #$0b: blocks up to $0A take the jump below */
+    vpatch(rom, 0xcdbc, 3, 0x4c, LO(c), HI(c));    /* jmp to the routine instead of $d941 */
+}
+
+/**
  * Entering Charlock from the overworld puts the hero beside the Dragonlord and starts the fight.
  * The entrance warp now leads to the throne room. A hook at the top of the main loop starts the fight
  * when the hero stands on the arrival tile. A latch stops it starting again after running away, until
@@ -4912,6 +4952,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     map_generate_terrain(rom);
     spike_rewrite(rom);
     auto_stairs(rom);  /* must follow spike_rewrite: it uses the spike hole at $CD5C */
+    raft_piers(rom);
     randomize_attack_patterns(rom);
     randomize_zone_layout(rom);
     randomize_zones(rom);

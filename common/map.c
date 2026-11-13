@@ -1435,104 +1435,62 @@ static BOOL dock_land(dw_tile tile)
     return tile == TILE_GRASS || tile == TILE_DESERT || tile == TILE_HILL || tile == TILE_TREES;
 }
 
-/* Whether a cave at x, y would block a way through: its walkable neighbours must still reach each other
- * nearby without crossing it (or any other town, cave or castle). */
-static BOOL dock_blocks(dw_map *map, int x, int y)
-{
-    static uint8_t seen[17][17];
-    int qx[17 * 17], qy[17 * 17], head = 0, tail = 0, i, nx, ny, first = -1, cx, cy;
-    dw_tile t;
-
-    memset(seen, 0, sizeof(seen));
-    seen[8][8] = 1;   /* the dock itself */
-    for (i = 0; i < 4; i++) {
-        nx = x + dir4[i][0];
-        ny = y + dir4[i][1];
-        t = map->tiles[nx][ny];
-        if (tile_is_walkable(t) && t != TILE_TOWN && t != TILE_CAVE && t != TILE_CASTLE) {
-            first = i;
-            break;
-        }
-    }
-    if (first < 0)
-        return FALSE;
-    qx[tail] = x + dir4[first][0];
-    qy[tail++] = y + dir4[first][1];
-    seen[8 + dir4[first][0]][8 + dir4[first][1]] = 1;
-    while (head < tail) {
-        cx = qx[head];
-        cy = qy[head++];
-        for (i = 0; i < 4; i++) {
-            nx = cx + dir4[i][0];
-            ny = cy + dir4[i][1];
-            if (nx - x < -8 || nx - x > 8 || ny - y < -8 || ny - y > 8 || map_ob(nx) || map_ob(ny))
-                continue;
-            if (seen[8 + nx - x][8 + ny - y])
-                continue;
-            t = map->tiles[nx][ny];
-            if (!tile_is_walkable(t) || t == TILE_TOWN || t == TILE_CAVE || t == TILE_CASTLE)
-                continue;
-            seen[8 + nx - x][8 + ny - y] = 1;
-            qx[tail] = nx;
-            qy[tail++] = ny;
-        }
-    }
-    for (i = 0; i < 4; i++) {
-        nx = x + dir4[i][0];
-        ny = y + dir4[i][1];
-        t = map->tiles[nx][ny];
-        if (tile_is_walkable(t) && t != TILE_TOWN && t != TILE_CAVE && t != TILE_CASTLE &&
-                !seen[8 + dir4[i][0]][8 + dir4[i][1]])
-            return TRUE;
-    }
-    return FALSE;
-}
-
-/* Picks a dock on the coast of a region: a plain tile beside open sea, away from Charlock, with a plain
- * tile of the same land beside it for the raft to land on. The dock becomes a cave tile. */
+/* Picks a dock for a region: a bridge tile on open water, like a pier, with exactly one land tile beside it,
+ * to the east or west so the planks run the right way. That land tile is a plain tile of the region, not
+ * beside a town, and it is where a raft from the other dock arrives. A bridge tile never starts a warp
+ * on its own, so an Earth build also patches the step code (see raft_piers in dwr.c). */
 static BOOL earth_dock(dw_map *map, char region, uint8_t *dock_x, uint8_t *dock_y,
         uint8_t *land_x, uint8_t *land_y)
 {
     const dw_warp *charlock = &map->warps_from[WARP_CHARLOCK];
-    int x, y, i, nx, ny, wet, land, beside, count = 0;
+    int x, y, i, j, nx, ny, mx, my, lands, side, count = 0;
+    dw_tile t;
 
-    for (x = 1; x < 119; x++) {
-        for (y = 1; y < 119; y++) {
-            if (map_region[x][y] != region || !dock_land(map->tiles[x][y]))
+    for (x = 2; x < 118; x++) {
+        for (y = 2; y < 118; y++) {
+            if (map->tiles[x][y] != TILE_WATER || map_region[x][y] != '.')
                 continue;
             if (abs(x - (int)charlock->x) < 8 && abs(y - (int)charlock->y) < 8)
                 continue;
-            wet = FALSE;
-            land = -1;
-            beside = FALSE;
+            lands = 0;
+            side = -1;
             for (i = 0; i < 4; i++) {
                 nx = x + dir4[i][0];
                 ny = y + dir4[i][1];
-                if (map->tiles[nx][ny] == TILE_WATER && map_region[nx][ny] == '.')
-                    wet = TRUE;
-                else if (dock_land(map->tiles[nx][ny]) && map_region[nx][ny] == region &&
-                         map->walkable[nx][ny] == map->walkable[x][y])
-                    land = i;
-                /* dock_blocks skips towns, caves and castles, so a town whose only way in is this
-                 * tile would be cut off. Keep docks away from them. */
-                if (map->tiles[nx][ny] == TILE_TOWN || map->tiles[nx][ny] == TILE_CAVE ||
-                        map->tiles[nx][ny] == TILE_CASTLE)
-                    beside = TRUE;
+                t = map->tiles[nx][ny];
+                if (t == TILE_WATER)
+                    continue;
+                lands++;
+                if (i < 2 && dock_land(t) && map_region[nx][ny] == region)
+                    side = i;
             }
-            if (!wet || land < 0 || beside || dock_blocks(map, x, y))
+            if (lands != 1 || side < 0)
+                continue;
+            nx = x + dir4[side][0];
+            ny = y + dir4[side][1];
+            /* Not beside a town, cave or castle, and the land is a real stretch, not a single tile. */
+            for (j = 0; j < 4; j++) {
+                mx = nx + dir4[j][0];
+                my = ny + dir4[j][1];
+                t = map->tiles[mx][my];
+                if (t == TILE_TOWN || t == TILE_CAVE || t == TILE_CASTLE)
+                    break;
+            }
+            if (j < 4 || map->walkable[nx][ny] == 0)
                 continue;
             if (mt_rand(0, count++) == 0) {
                 *dock_x = x;
                 *dock_y = y;
-                *land_x = x + dir4[land][0];
-                *land_y = y + dir4[land][1];
+                *land_x = nx;
+                *land_y = ny;
             }
         }
     }
     if (!count)
         return FALSE;
-    map->tiles[*dock_x][*dock_y] = TILE_CAVE;
-    /* Keep later docks off this one's landing tile. */
+    map->tiles[*dock_x][*dock_y] = TILE_BRIDGE;
+    /* Keep later docks off this one and off its landing tile. */
+    map_region[*dock_x][*dock_y] = '*';
     map_region[*land_x][*land_y] = '*';
     return TRUE;
 }
@@ -2000,8 +1958,9 @@ retry_map:
             &rom->search_table->y[0], TRUE))
         goto retry_map;
     if (RAFT_BIOME(rom)) {
-        /* The token can't be under a dock, where the hero never stands. */
+        /* The token can't be under a pier or any other entrance, where the hero never stands. */
         for (i = 0; rom->map.tiles[rom->search_table->x[0]][rom->search_table->y[0]] == TILE_CAVE ||
+                rom->map.tiles[rom->search_table->x[0]][rom->search_table->y[0]] == TILE_BRIDGE ||
                 rom->map.tiles[rom->search_table->x[0]][rom->search_table->y[0]] == TILE_TOWN ||
                 rom->map.tiles[rom->search_table->x[0]][rom->search_table->y[0]] == TILE_CASTLE; i++) {
             if (i > 1000 || !map_find_land(&rom->map, largest, next, &rom->search_table->x[0],
