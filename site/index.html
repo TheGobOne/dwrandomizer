@@ -1206,7 +1206,7 @@ function checkSpace(){ spaceTimer=null;
       .map(m=>LOG_SLOT[m[1]]).filter(n=>n&&State.assign&&State.assign[slotKey('Tracks',n)]!=null)
       .map(n=>({name:n,key:slotKey('Tracks',n)}));
     const missed=((r.picks&&r.picks.missed)||[]).concat(handMissed), moved=(State.autoDefaulted||[]).concat(missed.map(m=>m.name)); State.autoDefaulted=null;
-    const left=lastLog.filter(t=>/keeping the|no room/i.test(t)&&!/no room for its song/.test(t)).concat(log.filter(t=>/^Out of room with the music pack/.test(t))).map(t=>t.replace(/\.$/,''))
+    const left=lastLog.filter(t=>/keeping the|no room/i.test(t)&&!/no room for its song|retrying/i.test(t)).concat(log.filter(t=>/^Out of room with the music pack/.test(t))).map(t=>t.replace(/\.$/,''))
       .concat(moved.map(n=>n+' set to Default: no room for its song'));
     if(missed.length&&State.assign){ if(!State.badSlots) State.badSlots=new Set();
       missed.forEach(m=>{ delete State.assign[m.key]; State.badSlots.add(m.key); }); State.autoDefaulted=moved; savePicks(); State.emit('assign'); }
