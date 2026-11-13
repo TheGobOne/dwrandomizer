@@ -1494,7 +1494,7 @@ static BOOL earth_dock(dw_map *map, char region, uint8_t *dock_x, uint8_t *dock_
         uint8_t *land_x, uint8_t *land_y)
 {
     const dw_warp *charlock = &map->warps_from[WARP_CHARLOCK];
-    int x, y, i, nx, ny, wet, land, count = 0;
+    int x, y, i, nx, ny, wet, land, beside, count = 0;
 
     for (x = 1; x < 119; x++) {
         for (y = 1; y < 119; y++) {
@@ -1504,6 +1504,7 @@ static BOOL earth_dock(dw_map *map, char region, uint8_t *dock_x, uint8_t *dock_
                 continue;
             wet = FALSE;
             land = -1;
+            beside = FALSE;
             for (i = 0; i < 4; i++) {
                 nx = x + dir4[i][0];
                 ny = y + dir4[i][1];
@@ -1512,8 +1513,13 @@ static BOOL earth_dock(dw_map *map, char region, uint8_t *dock_x, uint8_t *dock_
                 else if (dock_land(map->tiles[nx][ny]) && map_region[nx][ny] == region &&
                          map->walkable[nx][ny] == map->walkable[x][y])
                     land = i;
+                /* dock_blocks skips towns, caves and castles, so a town whose only way in is this
+                 * tile would be cut off. Keep docks away from them. */
+                if (map->tiles[nx][ny] == TILE_TOWN || map->tiles[nx][ny] == TILE_CAVE ||
+                        map->tiles[nx][ny] == TILE_CASTLE)
+                    beside = TRUE;
             }
-            if (!wet || land < 0 || dock_blocks(map, x, y))
+            if (!wet || land < 0 || beside || dock_blocks(map, x, y))
                 continue;
             if (mt_rand(0, count++) == 0) {
                 *dock_x = x;
