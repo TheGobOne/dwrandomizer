@@ -2,7 +2,7 @@
 
 <img src="site/sprites/Loto.png" width="64" alt="Loto sprite"> <img src="site/sprites/Slime.png" width="64" alt="Slime sprite"> <img src="site/sprites/Metal%20Slime.png" width="64" alt="Metal Slime sprite"> <img src="site/sprites/Gwaelin.png" width="64" alt="Gwaelin sprite"> <img src="site/sprites/Dragonlord.png" width="64" alt="Dragonlord sprite">
 
-**Version 1.0.2.** A randomizer for the NES game *Dragon Warrior* with a safer start, tunable encounters, a stockpile of escapes, custom music packs and a new web page to drive it all.
+**Version 1.1.0.** A randomizer for the NES game *Dragon Warrior* with a safer start, tunable encounters, a stockpile of escapes, custom music packs and a new web page to drive it all.
 
 This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer), which builds on [mcgrew's Dragon Warrior Randomizer](https://dwrandomizer.com/). If you want the polished, balanced tournament experience, use mcgrew's official version. This one is a playground.
 
