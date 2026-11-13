@@ -160,6 +160,8 @@ static void update_flags(dw_rom *rom)
     } else if (rom->flags[25] >= BIOME_COUNT) {
         rom->flags[25] = 0;   /* a biome this version does not have */
     }
+    if (!RANDOM_MAP(rom) && BIOME(rom))
+        printf("Biome needs Random Map, so it is ignored.\n");
 }
 
 /**
@@ -4177,8 +4179,9 @@ static void responsive_controls(dw_rom *rom)
     vpatch(rom, 0xcb04 + 1, 2, LO(RC_CPU(step_end)), HI(RC_CPU(step_end)));
     vpatch(rom, 0xcb18 + 1, 2, LO(RC_CPU(step_end)), HI(RC_CPU(step_end)));
     vpatch(rom, 0xcb2a + 1, 2, LO(RC_CPU(step_end)), HI(RC_CPU(step_end)));
-    /* Hills: the step code waits 3 extra frames on a hill (3 x JSR WaitForNMI at $CE0A). Walk at the normal speed. */
-    vpatch(rom, 0xce0a, 9, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea, 0xea);
+    /* Hills: the step code waits 3 extra frames on a hill (3 x JSR WaitForNMI at $CE0A). Branch over them to
+     * $CE13 so a hill step costs the same as grass. Z is set here: the CMP #$02 above just matched. */
+    vpatch(rom, 0xce0a, 2, 0xf0, 0x07);   /* BEQ $CE13 */
     gameplay_patches |= 4;
 }
 

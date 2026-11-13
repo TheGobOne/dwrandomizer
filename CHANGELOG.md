@@ -5,6 +5,7 @@
 * New Biome: Westeros. Charlock is beyond the Wall, which has one pass; Tantegel is south of it; the Neck is swamp
 * Biome Random now includes Lake, Earth and Westeros, and the site writes it as a 42-character code
 * Responsive Controls: hills no longer slow you down (the original game waits 3 extra frames on every hill step)
+* Biome without Random Map does nothing: the CLI and build log now say so, and the site keeps the flag code at 40 letters
 * CLI: new --biome option (continent, caldera, wasteland, riverlands, lake, earth, westeros, random)
 * Build Options is renamed: Original, Free Selection, Free Selection Plus, Free Selection Unified, Random. Flag codes are unchanged; the site lists what each one does under the box
 * Fixed: with Don't Require Magic Keys on, the king was missing from the throne room and Gwaelin could not be returned (reported by Artorious308)

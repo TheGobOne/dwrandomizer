@@ -199,6 +199,8 @@ int main(int argc, char **argv)
                 raw[25] = (uint8_t)biome;
             else
                 raw[2] |= (uint8_t)(((biome & 2) << 3) | (biome & 1));
+            if (!(raw[0] & 0x03))
+                fprintf(stderr, "--biome needs Random Map on in the flags; without it the map is the original one.\n");
         }
         /* Byte 25 (biome number) only goes in the code when it is set, so old codes stay 40 characters. */
         base32_encode(raw, raw[25] ? 26 : 25, (uint8_t *)encoded);

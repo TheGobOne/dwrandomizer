@@ -454,7 +454,8 @@ const State = {
     bytes[14]|=this.bankLevel&1;
     /* Biome numbers past Riverlands go in byte 25, which only joins the code when set, so old codes stay 40 letters. */
     const biome=this.v.biome|0, BIOMES=this.find('biome')[4];
-    if(biome>=4){ bytes[2]&=~0x33; bytes[25]=BIOMES[biome]==='Random'?0xff:biome; }
+    /* Biome only means something with Random Map on (or maybe), so with it off the code stays 40 letters. */
+    if(biome>=4&&(this.v.map|0)){ bytes[2]&=~0x33; bytes[25]=BIOMES[biome]==='Random'?0xff:biome; }
     let out='',bits=0,n=0;
     (bytes[25]?bytes:bytes.subarray(0,25)).forEach(b=>{ bits=(bits<<8)|b; n+=8; while(n>=5){ out+=FLAG_CHARS[(bits>>(n-5))&31]; n-=5; } bits&=(1<<n)-1; });
     if(n) out+=FLAG_CHARS[(bits<<(5-n))&31];
