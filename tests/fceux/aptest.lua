@@ -23,6 +23,7 @@ local function ap()
 end
 local function shot(name) if gui.savescreenshotas then gui.savescreenshotas(OUT .. name .. ".png") end end
 local function go(x, y)
+  if not x or not y then log("go: no target"); return end
   wr(0x3a, x); wr(0x3b, y); wr(0x8e, x); wr(0x8f, y)
   wr(0x90, (x * 16) % 256); wr(0x91, math.floor(x / 16))
   wr(0x92, (y * 16) % 256); wr(0x93, math.floor(y / 16))
@@ -66,6 +67,7 @@ local plan = {
 }
 local p, side, done_at, in_throne = 1, 1, nil, 0
 local sx, sy = 0, 0
+local tries = 0
 
 -- FCEUX is Lua 5.1: no | or // operators. Bits use FCEUX's OR(). registerbefore can run more
 -- than once per frame, so the test steps run once per emu.framecount() and repeats only re-send input.
@@ -76,7 +78,7 @@ local function driver()
   last_frame = fc
   frame = frame + 1
   local map = rd(0x45)
-  -- the ROM has a permanent repel, so no fights
+  -- No fights: build the test ROM with the Permanent Repel flag (IVICEV2U...).
 
   if step == "boot" then
     -- RAM holds junk (map 255) before the game starts. A new game and a continue both start in the
@@ -103,10 +105,13 @@ local function driver()
   elseif step == "exit" then
     -- Stand on the town's arrival tile (its edge) and step off the map in each direction in turn.
     if map == OVERWORLD and age() > 30 then log("on overworld"); set_step("next")
-    elseif age() % 150 == 1 then
+    elseif age() % 200 == 1 then
+      -- Close any window left open (a message or the command menu) before moving.
       if exit_dir > 4 then shot("exit_fail"); log("could not leave map " .. map); set_step("report"); return end
+      keys({ {1, "B"}, {25, "B"}, {25, "B"} })
+    elseif age() % 200 == 80 then
       local _, _, tx, ty = warp(OVERWORLD, exit_from)
-      go(tx, ty); press[DIRS[exit_dir]] = 120; exit_dir = exit_dir + 1
+      go(tx, ty); press[DIRS[exit_dir]] = 110; exit_dir = exit_dir + 1
     end
   elseif step == "next" then
     local spot = plan[p]
@@ -133,10 +138,18 @@ local function driver()
       set_step("next")
     end
   elseif step == "search" then
+    -- The search keys take 200 frames, so look at the result well after that. If the
+    -- search bit is not set (a press was dropped), close any window and try again.
     if age() == 30 then search() end
-    if age() == 230 then shot(plan[p].name); log("after search, AP " .. ap()) end
-    if age() == 240 then keys({ {5, "A"}, {30, "B"} }) end
-    if age() == 300 then
+    if age() == 330 then shot(plan[p].name); log("after search, AP " .. ap()) end
+    if age() == 420 then keys({ {5, "A"}, {30, "A"}, {30, "B"}, {30, "B"}, {30, "B"} }) end
+    if age() == 600 and AND(rd(0x6826), 2 ^ plan[p].idx) == 0 then
+      tries = tries + 1
+      if tries < 3 then log("search bit not set, retry " .. tries); set_step("search"); return end
+      log("search failed for " .. plan[p].name)
+    end
+    if age() == 600 then
+      tries = 0
       p = p + 1; side = 1
       if map ~= OVERWORLD then exit_from = map; exit_dir = 1; set_step("exit") else set_step("next") end
     end

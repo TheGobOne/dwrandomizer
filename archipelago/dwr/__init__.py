@@ -15,12 +15,15 @@ quest item flags (Cursed Princess, Three's Company, Open Charlock) off.
 Magic Keys can be bought, so key doors are not in logic.
 """
 import os
+from typing import ClassVar
 
 from BaseClasses import Item, Location, Region
 from worlds.AutoWorld import World
 
 from .client import DWRClient  # noqa: F401  registers the BizHawk client
+from .host_settings import DWRSettings
 from .options import DWROptions
+from .patch import DWRPatch
 from .data import (CHARLOCK_CHESTS, FILLER, GAME, GOAL, ITEM_NAME_TO_ID, ITEMS,
                    LOCATION_NAME_TO_ID)
 
@@ -36,6 +39,8 @@ class DWRLocation(Location):
 class DWRWorld(World):
     """Dragon Warrior for the NES, randomized by DWR."""
     game = GAME
+    settings_key = "dwr_options"
+    settings: ClassVar[DWRSettings]
     options_dataclass = DWROptions
     options: DWROptions
     topology_present = False
@@ -84,12 +89,12 @@ class DWRWorld(World):
         return FILLER
 
     def generate_output(self, output_directory: str) -> None:
-        """Write <name>.apdwr, a text file the DWR CLI reads with --ap-patch.
+        """Write <name>.apdwr, the patch container (see patch.py).
 
-        Lines: "slot <slot name>", then one "loc <location id hex> <text>" per
-        chest and search spot, where text is what the game shows in the found
-        message: the item name, plus the receiving player's name if it is not
-        this player's item.
+        Its dwr.txt has "slot", "flags", "seed" and "free_charlock" lines, then
+        one "loc <location id hex> <text>" per chest and search spot, where text
+        is what the game shows in the found message: the item name, plus the
+        receiving player's name if it is not this player's item.
         """
         player = self.player
         lines = [
@@ -106,6 +111,7 @@ class DWRWorld(World):
             if item.player != player:
                 text = f"{self.multiworld.player_name[item.player]}'s {item.name}"
             lines.append(f"loc {location.address:x} {text}")
-        name = self.multiworld.get_out_file_name_base(player) + ".apdwr"
-        with open(os.path.join(output_directory, name), "w", encoding="utf-8") as f:
-            f.write("\n".join(lines) + "\n")
+        name = self.multiworld.get_out_file_name_base(player) + DWRPatch.patch_file_ending
+        DWRPatch(os.path.join(output_directory, name), player=player,
+                 player_name=self.multiworld.player_name[player],
+                 text="\n".join(lines) + "\n").write()

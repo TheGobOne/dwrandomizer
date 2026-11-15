@@ -50,6 +50,7 @@ REPLACEABLE = (0x1, 0x2, 0x3, 0x4, 0x6)  # given up to make room for a quest ite
 class DWRClient(BizHawkClient):
     game = GAME
     system = "NES"
+    patch_suffix = ".apdwr"  # the BizHawk Client opens .apdwr patches
 
     def __init__(self) -> None:
         super().__init__()
