@@ -80,7 +80,7 @@ When the Dragonlord's second form dies, Return is cast for you and you arrive in
 
 #### Responsive Controls ####
 
-On the overworld, walking, the command window and pause answer a press at once instead of waiting up to 15 frames. In towns and dungeons a short press is kept until the game can act on it, because NPCs move in time with that wait. A button newly pressed during a step is kept for when the step ends. Hills no longer slow you down: the original game waits 3 extra frames on every hill step. Very full ROMs may not build with it on. It is part of the checksum. Command line: `--responsive-controls on`.
+On the overworld, walking, the command window and pause answer a press at once instead of waiting up to 15 frames. In towns and dungeons a short press is kept until the game can act on it, because NPCs move in time with that wait. A button newly pressed during a step is kept for when the step ends, unless that step starts a battle, a warp, stairs or anything else that takes time, so the hero no longer walks by himself after a fight. Hills no longer slow you down: the original game waits 3 extra frames on every hill step. Very full ROMs may not build with it on. It is part of the checksum. Command line: `--responsive-controls on`.
 
 
 #### Auto Stairs ####
@@ -90,7 +90,7 @@ Stepping onto stairs takes them at once, the way stepping onto a town enters it,
 
 #### Free Charlock ####
 
-Entering Charlock from the overworld puts you beside the Dragonlord and starts the fight, with no dialogue. Run away and you stay in his room; the fight starts by itself again only after you leave and come back. Short Charlock, Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. On a very full ROM the build stops, as it does for other flags that need space. It is part of the checksum, along with Auto Return. Command line: `--free-charlock on`.
+Entering Charlock from the overworld puts you in the Dragonlord's room, beside him and facing him. Nothing starts by itself: talk to him when you are ready, and the usual dialogue and fight follow. Short Charlock, Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. On a very full ROM the build stops, as it does for other flags that need space. It is part of the checksum, along with Auto Return. Command line: `--free-charlock on`.
 
 
 #### Show Key & Herb Counter ####
@@ -189,6 +189,11 @@ The Excellent Move rate can be modified.
 #### Bonk Damage ####
 
 Walking into walls can deal damage to the player. The amount is chosen on the website: None, 1 HP, 2 HP, 20 HP, Instakill, Random (0-80), Current HP / 2, or one of those at random.
+
+
+#### Disable Spell Flashing ####
+
+Prevents the screen from flashing when you cast spells, and keeps the menu cursor from blinking: the arrow stays on all the time.
 
 
 #### Disable Red Flashes ####
@@ -322,7 +327,7 @@ Gwaelin might not be in her usual Swamp Cave today. Look for her in [one of thes
 
 #### Fast Flute ####
 
-The Fairy Flute music plays much faster (about 0.7 seconds, down from 4.5), with or without `Speed Hacks`. `Speed Hacks` no longer speeds the flute on its own. Older flag codes keep their flute: the old `Normal Flute Speed` bit is this flag turned off.
+The Fairy Flute plays only the climb up the scale from its song, at its original speed (about 0.8 seconds, down from 4.5), with or without `Speed Hacks`. With `Randomized Flute Music` on, every note of the chosen song is sped up instead. `Speed Hacks` no longer speeds the flute on its own. Older flag codes keep their flute: the old `Normal Flute Speed` bit is this flag turned off.
 
 
 #### Hints ####

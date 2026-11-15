@@ -1,4 +1,8 @@
 # Unreleased #
+* Fast Flute now plays only the climb up the scale from the original song (about 0.8 seconds) instead of all of it sped up. A randomized flute song is still sped up note by note
+* Disable Spell Flashing also keeps the menu cursor from blinking
+* Free Charlock no longer starts the Dragonlord fight by itself. You arrive beside him, facing him, and talk to him
+* Responsive Controls: a direction pressed during the step that starts a battle, a warp or stairs is no longer replayed as a step afterwards
 * New flag: Swap Quick Spell. With Quick Spell on, SPELL takes the top right slot of the battle window and the quick spell goes under it. It is the first spare bit of a 42-character code. CLI: --quick-spell-swap
 * Site: the Run Bank description explains the dots after the bank number, and several option descriptions are reworded
 

@@ -243,7 +243,9 @@ void randomize_flute_song(dw_rom *rom)
 
 
 /**
- * Applies speedup to the flute music.
+ * Makes the flute music short.
+ * With the original song, only its climb up the scale plays, at the original speed (about 0.8 seconds).
+ * With a randomized song, every note is sped up instead.
  * This has been tested with the original song as well as the above ones, but I'm not familiar enough with the DW music engine to guarantee this will work with every possible song.
  *
  * @param rom The rom struct
@@ -256,6 +258,19 @@ void speed_up_flute_song(dw_rom *rom)
     uint8_t skip = 2;
 
     printf("Speeding up flute song\n");
+
+    if (!RANDOMIZE_FLUTE_MUSIC(rom)) {
+        /* The climb up the scale from the original song, at its original speed, then the end bytes. Everything after
+         * is unused. */
+        static const uint8_t short_tune[] = {
+            0xf9, 0x0c, 0xff, 0x78, 0xfb, 0xff,
+            0xf7, 0x03, 0xa1, 0xa3, 0xa4, 0xa6, 0xa8, 0xa9, 0xab, 0xad, 0xaf, 0xb0, 0xb2, 0xb4, 0xb5, 0xf6,
+            0xfb, 0x00, 0x00, 0xfc
+        };
+        for (i = 0; i < sizeof(short_tune); i++)
+            vpatch(rom, FLUTE_MUSIC_ADDRESS + i, 1, short_tune[i]);
+        return;
+    }
 
     vpatch(rom, FLUTE_MUSIC_ADDRESS+3, 1, 0x78); // tempo
     while(!song_ended && address < FLUTE_MUSIC_ADDRESS+71)

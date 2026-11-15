@@ -16,14 +16,14 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 | **Encounter Rate** | Low, Medium or High use a danger meter instead of a roll on every step. |
 | **Run Bank** | Wins earn banked escapes; spend one with the `BANK` battle command. |
 | **Auto Return** | Winning against the Dragonlord returns you to Tantegel. |
-| **Free Charlock** | Entering Charlock starts the Dragonlord fight at once. |
+| **Free Charlock** | Entering Charlock puts you beside the Dragonlord. Talk to him to start the fight. |
 | **Quick Spell** | A battle command that casts your last spell again. |
 | **Swap Quick Spell** | Puts SPELL in the top right slot and the quick spell under it. |
 | **Show Key & Herb Counter** | Keys and herbs on the bottom row of the stats window. |
 | **Disable Screen Shake** | Keeps the screen still when you take damage. |
 | **Auto Stairs** | Stepping onto stairs takes them right away, with no STAIRS command. |
 | **Responsive Controls** | Short presses are no longer missed; on the overworld, walking and the command window answer at once, and hills no longer slow you down. |
-| **Fast Flute** | The Fairy Flute music plays much faster, with or without Speed Hacks. |
+| **Fast Flute** | The Fairy Flute plays only the climb up the scale from its song, with or without Speed Hacks. |
 | **DK Flute** | With a full inventory, the flute can be dropped for a new item, or sold to a shop for 1 gold. |
 | **Website** | A single-page generator with the options grouped into tabs. |
 

@@ -2737,7 +2737,7 @@ static void begin_quest_checksum(dw_rom *rom, uint64_t crc)
 
 /**
  * Disables the screen flash when spells are cast by modifying ppu calls such
- * that it is never set to black & white.
+ * that it is never set to black & white. The menu cursor also stops blinking.
  *
  * @param rom The rom struct.
  */
@@ -2750,6 +2750,10 @@ static void no_screen_flash(dw_rom *rom)
     /* Change the PPUMASK writes to disable flashing during spells */
     vpatch(rom, 0x0d38e,    1,  0x18);
     vpatch(rom, 0x0db40,    1,  0x18);
+    /* The menu cursor is the arrow ($42) for half of every 32 frames and a blank ($5f) for the other half:
+     * ldx #$5f : lda $4f : and #$1f : cmp #$10 : bcs +2 : ldx #$42. Making the first load the arrow means both
+     * paths give the arrow. That ldx is in bank 1 at $A96C. */
+    vpatch(rom, 0x696d,     1,  0x42);
 }
 
 /**
@@ -4130,7 +4134,7 @@ static uint16_t rc_space(dw_rom *rom, uint8_t n)
 
 static void responsive_controls(dw_rom *rom)
 {
-    const uint16_t state = 0x680c, buf = 0x680d, prev = 0x680e, pend = 0x680f;
+    const uint16_t stamp = 0x680b, state = 0x680c, buf = 0x680d, prev = 0x680e, pend = 0x680f;
     const uint8_t READING = 0xa5, DONE = 0x5a; /* other values, as in fresh RAM, mean nothing is saved */
     uint16_t read_hook, frame_hook, step_end;
     size_t i;
@@ -4170,8 +4174,18 @@ static void responsive_controls(dw_rom *rom)
         0xa5, 0x46, 0x8d, LO(prev), HI(prev),
         0x68, 0xa8,
         0x28, 0x4c, 0x74, 0xff, 0xea); /* The real frame wait: NMI only runs its work from there. The nop keeps $FF from looking free. */
-    step_end = rc_space(rom, 8);
-    vpatch(rom, step_end, 8, 0xa9, DONE, 0x8d, LO(state), HI(state), 0x4c, 0x19, 0xb2);
+    /* After a step, $B219 runs the tile's effects: a battle, a warp, stairs, damage. The presses saved during the step
+     * are kept only when that took no frames ($4F counts frames), so a press made on the step that starts a battle
+     * is not replayed as a step after the battle. This one returns from $B219, and a battle may leave another bank
+     * at $8000, so it lives in the fixed bank. */
+    step_end = find_free_space(rom->content, FIXED_FREE_START, 21);
+    vpatch(rom, step_end, 21,
+        0xa5, 0x4f, 0x8d, LO(stamp), HI(stamp),   /* lda $4f : sta stamp          */
+        0x20, 0x19, 0xb2,                         /* jsr $b219 : the tile effects */
+        0xa5, 0x4f, 0xcd, LO(stamp), HI(stamp),   /* lda $4f : cmp stamp          */
+        0xd0, 0x05,                               /* bne : time passed, drop them */
+        0xa9, DONE, 0x8d, LO(state), HI(state),   /* lda #DONE : sta state        */
+        0x60);
     vpatch(rom, 0xcaa2, 4, 0x20, LO(RC_CPU(read_hook)), HI(RC_CPU(read_hook)), 0xea);
     /* The frame waits in the four step routines, so nothing else pays for reading the buttons, as it would
      * while booting and in menus if $FF74 itself were hooked. */
@@ -4230,22 +4244,20 @@ static void raft_piers(dw_rom *rom)
 }
 
 /**
- * Entering Charlock from the overworld puts the hero beside the Dragonlord and starts the fight.
- * The entrance warp now leads to the throne room. A hook at the top of the main loop starts the fight
- * when the hero stands on the arrival tile. A latch stops it starting again after running away, until
- * the hero has left the room. Runs late, and is left out if there is no room.
+ * Entering Charlock from the overworld puts the hero beside the Dragonlord, facing him.
+ * The entrance warp now leads to the throne room. The fight does not start by itself: the hero
+ * talks to the Dragonlord when ready. Runs late, and is left out if there is no room.
  *
  * @param rom The rom struct
  */
 static void free_charlock(dw_rom *rom)
 {
-    const uint16_t latch = 0x680b;
     const uint8_t x = 17, y = 24; /* just right of the Dragonlord at 16,24, where the walk in ends */
     /* With Short Charlock the entrance already leads to the throne room, and walking off it still works. */
     const uint8_t entry_map = SHORT_CHARLOCK(rom) ? CHARLOCK_THRONE_ROOM : CHARLOCK;
     const size_t walk_size = SHORT_CHARLOCK(rom) ? 0 : 18;
     size_t i;
-    int found = -1, c, w = 0;
+    int found = -1, w = 0;
 
     if (!FREE_CHARLOCK(rom))
         return;
@@ -4257,14 +4269,9 @@ static void free_charlock(dw_rom *rom)
         printf("Charlock's entrance was not found, leaving Free Charlock out.\n");
         return;
     }
-    /* Both pieces go in, or neither does. */
-    c = dwr_try_free_space(rom->content, FIXED_FREE_START, 57);
-    if (c >= 0 && walk_size) {
-        memset(&rom->content[c], 0x00, 57); /* held while the other is looked up */
+    if (walk_size)
         w = dwr_try_free_space(rom->content, FIXED_FREE_START, walk_size);
-        memset(&rom->content[c], 0xff, 57);
-    }
-    if (c < 0 || w < 0) {
+    if (w < 0) {
         printf("No room for Free Charlock.\n");
         dwr_no_room();
     }
@@ -4286,19 +4293,6 @@ static void free_charlock(dw_rom *rom)
     rom->map.warps_to[found].map = CHARLOCK_THRONE_ROOM;
     rom->map.warps_to[found].x = x;
     rom->map.warps_to[found].y = y;
-    vpatch(rom, (uint16_t)c, 57,
-        0xa5, 0x45, 0xc9, CHARLOCK_THRONE_ROOM, 0xd0, 0x24,   /* in the throne room, or clear the latch */
-        0xad, LO(latch), HI(latch), 0xd0, 0x24,               /* already started: carry on */
-        0xa5, 0xe4, 0x29, 0x04, 0xd0, 0x1e,                   /* already beaten: carry on */
-        0xa5, 0x3a, 0xc9, x, 0xd0, 0x18,                      /* on the arrival tile? */
-        0xa5, 0x3b, 0xc9, y, 0xd0, 0x12,
-        0xa9, 0x01, 0x8d, LO(latch), HI(latch),
-        /* The fight code ends in RTS, so it must be called, or it returns into junk after the win. */
-        0xa9, 0x26, 0x20, 0xdf, 0xe4, 0x4c, 0x56, 0xca,
-        0xa9, 0x00, 0x8d, LO(latch), HI(latch),
-        0xa5, 0xda, 0xd0, 0x03, 0x4c, 0x6c, 0xca,             /* the code this replaced */
-        0x4c, 0x5a, 0xca);
-    vpatch(rom, 0xca56, 4, 0x4c, LO(c), HI(c), 0xea);
 }
 
 
