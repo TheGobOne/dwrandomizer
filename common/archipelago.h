@@ -8,6 +8,10 @@
 void dwr_set_ap(BOOL enabled, const char *slot_name);
 BOOL dwr_ap_enabled(void);
 
+/* Reads a .apdwr file from the APWorld: turns AP mode on, sets the slot name
+ * and the item text for each chest and search spot. FALSE if it can't. */
+BOOL dwr_load_ap_patch(const char *path);
+
 /* Applies the Archipelago ROM changes. Does nothing when AP mode is off. */
 void ap_changes(dw_rom *rom);
 

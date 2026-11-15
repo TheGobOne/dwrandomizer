@@ -20,6 +20,7 @@
  * for DWR's chest and search code.
  */
 
+#include <ctype.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -44,8 +45,16 @@
 #define TABLET_NAME   24
 #define TABLET_TEXT   0x7b56
 
+/* Locations with a found message: 31 chests, then the 3 search spots. */
+#define AP_TEXT_LOCS  (CHEST_COUNT + 3)
+#define AP_TEXT_LEN   16
+#define AP_LOC_BASE   0xd0000
+#define AP_LOC_SEARCH 0x40
+
 static BOOL ap_enabled = FALSE;
 static char ap_slot_name[AP_NAME_LEN + 1] = "";
+static BOOL ap_have_text = FALSE;
+static char ap_text[AP_TEXT_LOCS][AP_TEXT_LEN + 1];
 
 void dwr_set_ap(BOOL enabled, const char *slot_name)
 {
@@ -61,29 +70,120 @@ BOOL dwr_ap_enabled(void)
     return ap_enabled;
 }
 
+BOOL dwr_load_ap_patch(const char *path)
+{
+    FILE *f = fopen(path, "r");
+    char line[256];
+    unsigned long id;
+    int n, pos, len;
+
+    if (!f)
+        return FALSE;
+    memset(ap_text, 0, sizeof(ap_text));
+    while (fgets(line, sizeof(line), f)) {
+        line[strcspn(line, "\r\n")] = '\0';
+        if (!strncmp(line, "slot ", 5)) {
+            dwr_set_ap(TRUE, line + 5);
+        } else if (sscanf(line, "loc %lx %n", &id, &pos) == 1) {
+            if (id >= AP_LOC_BASE && id < AP_LOC_BASE + CHEST_COUNT)
+                n = id - AP_LOC_BASE;
+            else if (id >= AP_LOC_BASE + AP_LOC_SEARCH
+                    && id < AP_LOC_BASE + AP_LOC_SEARCH + 3)
+                n = CHEST_COUNT + id - AP_LOC_BASE - AP_LOC_SEARCH;
+            else
+                continue;  /* Gwaelin and other events have no found message. */
+            len = strlen(line + pos);
+            if (len > AP_TEXT_LEN)
+                len = AP_TEXT_LEN;
+            memcpy(ap_text[n], line + pos, len);
+            ap_text[n][len] = '\0';
+            ap_have_text = TRUE;
+        }
+    }
+    fclose(f);
+    return ap_enabled;
+}
+
 /*
- * Chest and search code. Both end in the same message, "Thou hast found the
- * APItem." The name buffer at $A3 holds item name indexes (index + 1, then
- * $FA). Index 24 is the unused Tablet, renamed to "APItem".
+ * Chest and search code. Both end in message $D9, "Thou hast found the
+ * <name>." Its name control code ($F7, which reads a name index from $A3) is
+ * changed to $F9, and $F9's handler is rewritten to print the $FA-terminated
+ * text that $A3/$A4 point to. Each chest and search spot gets its own text:
+ * the item name from the .apdwr patch file, or "APItem" without one.
+ *
+ * Bank 1 has no room for the names, so they sit in expansion bank 3 in
+ * 17-byte slots. The show routine maps bank 3, copies the name into work RAM
+ * at AP_NAME_BUF, maps the old bank back and points $A3/$A4 at the copy.
  */
+#define AP_NAME_BUF      0x6830  /* 17 bytes, below the music driver */
+#define AP_NAME_BANK     3
+#define AP_NAME_SLOTS    0x3000  /* offset in bank 3, CPU $B000 */
+#define LOAD_PRG_BANK    0xff91  /* store_and_load_prg_bank: A = bank */
+#define FOUND_NAME_CODE  0xab70  /* the $F7 byte in message $D9 */
+#define F9_HANDLER       0x77e8  /* bank 1, $B7E8, 17 bytes */
+
+size_t ascii2dw(uint8_t *string);
+
+/* Writes name slot i in bank 3: the text in DW tiles, then $FA. */
+static void ap_put_name(dw_rom *rom, int i, const char *text)
+{
+    uint8_t buf[AP_TEXT_LEN + 2];
+    size_t j, len = strlen(text);
+
+    if (len > AP_TEXT_LEN)
+        len = AP_TEXT_LEN;
+    for (j = 0; j < len; j++) {
+        char c = text[j];
+        /* Letters, digits and a few marks exist in the font, the rest become spaces. */
+        buf[j] = (isalnum((unsigned char)c) || strchr(" '.,-!?", c)) ? c : ' ';
+    }
+    buf[len] = 0;
+    ascii2dw(buf);
+    buf[len] = 0xfa;
+    memcpy(&rom->expansion[(AP_NAME_BANK - 3) * 0x4000 + AP_NAME_SLOTS
+            + i * (AP_TEXT_LEN + 1)], buf, len + 1);
+}
+
 static void ap_chest_and_search(dw_rom *rom)
 {
-    uint16_t bits, name, chest, show, search;
+    uint16_t bits, lo, hi, chest, show, search, at;
+    int i;
 
-    /* Layout: bit table (8), name (2), chest (27), show (24), search (14). */
-    bits = find_free_space(rom->content, FIXED_FREE_START, 8 + 2 + 27 + 24 + 14);
-    name = bits + 8;
-    chest = name + 2;
-    show = chest + 27;
-    search = show + 24;
-
-    vpatch(rom, name, 2, TABLET_NAME + 1, 0xfa);
-    set_text(rom, TABLET_TEXT, "APItem");
+    /* Layout: bit table (8), pointer tables (2 x 34), chest (30), show (61),
+     * search (19). */
+    bits = find_free_space(rom->content, FIXED_FREE_START,
+            8 + 2 * AP_TEXT_LOCS + 30 + 61 + 19);
+    lo = bits + 8;
+    hi = lo + AP_TEXT_LOCS;
+    chest = hi + AP_TEXT_LOCS;
+    show = chest + 30;
+    search = show + 61;
 
     vpatch(rom, bits, 8, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80);
 
-    /* Hooked at $E221, where the chest at Y/4 was found. Falls into show. */
-    vpatch(rom, chest, 27,
+    for (i = 0; i < AP_TEXT_LOCS; i++) {
+        ap_put_name(rom, i, ap_have_text && ap_text[i][0] ? ap_text[i] : "APItem");
+        at = 0x8000 + AP_NAME_SLOTS + i * (AP_TEXT_LEN + 1);
+        rom->content[lo + i] = LO(at);
+        rom->content[hi + i] = HI(at);
+    }
+
+    /* $D9 prints its name with $F9, and $F9 prints the text at ($A3). */
+    vpatch(rom, FOUND_NAME_CODE, 1, 0xf9);
+    vpatch(rom, F9_HANDLER, 17,
+        0xa0, 0x00,                         /* ldy #0                    */
+        0xb1, 0xa3,                         /* - lda ($a3),y             */
+        0x99, 0x2c, 0x65,                   /*   sta $652c,y             */
+        0xc8,                               /*   iny                     */
+        0xc9, 0xfa,                         /*   cmp #$fa                */
+        0xd0, 0xf6,                         /*   bne -                   */
+        0xa2, 0x00,                         /* ldx #0                    */
+        0x4c, 0x67, 0xb6                    /* jmp $b667                 */
+    );
+
+    /* Hooked at $E221, where the chest at Y/4 was found. Falls into show
+     * with X = chest index. */
+    vpatch(rom, chest, 30,
         0x98,                               /* tya                       */
         0x4a, 0x4a,                         /* lsr, lsr: chest index     */
         0x48,                               /* pha                       */
@@ -91,37 +191,57 @@ static void ap_chest_and_search(dw_rom *rom)
         0xaa,                               /* tax                       */
         0xbd, LO(bits), HI(bits),           /* lda bits,x                */
         0x85, 0xde,                         /* sta $de (scratch)         */
-        0x68,                               /* pla                       */
+        0x68, 0x48,                         /* pla, pha                  */
         0x4a, 0x4a, 0x4a,                   /* lsr x3: byte index        */
         0xaa,                               /* tax                       */
         0xa5, 0xde,                         /* lda $de                   */
         0x1d, LO(AP_CHESTS), HI(AP_CHESTS), /* ora AP_CHESTS,x           */
         0x9d, LO(AP_CHESTS), HI(AP_CHESTS), /* sta AP_CHESTS,x           */
+        0x68, 0xaa,                         /* pla, tax: chest index     */
         0xa9, 0x00                          /* lda #0: a chest           */
     );
 
-    /* A = 0 for a chest, $ff for a search. $E355 marks the chest open and
-     * plays the sound for a chest, then loads an item name, which is
-     * replaced with the AP name. */
-    vpatch(rom, show, 24,
+    /* A = 0 for a chest, $ff for a search, X = name index. $E355 marks the
+     * chest open and plays the sound for a chest, and overwrites $A3. */
+    vpatch(rom, show, 61,
         0x85, 0x0e,                         /* sta $0e                   */
         0xa9, 0x10,                         /* lda #$10: any real item   */
         0x85, 0xde,                         /* sta $de                   */
+        0x8a, 0x48,                         /* txa, pha                  */
         0x20, 0x55, 0xe3,                   /* jsr $e355                 */
-        0xa2, 0x01,                         /* ldx #1                    */
-        0xbd, LO(name), HI(name),           /* - lda name,x              */
-        0x95, 0xa3,                         /*   sta $a3,x               */
-        0xca,                               /*   dex                     */
-        0x10, 0xf8,                         /*   bpl -                   */
+        0x68, 0xaa,                         /* pla, tax                  */
+        0xbd, LO(lo), HI(lo),               /* lda lo,x                  */
+        0x85, 0xa3,                         /* sta $a3                   */
+        0xbd, LO(hi), HI(hi),               /* lda hi,x                  */
+        0x85, 0xa4,                         /* sta $a4                   */
+        0xad, 0x04, 0x60,                   /* lda $6004: current bank   */
+        0x48,                               /* pha                       */
+        0xa9, AP_NAME_BANK,                 /* lda #3                    */
+        0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank     */
+        0xa0, 0x00,                         /* ldy #0                    */
+        0xb1, 0xa3,                         /* - lda ($a3),y             */
+        0x99, LO(AP_NAME_BUF), HI(AP_NAME_BUF), /* sta buf,y             */
+        0xc8,                               /*   iny                     */
+        0xc9, 0xfa,                         /*   cmp #$fa                */
+        0xd0, 0xf6,                         /*   bne -                   */
+        0x68,                               /* pla: old bank             */
+        0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank     */
+        0xa9, LO(AP_NAME_BUF),              /* lda #<buf                 */
+        0x85, 0xa3,                         /* sta $a3                   */
+        0xa9, HI(AP_NAME_BUF),              /* lda #>buf                 */
+        0x85, 0xa4,                         /* sta $a4                   */
         0xa9, 0xd9,                         /* lda #$d9: found message   */
         0x4c, 0x42, 0xd2                    /* jmp $d242                 */
     );
 
     /* Hooked at $E12D, where search entry X matched. */
-    vpatch(rom, search, 14,
+    vpatch(rom, search, 19,
         0xbd, LO(bits), HI(bits),           /* lda bits,x                */
         0x0d, LO(AP_SEARCH), HI(AP_SEARCH), /* ora AP_SEARCH             */
         0x8d, LO(AP_SEARCH), HI(AP_SEARCH), /* sta AP_SEARCH             */
+        0x8a, 0x18,                         /* txa, clc                  */
+        0x69, CHEST_COUNT,                  /* adc #31: search names     */
+        0xaa,                               /* tax                       */
         0xa9, 0xff,                         /* lda #$ff: a search        */
         0x4c, LO(show), HI(show)            /* jmp show                  */
     );

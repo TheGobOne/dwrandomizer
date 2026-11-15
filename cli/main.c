@@ -110,6 +110,11 @@ int main(int argc, char **argv)
             }
         } else if (!strcmp(argv[1], "--ap-slot")) {
             dwr_set_ap(TRUE, argv[2]);
+        } else if (!strcmp(argv[1], "--ap-patch")) {
+            if (!dwr_load_ap_patch(argv[2])) {
+                printf("Could not read the AP patch file %s\n", argv[2]);
+                return 1;
+            }
         } else if (!strcmp(argv[1], "--spoiler")) {
             dwr_set_spoiler(on_off(argv[1], argv[2]));
         } else if (!strcmp(argv[1], "--key-herb")) {

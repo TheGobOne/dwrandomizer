@@ -13,6 +13,8 @@ Logic assumes DWR flags with Random Chest Locations, Stair Shuffle and the
 quest item flags (Cursed Princess, Three's Company, Open Charlock) off.
 Magic Keys can be bought, so key doors are not in logic.
 """
+import os
+
 from BaseClasses import Item, Location, Region
 from worlds.AutoWorld import World
 
@@ -79,3 +81,25 @@ class DWRWorld(World):
 
     def get_filler_item_name(self) -> str:
         return FILLER
+
+    def generate_output(self, output_directory: str) -> None:
+        """Write <name>.apdwr, a text file the DWR CLI reads with --ap-patch.
+
+        Lines: "slot <slot name>", then one "loc <location id hex> <text>" per
+        chest and search spot, where text is what the game shows in the found
+        message: the item name, plus the receiving player's name if it is not
+        this player's item.
+        """
+        player = self.player
+        lines = [f"slot {self.multiworld.player_name[player]}"]
+        for location in self.multiworld.get_locations(player):
+            if location.address is None or location.item is None:
+                continue
+            item = location.item
+            text = item.name
+            if item.player != player:
+                text = f"{self.multiworld.player_name[item.player]}'s {item.name}"
+            lines.append(f"loc {location.address:x} {text}")
+        name = self.multiworld.get_out_file_name_base(player) + ".apdwr"
+        with open(os.path.join(output_directory, name), "w", encoding="utf-8") as f:
+            f.write("\n".join(lines) + "\n")
