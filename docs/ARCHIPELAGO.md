@@ -139,7 +139,9 @@ Checked so far:
 - FCEUX play test: the 3 throne room chests reach the server, and the Fairy Flute, Torch and 100 Gold arrive in the inventory.
 - Save, reset and continue: no items given twice. The counter comes back through LoadSavedData (`$FB6B`), which only runs on a continue.
 
-Not checked yet: search spots, Gwaelin, the goal.
+- FCEUX automated run (`tests/fceux/aptest.lua`, test ROM with `--ap-slot GobDWR`, seed 777): the Kol, Hauksness and overworld search spots send Silver Harp, Herb and Wings. Rescue Gwaelin sends 100 Gold. Setting the Dragonlord bit sends the goal ("Team #1 has completed all of their games").
+
+Not checked yet: nothing in Phase 1's list is left unchecked. Search checks were only confirmed in the client log; the search byte at `$6826` was read before the check landed, so the log is the source.
 
 Known limits of the proof of concept:
 - The game says "APItem" for every check. Showing the real item name needs a patch file with a location-to-name table (Phase 2).
