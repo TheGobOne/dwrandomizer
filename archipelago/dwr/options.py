@@ -1,6 +1,14 @@
 from dataclasses import dataclass
 
-from Options import PerGameCommonOptions, Toggle
+from Options import FreeText, PerGameCommonOptions, Toggle
+
+
+class DWRFlags(FreeText):
+    """The DWR flag string the ROM is built with (copy it from the DWR site).
+    Logic assumes Random Chest Locations, Stair Shuffle, Cursed Princess, Three's Company and
+    Open Charlock are off."""
+    display_name = "DWR Flags"
+    default = "IVICEV2EKADEAMAAAADQAEBWAAAJACAAAAIBQAAA"
 
 
 class FreeCharlock(Toggle):
@@ -13,3 +21,4 @@ class FreeCharlock(Toggle):
 @dataclass
 class DWROptions(PerGameCommonOptions):
     free_charlock: FreeCharlock
+    dwr_flags: DWRFlags

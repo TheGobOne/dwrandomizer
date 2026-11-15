@@ -47,6 +47,7 @@ static void print_usage(const char *command, char *default_flags)
     printf("  --auto-stairs on|off\n");
     printf("  --spoiler on|off\n");
     printf("  --ap-slot <name>   (Archipelago mode, for this slot name)\n");
+    printf("  --ap-patch <file>  (Archipelago mode from an .apdwr file, which also sets the flags and seed if they are left out)\n");
     printf("  --key-herb on|off\n");
     printf("  --quick-spell on|off\n");
     printf("  --quick-spell-swap on|off   (SPELL top right, quick spell under it)\n");
@@ -175,6 +176,14 @@ int main(int argc, char **argv)
         seed = ((uint64_t)(rand() & 0xffff) << 48) | ((uint64_t)(rand() & 0xffff) << 32) |
                 ((uint64_t)(rand() & 0xffff) << 16) | (uint64_t)(rand() & 0xffff);
     }
+    /* An AP patch file brings its own flags, seed and Free Charlock setting,
+     * unless the command line gives them. */
+    if (argc < 4 && dwr_ap_patch_flags())
+        flags = (char *)dwr_ap_patch_flags();
+    if (argc < 5)
+        dwr_ap_patch_seed(&seed);
+    if (free_charlock < 0)
+        free_charlock = dwr_ap_patch_free_charlock();
     if (argc > 5) {
         sprite = argv[4];
     } else {

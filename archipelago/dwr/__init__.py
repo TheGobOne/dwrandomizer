@@ -1,10 +1,11 @@
 """DWR (Dragon Warrior Randomizer) world for Archipelago. Proof of concept.
 
-The ROM does not need to know where items are: every chest and search spot
-shows "APItem" and sets a bit the client reads. Items come in through the
-client. So the player builds the ROM with the DWR CLI and their slot name:
+Every chest and search spot sets a bit the client reads, and items come in
+through the client. Generation writes a .apdwr file with the slot name, the
+DWR flags and seed, and the item name for each location's found message.
+The player builds the ROM from it with the DWR CLI:
 
-    dwrandomizer --ap-slot <slot name> <vanilla rom> <flags> <seed> <output dir>
+    dwrandomizer --ap-patch <file.apdwr> <vanilla rom> <output dir>
 
 With the Free Charlock option on, Erdrick's Sword and Armor and the quest items
 stay out of the Charlock chests.
@@ -91,7 +92,12 @@ class DWRWorld(World):
         this player's item.
         """
         player = self.player
-        lines = [f"slot {self.multiworld.player_name[player]}"]
+        lines = [
+            f"slot {self.multiworld.player_name[player]}",
+            f"flags {self.options.dwr_flags.value.strip()}",
+            f"seed {self.random.getrandbits(63)}",
+            f"free_charlock {1 if self.options.free_charlock else 0}",
+        ]
         for location in self.multiworld.get_locations(player):
             if location.address is None or location.item is None:
                 continue

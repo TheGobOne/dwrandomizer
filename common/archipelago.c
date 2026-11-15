@@ -21,6 +21,8 @@
  */
 
 #include <ctype.h>
+#include <inttypes.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -54,6 +56,10 @@
 static BOOL ap_enabled = FALSE;
 static char ap_slot_name[AP_NAME_LEN + 1] = "";
 static BOOL ap_have_text = FALSE;
+static char ap_flags[64] = "";
+static BOOL ap_have_seed = FALSE;
+static uint64_t ap_seed;
+static int ap_free_charlock = -1;
 static char ap_text[AP_TEXT_LOCS][AP_TEXT_LEN + 1];
 
 void dwr_set_ap(BOOL enabled, const char *slot_name)
@@ -84,6 +90,12 @@ BOOL dwr_load_ap_patch(const char *path)
         line[strcspn(line, "\r\n")] = '\0';
         if (!strncmp(line, "slot ", 5)) {
             dwr_set_ap(TRUE, line + 5);
+        } else if (!strncmp(line, "flags ", 6)) {
+            strncpy(ap_flags, line + 6, sizeof(ap_flags) - 1);
+        } else if (!strncmp(line, "seed ", 5)) {
+            ap_have_seed = sscanf(line + 5, "%" SCNu64, &ap_seed) == 1;
+        } else if (!strncmp(line, "free_charlock ", 14)) {
+            ap_free_charlock = atoi(line + 14) ? 1 : 0;
         } else if (sscanf(line, "loc %lx %n", &id, &pos) == 1) {
             if (id >= AP_LOC_BASE && id < AP_LOC_BASE + CHEST_COUNT)
                 n = id - AP_LOC_BASE;
@@ -102,6 +114,23 @@ BOOL dwr_load_ap_patch(const char *path)
     }
     fclose(f);
     return ap_enabled;
+}
+
+const char *dwr_ap_patch_flags(void)
+{
+    return ap_flags[0] ? ap_flags : NULL;
+}
+
+BOOL dwr_ap_patch_seed(uint64_t *seed)
+{
+    if (ap_have_seed)
+        *seed = ap_seed;
+    return ap_have_seed;
+}
+
+int dwr_ap_patch_free_charlock(void)
+{
+    return ap_free_charlock;
 }
 
 /*

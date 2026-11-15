@@ -12,6 +12,12 @@ BOOL dwr_ap_enabled(void);
  * and the item text for each chest and search spot. FALSE if it can't. */
 BOOL dwr_load_ap_patch(const char *path);
 
+/* What the loaded .apdwr file asks for: the flag string (NULL if none), the
+ * seed (FALSE if none) and Free Charlock (1 on, 0 off, -1 not given). */
+const char *dwr_ap_patch_flags(void);
+BOOL dwr_ap_patch_seed(uint64_t *seed);
+int dwr_ap_patch_free_charlock(void);
+
 /* Applies the Archipelago ROM changes. Does nothing when AP mode is off. */
 void ap_changes(dw_rom *rom);
 
