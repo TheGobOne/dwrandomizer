@@ -38,6 +38,7 @@ set(SOURCE_FILES
         common/dungeon_maps.c
         common/stair_shuffle.c
         common/chests.c
+        common/archipelago.c
         common/expansion.c
         common/mt19937-64.c
         common/flute_music.c

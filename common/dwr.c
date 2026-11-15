@@ -16,6 +16,7 @@
 #include "dungeon_maps.h"
 #include "stair_shuffle.h"
 #include "chests.h"
+#include "archipelago.h"
 #include "challenge.h"
 #include "crc64.h"
 #include "custom_music.h"
@@ -5151,6 +5152,8 @@ void apply_stuff_to_rom(dw_rom *rom)
     auto_return(rom);
     responsive_controls(rom);
     fast_hills(rom);
+    /* Last, so its hooks chain onto everything above. */
+    ap_changes(rom);
 }
 
 

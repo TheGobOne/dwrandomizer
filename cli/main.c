@@ -4,6 +4,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "archipelago.h"
 #include "base32.h"
 #include "custom_music.h"
 #include "dwr.h"
@@ -45,6 +46,7 @@ static void print_usage(const char *command, char *default_flags)
     printf("  --responsive-controls on|off\n");
     printf("  --auto-stairs on|off\n");
     printf("  --spoiler on|off\n");
+    printf("  --ap-slot <name>   (Archipelago mode, for this slot name)\n");
     printf("  --key-herb on|off\n");
     printf("  --quick-spell on|off\n");
     printf("  --quick-spell-swap on|off   (SPELL top right, quick spell under it)\n");
@@ -106,6 +108,8 @@ int main(int argc, char **argv)
                 fprintf(stderr, "--biome must be continent, caldera, wasteland, riverlands, lake, earth, westeros or random\n");
                 exit(1);
             }
+        } else if (!strcmp(argv[1], "--ap-slot")) {
+            dwr_set_ap(TRUE, argv[2]);
         } else if (!strcmp(argv[1], "--spoiler")) {
             dwr_set_spoiler(on_off(argv[1], argv[2]));
         } else if (!strcmp(argv[1], "--key-herb")) {
