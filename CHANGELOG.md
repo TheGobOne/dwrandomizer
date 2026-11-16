@@ -5,6 +5,8 @@
 * Responsive Controls: a direction pressed during the step that starts a battle, a warp or stairs is no longer replayed as a step afterwards
 * New flag: Swap Quick Spell. With Quick Spell on, SPELL takes the top right slot of the battle window and the quick spell goes under it. It is the first spare bit of a 42-character code. CLI: --quick-spell-swap
 * Site: the Run Bank description explains the dots after the bank number, and several option descriptions are reworded
+* North-south bridges now have their own tiles: rails down both sides with the deck between them, instead of east-west bridges stacked in a column. They act exactly like other bridges. They show up in Lake, Earth and Riverlands maps
+* Caldera, Wasteland, Riverlands and Lake maps now use all 120 rows. Before, the top 2 rows and the bottom row were always water. Maps for these biomes change for the same flags and seed
 
 # 1.1.0 - TheGobOne Remix #
 ###### Released Nov 13, 2026 ######

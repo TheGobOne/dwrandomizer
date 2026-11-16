@@ -2741,6 +2741,68 @@ static void begin_quest_checksum(dw_rom *rom, uint64_t crc)
  *
  * @param rom The rom struct.
  */
+/**
+ * Gives north-south bridges their own look. The map stores them as tile $D, which the overworld never used.
+ * The game finds a tile's block in bank 0 at $AC17 (lda $99E3,y at $AC90). A hook there turns tile $D into
+ * the normal bridge block ($0A), so walking, encounters and every other check see a bridge, and sets a flag.
+ * The two places that look up a block's four tiles ($A9E6 and $AE2B) use the vertical bridge's tiles when the
+ * flag is set, the block is a bridge and the map is the overworld. The flag is cleared at the start of $AC17,
+ * so the Rainbow Bridge (set without the lookup) is never drawn as a vertical one. The shore check at $ABE8
+ * counts water and bridge tiles as water (no foam beside them); it now counts tile $D too. The tiles are 2 blank,
+ * unused slots ($55 and $56) of the background pattern table; the block repeats them top and bottom.
+ */
+static void vertical_bridges(dw_rom *rom)
+{
+    const uint16_t flag = 0x6816;
+    const uint8_t tile_left = 0x55, tile_right = 0x56;
+    uint16_t base, clear, lookup, draw, entry, shore;
+
+    base = find_free_space(rom->content, FIXED_FREE_START, 80);
+    clear = base;
+    lookup = base + 10;
+    draw = base + 23;
+    entry = base + 68;
+    shore = base + 73;
+
+    vpatch(rom, clear, 10,
+        0xa9, 0x00, 0x8d, LO(flag), HI(flag),     /* lda #0 : sta flag */
+        0xa5, 0x3c, 0x85, 0x42,                   /* lda $3c : sta $42 (the 2 instructions replaced) */
+        0x60);
+    vpatch(rom, lookup, 13,
+        0xb9, 0xe3, 0x99,                         /* lda $99e3,y */
+        0xc0, 0x0d, 0xd0, 0x05,                   /* cpy #$0d : bne done */
+        0xee, LO(flag), HI(flag),                 /* inc flag */
+        0xa9, 0x0a,                               /* lda #$0a: a bridge */
+        0x60);                                    /* done: rts */
+    vpatch(rom, draw, 45,
+        0xa5, 0x3c, 0xc9, 0x0a, 0xd0, 0x14,       /* lda $3c : cmp #$0a : bne normal */
+        0xad, LO(flag), HI(flag), 0xf0, 0x0f,     /* lda flag : beq normal */
+        0xa5, 0x45, 0xc9, 0x01, 0xd0, 0x09,       /* lda $45 : cmp #1 : bne normal */
+        0xa9, LO(entry), 0x85, 0x40,              /* the vertical bridge's tiles */
+        0xa9, HI(entry), 0x85, 0x41, 0x60,
+        0xa5, 0x3c, 0x0a, 0x0a, 0x65, 0x3c,       /* normal: the original lookup */
+        0x6d, 0xb3, 0xf5, 0x85, 0x40,
+        0xad, 0xb4, 0xf5, 0x69, 0x00, 0x85, 0x41,
+        0x60);
+    vpatch(rom, entry, 5, tile_left, tile_right, tile_left, tile_right, 0x00);
+    vpatch(rom, shore, 7,
+        0xc9, 0xb0, 0xf0, 0x02,                   /* cmp #$b0 : beq done */
+        0xc9, 0xd0,                               /* cmp #$d0 */
+        0x60);                                    /* done: rts */
+
+    vpatch(rom, 0x2c17, 4, 0x20, LO(clear), HI(clear), 0xea);
+    vpatch(rom, 0x2c90, 3, 0x20, LO(lookup), HI(lookup));
+    vpatch(rom, 0x29e6, 6, 0x20, LO(draw), HI(draw), 0x4c, 0xf8, 0xa9);
+    vpatch(rom, 0x2e2b, 6, 0x20, LO(draw), HI(draw), 0x4c, 0x3d, 0xae);
+    vpatch(rom, 0x2c14, 3, 0x4c, LO(shore), HI(shore));
+
+    /* Rails down both sides with the deck between them, in the bridge's palette. */
+    vpatch(rom, 0x11000 + tile_left * 16, 16,
+        0x00, 0x60, 0x00, 0x60, 0x00, 0x60, 0x00, 0x60, 0x0f, 0x6f, 0x0f, 0x6f, 0x0f, 0x6f, 0x0f, 0x6f);
+    vpatch(rom, 0x11000 + tile_right * 16, 16,
+        0x00, 0x06, 0x00, 0x06, 0x00, 0x06, 0x00, 0x06, 0xf0, 0xf6, 0xf0, 0xf6, 0xf0, 0xf6, 0xf0, 0xf6);
+}
+
 static void no_screen_flash(dw_rom *rom)
 {
     if (!NO_SCREEN_FLASH(rom))
@@ -5163,6 +5225,7 @@ static uint64_t without_winter_once(const char* input_file, uint64_t seed, char 
     no_space_handler = &on_no_space;
 
     apply_stuff_to_rom(rom);
+    vertical_bridges(rom);
     no_space_handler = outer_handler;
 
     crc = rom_checksum(rom);
@@ -5246,6 +5309,8 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
     winter_theme(rom);
 
     apply_stuff_to_rom(rom);
+    /* Always: the map can hold vertical bridges (tile $D) whatever the flags. */
+    vertical_bridges(rom);
 
     crc = rom_checksum(rom);
     /* Music and the look of the game come after the checksum and can be packed on their own. */

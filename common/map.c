@@ -105,10 +105,39 @@ static int optimize_map(uint8_t *encoded_map, uint16_t *pointers)
  * @param map The map struct
  * @return A boolean indicating success or failure of map generation
  */
+/* Tile $D, never used on the overworld before: a bridge drawn running north to south. The game treats it
+ * as a normal bridge (see vertical_bridges in dwr.c). */
+#define TILE_BRIDGE_V 0xd
+
+static BOOL bridge_tile_is(dw_map *map, int x, int y, dw_tile tile)
+{
+    return x >= 0 && x < 120 && y >= 0 && y < 120 && map->tiles[x][y] == tile;
+}
+
+/* The tile to store for this spot: a bridge that only joins bridges or land above and below is vertical. */
+static uint8_t map_encoded_tile(dw_map *map, int x, int y)
+{
+    BOOL across, down;
+
+    if (map->tiles[x][y] != TILE_BRIDGE)
+        return map->tiles[x][y];
+    across = bridge_tile_is(map, x - 1, y, TILE_BRIDGE) || bridge_tile_is(map, x + 1, y, TILE_BRIDGE);
+    down = bridge_tile_is(map, x, y - 1, TILE_BRIDGE) || bridge_tile_is(map, x, y + 1, TILE_BRIDGE);
+    if (across)
+        return TILE_BRIDGE;
+    if (down)
+        return TILE_BRIDGE_V;
+    /* A single bridge: vertical when it has water on both sides and something else above or below. */
+    if ((x == 0 || map->tiles[x - 1][y] == TILE_WATER) && (x == 119 || map->tiles[x + 1][y] == TILE_WATER) &&
+            ((y > 0 && map->tiles[x][y - 1] != TILE_WATER) || (y < 119 && map->tiles[x][y + 1] != TILE_WATER)))
+        return TILE_BRIDGE_V;
+    return TILE_BRIDGE;
+}
+
 static BOOL map_encode(dw_map *map)
 {
     int x, y;
-    uint8_t *e, encoded[120 * 120]; 
+    uint8_t t, *e, encoded[120 * 120];
     uint16_t pointers[120];
 
     memset(encoded, 0xff, 120 * 120);
@@ -117,13 +146,14 @@ static BOOL map_encode(dw_map *map)
     for (y=0; y < 120; y++) {
         pointers[y] = e - encoded + 0x9d5d;
         for (x=0; x < 120; x++) {
+            t = map_encoded_tile(map, x, y);
             if (*e == 0xff) {
-                *e = map->tiles[x][y] << 4;
-            } else if (*e >> 4 == map->tiles[x][y]) {
+                *e = t << 4;
+            } else if (*e >> 4 == t) {
                 (*e)++;
             } else {
                 e++;
-                *e = map->tiles[x][y] << 4;
+                *e = t << 4;
             }
             if ((*e & 0xf) == 0xf) {
                 e++;
@@ -1116,15 +1146,16 @@ static void biome_fill(dw_rom *rom, dw_tile *tiles, dw_tile base, int layers)
     map_smooth(&rom->map);
 }
 
-/* Cuts the land down to a rough rounded square with open water around it. */
+/* Cuts the land down to a rough rounded square. The square is map->size tiles across, centered between
+ * rows and columns 59 and 60, so a normal size map reaches all 120 rows. */
 static void biome_coast(dw_map *map)
 {
     int x, y, dy, a, left = 0, right = 0;
-    int half = map->size / 2 - 2;
+    int half = map->size / 2 - 1;
     int radius = map->size * 62 / 100;
 
     for (y = 0; y < 120; y++) {
-        dy = y < 60 ? 60 - y : y - 60;
+        dy = y < 60 ? 59 - y : y - 60;
         left = biome_drift(left, 4);
         right = biome_drift(right, 4);
         a = -1;
@@ -1133,7 +1164,7 @@ static void biome_coast(dw_map *map)
             if (a > half) a = half;
         }
         for (x = 0; x < 120; x++) {
-            if (a < 0 || x < 60 - a + left || x > 60 + a + right)
+            if (a < 0 || x < 59 - a + left || x > 60 + a + right)
                 map->tiles[x][y] = TILE_WATER;
         }
     }
