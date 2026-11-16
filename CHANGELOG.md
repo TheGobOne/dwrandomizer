@@ -1,3 +1,9 @@
+# 1.2.1 - TheGobOne Remix #
+* Random maps: Wasteland and Riverlands grow their land out of open water the way Continent does, with irregular coasts, lakes and islands. Both keep their own terrain mix
+* Random maps: Wasteland and Riverlands fill the whole map at Normal size, as Continent does
+* Random maps: Caldera builds at Very Small size. Its land limit now fits its round coast
+* Riverlands has about twice as many rivers
+
 # 1.2.0 - TheGobOne Remix #
 * Site: Random Princess Location and Charlock Inn moved to Quest > Route, Encounter Rate to World > Travel, Summer Sale to Shops & Inns > Prices. The hero box is titled Sprite
 * Old flag codes build a different ROM than before: Responsive Controls no longer speeds up hills (that is Fast Hills now), and reduce flashing no longer stops the cursor blinking (that is Disable Cursor Blink now)

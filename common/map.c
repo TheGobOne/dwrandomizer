@@ -1190,6 +1190,21 @@ static const int coast_dir[64][2] = {
     {707, -707}, {773, -634}, {831, -556}, {882, -471}, {924, -383}, {957, -290}, {981, -195}, {995, -98}
 };
 
+/* Grows land out of open water the way a Continent map does: blobs of the biome's tiles, largest first, so the
+ * coast is irregular and there can be lakes and islands. */
+static void biome_landmass(dw_rom *rom, dw_tile *tiles)
+{
+    int i, j;
+
+    memset(rom->map.tiles, TILE_WATER, 120 * 120);
+    for (i = 0; i < rom->map.size / 10; i++) {
+        mt_shuffle(tiles, 16, sizeof(dw_tile));
+        for (j = 0; j < 16; j++)
+            map_fill(&rom->map, tiles[j], rom->map.size * (1 << (10 - i/2)));
+    }
+    map_smooth(&rom->map);
+}
+
 /* Cuts the land down to a wobbly circle around the middle. The radius changes gently from one direction to the
  * next, so the coast has bays and points on every side. The radius starts at 46% of the map size and stays
  * between 36% and size / 2 - 2, so a ring or lake drawn in the middle always fits. Radii are in tiles; the
@@ -1815,19 +1830,17 @@ static BOOL biome_terrain(dw_rom *rom)
             return biome_lake(map);
         case BIOME_WASTELAND:
             printf("Drawing a wasteland\n");
-            biome_fill(rom, tiles, TILE_DESERT, layers);
-            biome_coast(map);
+            biome_landmass(rom, tiles);
             find_walkable_area(map, lm_sizes, &largest, &next);
             for (i = 0; i < map->size / 20; i++)
                 map_add_river(map);
             break;
         default:
             printf("Drawing riverlands\n");
-            biome_fill(rom, tiles, TILE_GRASS, layers);
-            biome_coast(map);
-            for (i = 0; i < map->size / 40; i++)
+            biome_landmass(rom, tiles);
+            for (i = 0; i < map->size / 20; i++)
                 biome_river(map, TRUE);
-            for (i = 0; i < map->size / 30; i++)
+            for (i = 0; i < map->size / 15; i++)
                 biome_river(map, FALSE);
             break;
     }
@@ -2057,8 +2070,10 @@ retry_map:
         if (largest != next)
             total_area += lm_sizes[next - 1];
         /* A lake takes out about 3 * r * r tiles of land, so it needs that much less. An outline sets its
-         * own amount of land, so it only has to keep most of it. */
+         * own amount of land, so it only has to keep most of it. A caldera sits inside the round coast, which
+         * holds about 40% of the square at the smallest, so its limit follows the area, not the width. */
         if (total_area < (TEMPLATE_BIOME(rom) ? rom->map.size * 30 :
+                BIOME(rom) == BIOME_CALDERA ? rom->map.size * rom->map.size * 3 / 10 :
                 rom->map.size * 42 - (BIOME(rom) == BIOME_LAKE ?
                 3 * LAKE_RADIUS(&rom->map) * LAKE_RADIUS(&rom->map) : 0))) {
             printf("Total map area (%d) is too small, retrying...\n",
