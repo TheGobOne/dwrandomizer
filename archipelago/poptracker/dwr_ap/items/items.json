@@ -1,0 +1,98 @@
+[
+  {
+    "name": "Silver Harp",
+    "codes": "silver_harp",
+    "img": "images/items/silver_harp.png",
+    "type": "toggle"
+  },
+  {
+    "name": "Stones of Sunlight",
+    "codes": "stones_of_sunlight",
+    "img": "images/items/stones_of_sunlight.png",
+    "type": "toggle"
+  },
+  {
+    "name": "Staff of Rain",
+    "codes": "staff_of_rain",
+    "img": "images/items/staff_of_rain.png",
+    "type": "toggle"
+  },
+  {
+    "name": "Erdrick's Token",
+    "codes": "erdrick_s_token",
+    "img": "images/items/erdrick_s_token.png",
+    "type": "toggle"
+  },
+  {
+    "name": "Fairy Flute",
+    "codes": "fairy_flute",
+    "img": "images/items/fairy_flute.png",
+    "type": "toggle"
+  },
+  {
+    "name": "Erdrick's Sword",
+    "codes": "erdrick_s_sword",
+    "img": "images/items/erdrick_s_sword.png",
+    "type": "toggle"
+  },
+  {
+    "name": "Erdrick's Armor",
+    "codes": "erdrick_s_armor",
+    "img": "images/items/erdrick_s_armor.png",
+    "type": "toggle"
+  },
+  {
+    "name": "Dragon's Scale",
+    "codes": "dragon_s_scale",
+    "img": "images/items/dragon_s_scale.png",
+    "type": "toggle"
+  },
+  {
+    "name": "Fighter's Ring",
+    "codes": "fighter_s_ring",
+    "img": "images/items/fighter_s_ring.png",
+    "type": "toggle"
+  },
+  {
+    "name": "Herb",
+    "codes": "herb",
+    "img": "images/items/herb.png",
+    "type": "consumable",
+    "max_quantity": 12
+  },
+  {
+    "name": "Magic Key",
+    "codes": "magic_key",
+    "img": "images/items/magic_key.png",
+    "type": "consumable",
+    "max_quantity": 12
+  },
+  {
+    "name": "Torch",
+    "codes": "torch",
+    "img": "images/items/torch.png",
+    "type": "consumable",
+    "max_quantity": 6
+  },
+  {
+    "name": "Fairy Water",
+    "codes": "fairy_water",
+    "img": "images/items/fairy_water.png",
+    "type": "consumable",
+    "max_quantity": 6
+  },
+  {
+    "name": "Wings",
+    "codes": "wings",
+    "img": "images/items/wings.png",
+    "type": "consumable",
+    "max_quantity": 6
+  },
+  {
+    "name": "100 Gold",
+    "codes": "100_gold",
+    "img": "images/items/100_gold.png",
+    "type": "consumable",
+    "max_quantity": 10
+  }
+]

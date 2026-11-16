@@ -1,0 +1,48 @@
+{
+  "tracker_default": {
+    "type": "container",
+    "background": "#181828",
+    "content": {
+      "type": "array",
+      "content": [
+        {
+          "type": "group",
+          "header": "Items",
+          "content": {
+            "type": "itemgrid",
+            "item_size": 32,
+            "rows": [
+              [
+                "silver_harp",
+                "stones_of_sunlight",
+                "staff_of_rain",
+                "erdrick_s_token",
+                "fairy_flute"
+              ],
+              [
+                "erdrick_s_sword",
+                "erdrick_s_armor",
+                "dragon_s_scale",
+                "fighter_s_ring",
+                "herb"
+              ],
+              [
+                "magic_key",
+                "torch",
+                "fairy_water",
+                "wings",
+                "100_gold"
+              ]
+            ]
+          }
+        },
+        {
+          "type": "map",
+          "maps": [
+            "Checks"
+          ]
+        }
+      ]
+    }
+  }
+}

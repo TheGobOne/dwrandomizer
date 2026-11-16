@@ -1,0 +1,14 @@
+{
+  "name": "DWR Archipelago",
+  "game_name": "DWR",
+  "package_version": "0.1.0",
+  "package_uid": "dwr_archipelago",
+  "author": "TheGobOne",
+  "platform": "nes",
+  "versions_url": "",
+  "variants": {
+    "standard": {
+      "display_name": "Standard"
+    }
+  }
+}
