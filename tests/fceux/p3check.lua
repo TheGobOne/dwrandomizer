@@ -39,6 +39,7 @@ local SIDES = { {-1, 0, "right"}, {1, 0, "left"}, {0, -1, "down"}, {0, 1, "up"} 
 local CHEST_X, CHEST_Y, CHEST_BIT = 4, 4, 0x10   -- throne room chest index 4: $6822 bit 4
 local in_throne, tries, side, sx, sy = 0, 0, 1, 0, 0
 local last_frame, last_pad = -1, {}
+local last_block = ""
 
 local started = os.clock()
 local function finish()
@@ -60,10 +61,34 @@ local function driver()
   if MODE == "two" and step == "boot" then
     if frame == 30 then log("power on, block " .. block()); finish() end
   elseif step == "boot" then
+    -- Run "three" uses the .sav from run "one". DW writes the adventure log when a quest
+    -- starts, so it continues that quest. Run "four" starts with no .sav (a new game).
+    if MODE == "three" or MODE == "four" then
+      local b = block()
+      if b ~= last_block then log("block now " .. b .. ", map " .. map); last_block = b end
+    end
     if map == 5 then in_throne = in_throne + 1 else in_throne = 0 end
     if in_throne >= 60 then set_step("intro"); log("in game, block " .. block())
+    elseif MODE == "four" and frame == 10 then
+      -- No .sav, so no adventure log: plant stale bits in battery RAM before the new game starts.
+      wr(0x6822, 0x10); wr(0x6826, 0x02); log("planted stale bits, block " .. block())
     elseif frame > 200 and frame % 120 < 4 then press.start = 2
     elseif frame > 260 and frame % 60 == 30 then press.A = 2 end
+  elseif step == "intro" and (MODE == "three" or MODE == "four") then
+    -- $CA1A (game start) runs once the king is done talking, so check after the intro.
+    if age() < 300 and age() % 30 == 0 then press.B = 2 end
+    if age() == 320 then
+      local b = block()
+      log("after intro, block " .. b)
+      if MODE == "three" then
+        if AND(rd(0x6822), CHEST_BIT) ~= 0 and rd(0x6827) == 0 then log("PASS continue kept the bits and cleared AP_LOADED")
+        else log("FAIL continue: expected chest bit kept and $6827 = 0") end
+      else
+        if b == "00 00 00 00 00 00 00 00" then log("PASS new game cleared the AP block")
+        else log("FAIL new game kept AP bits") end
+      end
+      finish()
+    end
   elseif step == "intro" then
     if age() < 300 and age() % 30 == 0 then press.B = 2 end
     if age() == 320 then set_step("take") end
