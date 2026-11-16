@@ -287,15 +287,17 @@ static void ap_chest_and_search(dw_rom *rom)
 }
 
 /*
- * The received counter goes into the save slot on save. LoadSavedData ($FB6B)
- * runs only on a continue, so it brings the counter back and sets AP_LOADED.
+ * The received counter goes into the save slot on save, and LoadSavedData
+ * ($FB6B) brings it back. $FB6B also runs at power-on ($F781 checks every slot
+ * through $FAC1) and on erase ($F8FB), so it cannot mark a continue. The
+ * Continue menu's load ($F8BE: jsr $FAC1, rts) sets AP_LOADED instead.
  * Game start ($CA1A) runs after it: without AP_LOADED it is a new game, which
  * clears the counter and the location bits. XP is not used, so a save made at
  * 0 XP continues correctly.
  */
 static void ap_save_and_load(dw_rom *rom)
 {
-    uint16_t save, restore, start, chain;
+    uint16_t save, restore, start, chain, cont;
 
     save = find_free_space(rom->content, FIXED_FREE_START, 26);
     vpatch(rom, save, 26,
@@ -314,8 +316,8 @@ static void ap_save_and_load(dw_rom *rom)
     /* SaveData at $FA18 was ldy #0, lda $ba. */
     vpatch(rom, 0xfa18, 4, 0x20, LO(save), HI(save), 0xea);
 
-    restore = find_free_space(rom->content, FIXED_FREE_START, 31);
-    vpatch(rom, restore, 31,
+    restore = find_free_space(rom->content, FIXED_FREE_START, 26);
+    vpatch(rom, restore, 26,
         0x8a, 0x48,                                   /* txa, pha        */
         0xad, LO(SAVE_SLOT), HI(SAVE_SLOT),           /* lda slot        */
         0x0a, 0xaa,                                   /* asl, tax        */
@@ -323,8 +325,6 @@ static void ap_save_and_load(dw_rom *rom)
         0x8d, LO(AP_RECV), HI(AP_RECV),
         0xbd, LO(AP_SLOT_RECV + 1), HI(AP_SLOT_RECV + 1),
         0x8d, LO(AP_RECV + 1), HI(AP_RECV + 1),
-        0xa9, 0x01,                                   /* lda #1          */
-        0x8d, LO(AP_LOADED), HI(AP_LOADED),           /* sta loaded      */
         0x68, 0xaa,                                   /* pla, tax        */
         0xa0, 0x00,                                   /* ldy #0 (moved)  */
         0xb1, 0x22,                                   /* lda ($22),y (moved) */
@@ -332,6 +332,21 @@ static void ap_save_and_load(dw_rom *rom)
     );
     /* LoadSavedData at $FB6B was ldy #0, lda ($22),y. */
     vpatch(rom, 0xfb6b, 4, 0x20, LO(restore), HI(restore), 0xea);
+
+    /* The Continue menu loads the chosen slot with jsr $FAC1 at $F8BE, then rts. */
+    if (rom->content[0xf8be] == 0x20 && rom->content[0xf8bf] == 0xc1
+            && rom->content[0xf8c0] == 0xfa) {
+        cont = find_free_space(rom->content, FIXED_FREE_START, 9);
+        vpatch(rom, cont, 9,
+            0x20, 0xc1, 0xfa,                         /* jsr $fac1 (moved) */
+            0xa9, 0x01,                               /* lda #1          */
+            0x8d, LO(AP_LOADED), HI(AP_LOADED),       /* sta loaded      */
+            0x60                                      /* rts             */
+        );
+        vpatch(rom, 0xf8be, 3, 0x4c, LO(cont), HI(cont));  /* jmp; $F8C1 rts is now unused */
+    } else {
+        printf("AP: unexpected code at $F8BE, a continue will be treated as a new game\n");
+    }
 
     chain = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
     start = find_free_space(rom->content, FIXED_FREE_START, 38);

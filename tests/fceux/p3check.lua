@@ -72,8 +72,15 @@ local function driver()
     if map == 5 then in_throne = in_throne + 1 else in_throne = 0 end
     if in_throne >= 60 then set_step("intro"); log("in game, block " .. block())
     elseif MODE == "four" and frame == 10 then
-      -- No .sav, so no adventure log: plant stale bits in battery RAM before the new game starts.
+      -- Stale bits in battery RAM, then a new game. Run four starts with the .sav from run one,
+      -- so the power-on scan runs first: the bug case. Continue is the default menu item, so Begin
+      -- a New Quest is one step down.
       wr(0x6822, 0x10); wr(0x6826, 0x02); log("planted stale bits, block " .. block())
+    elseif MODE == "four" and frame == 600 then press.down = 4
+    elseif MODE == "four" and frame == 640 then press.A = 4
+    elseif MODE == "four" and frame > 300 and frame < 600 and frame % 120 < 4 then press.start = 2
+    elseif MODE == "four" and frame < 600 then
+      if frame > 200 and frame % 120 < 4 then press.start = 2 end
     elseif frame > 200 and frame % 120 < 4 then press.start = 2
     elseif frame > 260 and frame % 60 == 30 then press.A = 2 end
   elseif step == "intro" and (MODE == "three" or MODE == "four") then
