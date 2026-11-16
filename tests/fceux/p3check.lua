@@ -2,8 +2,8 @@
 -- Run "one": open a throne room chest with TAKE, take the stairs to Tantegel, check the
 --   chest bit is still set, then exit FCEUX cleanly so the .sav is written.
 -- Run "two" (same .sav): read the AP block right after power on.
--- The run name is read from scratchpad/fx/p3mode.txt.
-local OUT = "C:/Users/Ryan/AppData/Local/Temp/claude/c710b416a9ee2736/942a7c2e-a5d3-415a-8c5b-87bc852c4860/scratchpad/fx/"
+-- The run name is read from dwr-ap-testbed/fx/p3mode.txt.
+local OUT = "C:/Users/Ryan/code/dwr-ap-testbed/fx/"
 local rd, wr = memory.readbyte, memory.writebyte
 local mf = io.open(OUT .. "p3mode.txt"); local MODE = mf and mf:read("*l") or "one"; if mf then mf:close() end
 local frame, step, t0 = 0, "boot", 0

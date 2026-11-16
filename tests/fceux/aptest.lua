@@ -1,8 +1,8 @@
 -- DWR AP test for FCEUX: runs the AP connector and, alongside it, a test driver that
 -- uses Wings and teleports to reach each search spot, searches, then sets the
 -- Gwaelin and Dragonlord bits so the client sends those too.
--- Log: scratchpad/fx/aptest.txt, screenshots: scratchpad/fx/*.png
-local OUT = "C:/Users/Ryan/AppData/Local/Temp/claude/c710b416a9ee2736/942a7c2e-a5d3-415a-8c5b-87bc852c4860/scratchpad/fx/"
+-- Log: dwr-ap-testbed/fx/aptest.txt, screenshots: dwr-ap-testbed/fx/*.png
+local OUT = "C:/Users/Ryan/code/dwr-ap-testbed/fx/"
 local CONNECTOR = "C:/ProgramData/Archipelago/data/lua/connector_fceux_generic.lua"
 
 local OVERWORLD, KOL, HAUKSNESS = 1, 7, 3
