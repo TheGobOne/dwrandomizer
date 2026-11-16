@@ -52,7 +52,7 @@ Needs Random Map. Chooses the shape of the generated overworld. The choice is pa
 - **Westeros**: one long continent. The Wall, a line of mountains across the North, has a single pass, and Charlock is always beyond it while Tantegel is always south of it. The Neck, partway down, is swamp. Always normal size.
 - **Random**: picks one of the seven.
 
-Lake, Earth, Westeros and later biomes are stored in a 26th flag byte, so their flag codes are 42 characters. Codes for the first four biomes stay 40 characters. Old codes with Biome set to Random keep picking from the first four.
+Lake, Earth, Westeros and later biomes are stored in a 26th flag byte, so their flag codes are at least 42 characters, or 44 with Fast Hills on. Codes for the first four biomes stay 40 characters. Old codes with Biome set to Random keep picking from the first four.
 
 
 #### Safe Start ####
@@ -80,7 +80,7 @@ When the Dragonlord's second form dies, Return is cast for you and you arrive in
 
 #### Responsive Controls ####
 
-On the overworld, walking, the command window and pause answer a press at once instead of waiting up to 15 frames. In towns and dungeons a short press is kept until the game can act on it, because NPCs move in time with that wait. A button newly pressed during a step is kept for when the step ends, unless that step starts a battle, a warp, stairs or anything else that takes time, so the hero no longer walks by himself after a fight. Very full ROMs may not build with it on. It is part of the checksum. Command line: `--responsive-controls on`.
+On the overworld, walking, the command window and pause answer a press at once instead of waiting up to 15 frames. In towns and dungeons a short press is kept until the game can act on it, because NPCs move in time with that wait. A button newly pressed during a step is kept for the next step. It is dropped only when that step starts a battle, a warp or stairs, or the hero dies on it, so the hero no longer walks by himself after a fight. A step onto a damage tile such as swamp keeps it, so a double tap in a swamp moves two tiles. Very full ROMs may not build with it on. It is part of the checksum. Command line: `--responsive-controls on`.
 
 
 #### Fast Hills ####
@@ -446,7 +446,7 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--encounters` | `default`, `low`, `medium`, `high` |
 | `--quick-spell` | `on` or `off` |
 | `--quick-spell-swap` | `on` or `off`. `on`: SPELL top right, quick spell under it. Needs Quick Spell |
-| `--cursor-blink` | `off`: Disable Cursor Blink |
+| `--cursor-blink` | `on` or `off`. `off` turns on Disable Cursor Blink. `on` keeps the blinking cursor |
 | `--fast-hills` | `on`: Fast Hills |
 | `--key-herb` | `on`: adds a keys and herbs row to the stats window |
 | `--auto-stairs` | `on`: stepping onto stairs takes them |

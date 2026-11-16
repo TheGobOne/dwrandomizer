@@ -202,6 +202,9 @@ int main(int argc, char **argv)
             raw[11] = (uint8_t)((raw[11] & 0xfe) | (quick_spell ? 0x01 : 0));
         if (quick_swap >= 0)
             raw[26] = (uint8_t)((raw[26] & 0x7f) | (quick_swap ? 0x80 : 0));
+        /* Swap Quick Spell needs Quick Spell, as on the site, so the code and file name match it. */
+        if (!(raw[11] & 0x01))
+            raw[26] &= 0x7f;
         if (no_blink >= 0)
             raw[26] = (uint8_t)((raw[26] & 0xbf) | (no_blink ? 0x40 : 0));
         if (fast_hills >= 0)

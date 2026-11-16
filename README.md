@@ -2,7 +2,7 @@
 
 <img src="site/sprites/Loto.png" width="64" alt="Loto sprite"> <img src="site/sprites/Slime.png" width="64" alt="Slime sprite"> <img src="site/sprites/Metal%20Slime.png" width="64" alt="Metal Slime sprite"> <img src="site/sprites/Gwaelin.png" width="64" alt="Gwaelin sprite"> <img src="site/sprites/Dragonlord.png" width="64" alt="Dragonlord sprite">
 
-**Version 1.1.0.** A randomizer for the NES game *Dragon Warrior* with a safer start, tunable encounters, a stockpile of escapes, custom music packs and a new web page to drive it all.
+**Version 1.1.0.** A randomizer for the NES game *Dragon Warrior* with a safer start, tunable encounters, a stockpile of escapes, custom music packs and a new web page to drive it all. Fast Flute, Swap Quick Spell, Fast Hills and Disable Cursor Blink are in the working tree and not yet in a numbered release.
 
 This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer), which builds on [mcgrew's Dragon Warrior Randomizer](https://dwrandomizer.com/). If you want the polished, balanced tournament experience, use mcgrew's official version. This one is a playground.
 
@@ -48,6 +48,8 @@ What the page adds on top of the options:
 - **Copy**: copies the flags, seed, checksum and a link that opens the page with the same flags and seed.
 
 ### Command line
+
+Flag codes are 40, 42 or 44 letters (A-Z and 2-7). A code stays 40 letters unless it uses Lake or a later biome, Swap Quick Spell or Disable Cursor Blink (42), or Fast Hills (44). Other lengths are refused.
 
 Build with CMake and a C compiler (checked on Windows with Ninja and GCC):
 
@@ -97,7 +99,7 @@ Run Mechanics (Battle tab) and Run Bank are separate things. Run Mechanics chang
 
 - Some random flag sets fail to build with "Not enough space" (about 1 in 18 random sets). Turn off one of `Build Options`, `Hurtmore Doors` or `Warp Whistle`.
 - The first step off a standstill in towns can take up to 25 frames.
-- Tested in FCEUX and Mesen, not on hardware.
+- Custom music timing was measured in FCEUX. Earlier releases were also run in Mesen, and the newest flags were spot-checked there. Nothing has been tested on hardware.
 
 ## Troubleshooting
 

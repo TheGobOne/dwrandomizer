@@ -212,6 +212,13 @@ static BOOL dwr_init(dw_rom *rom, const char *input_file, char *flags)
         return FALSE;
     }
 
+    /* Flag codes are 40, 42 or 44 characters. Other lengths would decode part of a byte, so refuse them. */
+    if (strlen(flags) != 40 && strlen(flags) != 42 && strlen(flags) != 44) {
+        fprintf(stderr, "Flags must be 40, 42 or 44 characters; '%s' is %d.\n", flags, (int)strlen(flags));
+        free(rom->header);
+        free(rom->expansion);
+        return FALSE;
+    }
     rom->content = &rom->header[0x10];
     strncpy((char *)rom->flags_encoded, flags, 44);
     rom->flags_encoded[44] = '\0'; /* Make sure it's null terminated */
@@ -4198,7 +4205,7 @@ static void responsive_controls(dw_rom *rom)
 {
     const uint16_t stamp = 0x680b, state = 0x680c, buf = 0x680d, prev = 0x680e, pend = 0x680f;
     const uint16_t stamp_x = 0x6817, stamp_y = 0x6818;
-    const uint8_t READING = 0xa5, DONE = 0x5a; /* other values, as in fresh RAM, mean nothing is saved */
+    const uint8_t READING = 0xa5, DONE = 0x5a, PENDING = 0x3c; /* other values, as in fresh RAM, mean nothing is saved */
     uint16_t read_hook, frame_hook, step_end, battle_start;
     size_t i;
 
@@ -4240,17 +4247,22 @@ static void responsive_controls(dw_rom *rom)
     /* After a step, $B219 runs the tile's effects: a battle, a warp, stairs, damage. The presses saved during the step
      * are kept for the next step unless that step started a battle or moved the hero (a warp or stairs changes the
      * map or the position). A step on a damage tile such as swamp keeps them, even though it waits a few frames.
+     * While $B219 runs the state is PENDING, which the read hook ignores, so a death on a swamp or barrier tile
+     * (which never returns here) leaves nothing to replay after the King revives the hero. Only a step that
+     * returns, did not move the hero and did not start a battle (which writes 0) turns it into DONE.
      * This one returns from $B219, and a battle may leave another bank at $8000, so it lives in the fixed bank. */
-    step_end = find_free_space(rom->content, FIXED_FREE_START, 50);
-    vpatch(rom, step_end, 50,
-        0xa9, DONE, 0x8d, LO(state), HI(state),   /* lda #DONE : sta state        */
+    step_end = find_free_space(rom->content, FIXED_FREE_START, 63);
+    vpatch(rom, step_end, 63,
+        0xa9, PENDING, 0x8d, LO(state), HI(state), /* lda #PENDING : sta state    */
         0xa5, 0x45, 0x8d, LO(stamp), HI(stamp),   /* where the step ended         */
         0xa5, 0x3a, 0x8d, LO(stamp_x), HI(stamp_x),
         0xa5, 0x3b, 0x8d, LO(stamp_y), HI(stamp_y),
         0x20, 0x19, 0xb2,                         /* jsr $b219 : the tile effects */
-        0xa5, 0x45, 0xcd, LO(stamp), HI(stamp), 0xd0, 0x0e,       /* moved: drop them */
-        0xa5, 0x3a, 0xcd, LO(stamp_x), HI(stamp_x), 0xd0, 0x07,
-        0xa5, 0x3b, 0xcd, LO(stamp_y), HI(stamp_y), 0xf0, 0x05,
+        0xa5, 0x45, 0xcd, LO(stamp), HI(stamp), 0xd0, 0x1b,       /* moved: drop them */
+        0xa5, 0x3a, 0xcd, LO(stamp_x), HI(stamp_x), 0xd0, 0x14,
+        0xa5, 0x3b, 0xcd, LO(stamp_y), HI(stamp_y), 0xd0, 0x0d,
+        0xad, LO(state), HI(state), 0xc9, PENDING, 0xd0, 0x06,  /* a battle wrote 0: drop */
+        0xa9, DONE, 0x8d, LO(state), HI(state), 0x60,           /* keep: lda #DONE : sta state */
         0xa9, 0x00, 0x8d, LO(state), HI(state),   /* drop: lda #0 : sta state     */
         0x60);
     /* A battle starting drops them too: $E4DF stores the enemy number when every fight begins. */

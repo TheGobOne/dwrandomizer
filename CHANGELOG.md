@@ -1,4 +1,9 @@
 # Unreleased #
+* Old flag codes build a different ROM than before: Responsive Controls no longer speeds up hills (that is Fast Hills now), and reduce flashing no longer stops the cursor blinking (that is Disable Cursor Blink now)
+* Responsive Controls: a press made during a step where the hero dies is not kept
+* Flag codes must be 40, 42 or 44 characters. The command line now refuses other lengths, as the site does
+* Command line: `--quick-spell off` also clears Swap Quick Spell, so the flag code matches the site
+* Site: presets and pasted codes keep Disable Cursor Blink, like the other comfort options. A pasted Swap Quick Spell only counts with Quick Spell on. Turning Quick Spell off says that Swap went off too. Unused bits and bad characters in a pasted code get their own messages, also for #f= links
 * Random maps: every random map now changes for the same flags and seed, Continent included. All racers need the same version; the checksum on the title screen shows a mismatch. The same version still makes the same map for everyone, on the site and the desktop build
 * Random maps: towns and caves never go on a bridge, on the Rainbow Drop spot or where Return and Wings land, and every place must be reachable from Tantegel. Before, only Lake and later biomes had these rules
 * Random maps: the overworld search spot is never under a town, cave, castle or bridge
