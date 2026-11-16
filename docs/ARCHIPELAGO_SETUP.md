@@ -47,7 +47,8 @@ Put your YAML in Archipelago's `Players` folder and generate. The output is a `.
 
 1. Open the built ROM in BizHawk with the NES core.
 2. In the BizHawk Client, connect to the server with your room address and slot name.
-3. Chests and search spots send checks. Items you receive appear in your inventory, and the game shows "Thou hast found the <item>." when one arrives.
+3. Each item's message appears after your next step. On that one step, swamp and barrier damage and random battles are skipped.
+4. Chests and search spots send checks. Items you receive appear in your inventory, and the game shows "Thou hast found the <item>." when one arrives.
 4. Defeating the Dragonlord sends your goal.
 
 ## Credits
