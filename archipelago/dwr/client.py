@@ -73,7 +73,10 @@ INVENTORY_ITEMS = {
     "Silver Harp": 0xA, "Stones of Sunlight": 0xC, "Staff of Rain": 0xD,
 }
 QUEST = {0x5, 0x7, 0xA, 0xC, 0xD}
-REPLACEABLE = (0x1, 0x2, 0x3, 0x4, 0x6)  # given up to make room for a quest item, in this order
+UNIQUE = QUEST | {0x4, 0x6}  # one of each in the pool: they wait for room instead of being dropped
+# Given up to make room for a quest item, in this order. Not the Dragon's Scale or Fighter's Ring:
+# there is one of each, and a worn one would leave its bonus behind.
+REPLACEABLE = (0x1, 0x2, 0x3)
 
 
 def opened_in_game(location: int, block: bytes) -> bool:
@@ -182,10 +185,13 @@ class DWRClient(BizHawkClient):
         if saved != self.seed_hash and tag == self.slot_tag:
             # This slot was saved by this ROM, but another seed started a game in another slot
             # since. The chest and search bits are that game's, so clear them and take the hash.
-            return await bizhawk.guarded_write(
+            # The ROM does this itself at Continue; this covers a save loaded some other way.
+            # Return False either way: this poll's snapshot still holds the old bits.
+            await bizhawk.guarded_write(
                 ctx.bizhawk_ctx,
                 [(SEED_HASH, self.seed_hash, "System Bus"), (AP_RECV + 2, bytes(5), "System Bus")],
                 [(SEED_HASH, saved, "System Bus")])
+            return False
         if saved != self.seed_hash or tag not in (0, 0xFF, self.slot_tag):
             if not self.stale_noted:
                 self.stale_noted = True
@@ -257,7 +263,7 @@ class DWRClient(BizHawkClient):
 
     def _effect(self, name: str, ram: bytes):
         """RAM writes that give the item: [] when it is not given (dropped or already held),
-        None when it has to wait for room (quest items only)."""
+        None when it has to wait for room (quest items, Dragon's Scale, Fighter's Ring)."""
         if name in ("Herb", "Magic Key"):
             addr, cap = (HERBS, self.herb_cap) if name == "Herb" else (KEYS, self.key_cap)
             if ram[addr] >= cap:
@@ -278,10 +284,10 @@ class DWRClient(BizHawkClient):
         inv = bytearray(ram[INVENTORY:INVENTORY + 4])
         slots = [(i, shift) for i in range(4) for shift in (0, 4)]
         held = [(inv[i] >> shift) & 0xF for i, shift in slots]
-        if value in QUEST and value in held:
+        if value in UNIQUE and value in held:
             return []  # already held
         target = next((k for k, v in enumerate(held) if v == 0), None)
-        if target is None and value in QUEST:
+        if target is None and value in UNIQUE:
             for give_up in REPLACEABLE:
                 if give_up in held:
                     target = held.index(give_up)
@@ -289,8 +295,8 @@ class DWRClient(BizHawkClient):
                     self.notes.append(f"The inventory is full: {name} replaces your {lost}.")
                     break
         if target is None:
-            if value in QUEST:
-                return None  # quest items wait for room
+            if value in UNIQUE:
+                return None  # quest items, the Dragon's Scale and Fighter's Ring wait for room
             self.notes.append(f"Dropped {name}: the inventory is full.")
             return []
         i, shift = slots[target]

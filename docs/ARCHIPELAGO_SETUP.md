@@ -7,9 +7,9 @@ DWR's own tests play through FCEUX with an FCEUX connector for Archipelago's Biz
 ## 1. Install the pieces
 
 1. Install Archipelago. Its Launcher and BizHawk Client are included.
-2. Install BizHawk (the Archipelago installer can install it), or use FCEUX with an FCEUX connector.
+2. Install BizHawk (the Archipelago installer can install it).
 3. Get the DWR randomizer (`dwrandomizer.exe`). Note its folder.
-4. Copy `dwr.apworld` into the `custom_worlds` folder inside your Archipelago install. An `.apworld` is a zip of the `archipelago/dwr` folder, with the `dwr` folder at the top of the zip.
+4. Make `dwr.apworld`: zip the `archipelago/dwr` folder so the `dwr` folder is at the top of the zip, and rename the zip to `dwr.apworld`. Copy it into the `custom_worlds` folder inside your Archipelago install. Use the `dwr.apworld` and `dwrandomizer.exe` from the same DWR version: the client refuses a ROM from another version.
 5. Keep your vanilla Dragon Warrior ROM somewhere you can find it.
 
 ## 2. Point Archipelago at DWR
@@ -44,7 +44,7 @@ DWR:
   dwr_flags: IVICEV2EKADEAMAAAADQAEBWAAAJACAAAAIBQAAA
 ```
 
-Paste your own flag string from the DWR site in place of the example. Archipelago rejects these flags: Random Chest Locations, Stair Shuffle, Cursed Princess, Three's Company, Radish Finish and Disguised Dragonlord. The site shows a line under the flags that names any of these that are on. Set them to off before you copy the string: a flag set to Random counts as on.
+Paste your own flag string from the DWR site in place of the example. Archipelago rejects these flags: Random Chest Locations, Stair Shuffle, Cursed Princess, Three's Company, Radish Finish and Disguised Dragonlord. The site shows a line under the flags: it names the ones that are on (three at most, hover for all), or says Archipelago accepts the flags. Set them to off before you copy the string: a flag set to Random counts as on.
 
 The example string has Free Charlock on, and a YAML without `dwr_flags` uses it too. Free Charlock changes the logic as below.
 
@@ -63,11 +63,11 @@ Put your YAML in Archipelago's `Players` folder and click Generate in the Launch
 
 ## 6. Play
 
-1. Open the built ROM in BizHawk with the NES core, and load Archipelago's connector script (`data/lua/connector_bizhawk_generic.lua`) in BizHawk's Lua Console if it is not already running.
+1. Open the built ROM in BizHawk with the NesHawk core, and load Archipelago's connector script (`data/lua/connector_bizhawk_generic.lua`) in BizHawk's Lua Console if it is not already running.
 2. In the BizHawk Client, connect to the server with your room address (and the room password, if it has one). The client reads your slot name from the ROM.
 3. Chests, search spots and picking up Gwaelin send checks. Defeating the Dragonlord sends your goal.
-4. Items you receive go into your inventory. The game says "Thou hast found the <item>." after your next step on the overworld or in a room. A step onto a town, cave or stair tile shows it one step later. On the step that shows a message, swamp and barrier damage and random battles are skipped. Items you find in your own chests and search spots get no second message, since the chest already said so. A Herb or Magic Key found in your own chest while you hold the most allowed is dropped, even though the chest said "Thou hast found".
-5. A chest or search spot holding another player's item says whose it is, for example "Alex's Herb". A long player name is cut and ends in a period ("Bartholo.'s Herb"). An item name of 14 or more characters shows alone. Accents are removed and characters the game's font lacks are left out.
+4. Items you receive are added to your game. The game says "Thou hast found the <item>." after your next step on the overworld or in a room. A step onto a town, cave or stair tile shows it one step later. On the step that shows a message, swamp and barrier damage and random battles are skipped. Items you find in your own chests and search spots get no second message, since the chest already said so. A Herb or Magic Key found in your own chest while you hold the most allowed is dropped, even though the chest said "Thou hast found".
+5. A chest or search spot holding another player's item says whose it is, for example "Alex's Herb". A long player name is cut and ends in a period ("Bartholo.'s Herb"). An item name of 13 or more characters shows alone. Accents are removed and characters the game's font lacks are left out; a player name with none of the font's characters shows as "?".
 
 After the first session, always start with Continue. Any New Game clears the received-item count and the checks stored in the ROM, so Archipelago sends your items again.
 
@@ -75,7 +75,7 @@ Play one Archipelago game per ROM file and use one save slot. Copy Quest keeps t
 
 ## 7. Optional: PopTracker
 
-The pack for PopTracker 0.36.0 or newer is in `archipelago/poptracker/dwr_ap`. Load that folder in PopTracker and connect it to your room. To rebuild it (or make `dwr_ap.zip`), run `python archipelago/poptracker/build_pack.py` from the DWR folder; it needs Python with Pillow. It tracks the 15 items and 35 checks. Items you do not have are gray. Locations that someone hinted are highlighted until you check them.
+The pack, tested with PopTracker 0.36.0, is in `archipelago/poptracker/dwr_ap`. Load that folder in PopTracker and connect it to your room. To rebuild it (or make `dwr_ap.zip`), run `python archipelago/poptracker/build_pack.py` from the DWR folder; it needs Python with Pillow. It tracks the 15 items and 35 checks. Items you do not have are gray. Locations that someone hinted are highlighted until you check them.
 
 ## Credits
 
@@ -89,8 +89,8 @@ DWR's Archipelago support builds on Serpikmin's Dragon Warrior APWorld ([Serpikm
 - **The server loads an old save:** the Archipelago server keeps progress in an `.apsave` file next to the zip. Delete it to start a fresh game.
 - **"Could not read the AP patch file":** this comes from `dwrandomizer.exe`. Update both `dwr.apworld` and `dwrandomizer.exe` to the latest versions.
 - **An item does not arrive:** the BizHawk Client log says why.
-  - "No room for <item> yet.": a quest item (Fairy Flute, Erdrick's Token, Silver Harp, Stones of Sunlight, Staff of Rain) arrived with no free inventory slot and nothing it can replace. It and every item after it wait until you make room.
-  - "The inventory is full: <item> replaces your <item>.": a quest item took the place of a Torch, Fairy Water, Wings, Dragon's Scale or Fighter's Ring.
+  - "No room for <item> yet.": a quest item (Fairy Flute, Erdrick's Token, Silver Harp, Stones of Sunlight, Staff of Rain), the Dragon's Scale or the Fighter's Ring arrived with no free inventory slot and no Torch, Fairy Water or Wings to replace. It and every item after it wait until you make room.
+  - "The inventory is full: <item> replaces your <item>.": a quest item, the Dragon's Scale or the Fighter's Ring took the place of a Torch, Fairy Water or Wings. Nothing replaces the Dragon's Scale or Fighter's Ring.
   - "Dropped <item>.": another item arrived with a full inventory, or a Herb or Magic Key arrived while you hold the most the seed allows (6, or the Random Herb Carry and Random Key Carry amount).
   - "<item> is not a DWR item this client knows, so it was skipped.": the client and `dwr.apworld` are from different versions. A quest item you already hold is skipped without a log line.
 - **"DWR could not build the ROM":** check the paths in `host.yaml`.

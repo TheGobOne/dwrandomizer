@@ -64,13 +64,15 @@ class DWRPatch(APAutoPatchInterface):
                 f.write(self.text)
             music = music_args(str(getattr(options, "music_pack", "") or ""))
             tail = ["--ap-patch", text_path, rom, work]
-            result = subprocess.run([exe] + music + tail, capture_output=True, text=True)
+            result = subprocess.run([exe] + music + tail, capture_output=True, text=True,
+                                    encoding="utf-8", errors="replace")
             built = glob.glob(os.path.join(work, "DWR.*.nes"))
             if music and (result.returncode != 0 or not built):
                 # A pack that DWR cannot read should not cost the player their ROM.
                 why = (result.stdout.strip().splitlines() or [result.stderr.strip()])[-1]
                 logger.warning("DWR could not use the music pack, building with the game's music: %s", why)
-                result = subprocess.run([exe] + tail, capture_output=True, text=True)
+                result = subprocess.run([exe] + tail, capture_output=True, text=True,
+                                        encoding="utf-8", errors="replace")
                 built = glob.glob(os.path.join(work, "DWR.*.nes"))
                 music = []
             if result.returncode != 0 or not built:

@@ -106,7 +106,7 @@ def main():
 
     row_h, left, top, dot = 40, 340, 20, 30
     width = left + 8 * (dot + 8) + 20
-    height = top + (len(areas) + 2) * row_h + 10   # two more rows for the legend
+    height = top + (len(areas) + 3) * row_h + 10   # three more rows for the legend
     board = Image.new("RGBA", (width, height), (24, 24, 40, 255))
     d = ImageDraw.Draw(board)
     locations, loc_map = [], {}
@@ -124,8 +124,10 @@ def main():
         children = []
         for col, (name, section, loc_id) in enumerate(entries):
             x = left + col * (dot + 8) + dot // 2
+            # The hover name uses the same area name as the row label.
+            shown_name = shown + name[len(area):] if name.startswith(area) else name
             child = {
-                "name": name,
+                "name": shown_name,
                 "sections": [{"name": section, "item_count": 1}],
                 "map_locations": [{"map": "Checks", "x": x, "y": y + dot // 2}],
             }
@@ -134,12 +136,13 @@ def main():
             if name == "Staff of Rain Shrine Chest":
                 child["access_rules"] = ["silver_harp"]
             children.append(child)
-            loc_map[loc_id] = f"@{area}/{name}/{section}"
-        locations.append({"name": area, "children": children})
+            loc_map[loc_id] = f"@{shown}/{shown_name}/{section}"
+        locations.append({"name": shown, "children": children})
     # Only the Charlock chests and the Staff of Rain shrine have item rules, so green means
     # no known need, not reachable for sure.
-    for i, line in enumerate(("Green: no known item needed.  Red: needs items.",
-                              "Gray: checked.  Highlighted: someone hinted an item there.")):
+    for i, line in enumerate(("Green: no known item needed.  Red: needs items (Charlock, Staff shrine).",
+                              "Gray: checked.  Highlighted: someone hinted an item there.",
+                              "Item tiles: brown key items, blue useful, green filler.")):
         d.text((10, top + (len(areas) + i) * row_h + dot // 2), line,
                fill=(180, 180, 180, 255), font=font(16), anchor="lm")
     board.save(os.path.join(PACK, "images", "maps", "checks.png"))

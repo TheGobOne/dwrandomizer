@@ -36,7 +36,18 @@ class FoundText(unittest.TestCase):
         self.assertEqual(T.game_name("Pok\u00e9 Ball (Great)"), "Poke Ball Great")
 
     def test_owner_with_no_font_characters_is_left_out(self):
-        self.assertEqual(T.found_text("Herb", "\u5c71\u7530"), "Herb")
+        self.assertEqual(T.found_text("Herb", "\u5c71\u7530"), "?'s Herb")
+
+    def test_letters_without_a_combining_accent_are_kept(self):
+        self.assertEqual(T.found_text("Herb", "\u0141ukasz"), "Lukasz's Herb")
+        self.assertEqual(T.found_text("Herb", "\u00d8rjan"), "Orjan's Herb")
+
+    def test_an_item_with_no_font_characters_is_called_item(self):
+        self.assertEqual(T.game_name("\u30c0\u30fc\u30af"), "item")
+        self.assertEqual(T.found_text("\u30c0\u30fc\u30af", "Alex"), "Alex's item")
+
+    def test_a_cut_name_does_not_end_in_a_space(self):
+        self.assertEqual(T.game_name("Master Sword Of Light"), "Master Sword Of")
 
 
 if __name__ == "__main__":

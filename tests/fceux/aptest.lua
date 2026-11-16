@@ -174,8 +174,16 @@ local function driver()
       last_count = count; last_change = os.time()
       log(string.format("received %d, mail flag %d", count, rd(0x682e)))
     end
-    if age() % 90 == 10 then press[(age() % 180 < 90) and "left" or "right"] = 18 end
+    -- Walk out and back in each direction in turn, so some step lands even next to water.
+    if age() % 90 == 10 then
+      local turn = math.floor(age() / 90) % 8
+      press[({ "left", "right", "up", "down", "right", "left", "down", "up" })[turn + 1]] = 18
+    end
     if age() % 90 == 50 then press.B = 4 end
+    if age() % 1800 == 900 then
+      log(string.format("waiting: map %d at %d,%d, mail flag %d", map, rd(0x3a), rd(0x3b), rd(0x682e)))
+      shot("deliver_" .. age())
+    end
     local now = os.time()
     if (now - deliver_t0 >= 20 and now - last_change >= 15) or now - deliver_t0 >= 120 then
       log("final AP " .. ap() .. string.format(", mail flag %d, seed hash %02x%02x%02x%02x, slot tags %02x %02x %02x",

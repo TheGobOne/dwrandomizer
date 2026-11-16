@@ -376,24 +376,39 @@ static void ap_save_and_load(dw_rom *rom)
     uint16_t save, restore, start, chain, cont, copy;
     uint32_t hash = ap_seed_hash(rom);
 
-    /* Y is free on entry: the moved code starts with ldy #0. The slot tag says
-     * which seed last saved this slot. */
-    save = find_free_space(rom->content, FIXED_FREE_START, 27);
-    vpatch(rom, save, 27,
+    /* Y is free on entry: the moved code starts with ldy #0. */
+    save = find_free_space(rom->content, FIXED_FREE_START, 22);
+    vpatch(rom, save, 22,
         0xad, LO(SAVE_SLOT), HI(SAVE_SLOT),           /* lda slot        */
         0x0a, 0xa8,                                   /* asl, tay        */
         0xad, LO(AP_RECV), HI(AP_RECV),               /* lda recv        */
         0x99, LO(AP_SLOT_RECV), HI(AP_SLOT_RECV),     /* sta slot_recv,y */
         0xad, LO(AP_RECV + 1), HI(AP_RECV + 1),
         0x99, LO(AP_SLOT_RECV + 1), HI(AP_SLOT_RECV + 1),
-        0xa9, ap_slot_tag(hash),                      /* lda #tag        */
-        0x99, LO(AP_SLOT_TAG), HI(AP_SLOT_TAG),       /* sta slot_tag,y  */
         0xa0, 0x00,                                   /* ldy #0 (moved)  */
         0xa5, 0xba,                                   /* lda $ba (moved) */
         0x60                                          /* rts             */
     );
     /* SaveData at $FA18 was ldy #0, lda $ba. */
     vpatch(rom, 0xfa18, 4, 0x20, LO(save), HI(save), 0xea);
+
+    /* The slot tag says which seed last saved this slot. Only the king's save
+     * ($F14D, jmp SaveData) writes it: the title menu's Change Message Speed also
+     * saves, and must not claim another seed's slot. */
+    if (rom->content[0xf14d] == 0x4c && rom->content[0xf14e] == 0xdf
+            && rom->content[0xf14f] == 0xf9) {
+        uint16_t king = find_free_space(rom->content, FIXED_FREE_START, 13);
+        vpatch(rom, king, 13,
+            0xad, LO(SAVE_SLOT), HI(SAVE_SLOT),       /* lda slot        */
+            0x0a, 0xaa,                               /* asl, tax        */
+            0xa9, ap_slot_tag(hash),                  /* lda #tag        */
+            0x9d, LO(AP_SLOT_TAG), HI(AP_SLOT_TAG),   /* sta slot_tag,x  */
+            0x4c, 0xdf, 0xf9                          /* jmp SaveData    */
+        );
+        vpatch(rom, 0xf14d, 3, 0x4c, LO(king), HI(king));
+    } else {
+        printf("AP: unexpected code at $F14D, saves will not tag their slot\n");
+    }
 
     restore = find_free_space(rom->content, FIXED_FREE_START, 22);
     vpatch(rom, restore, 22,
@@ -448,36 +463,75 @@ static void ap_save_and_load(dw_rom *rom)
         printf("AP: unexpected code at $F8BE, a continue will be treated as a new game\n");
     }
 
+    /* New Quest stores its slot with sta $6039 at $F8CE. A Continue that was
+     * reset before the game started leaves the loaded flag set, so clear it here
+     * too, or this new game would keep the old counter and location bits. The
+     * counter is zeroed too: New Quest saves the hero before the game starts. */
+    if (rom->content[0xf8ce] == 0x8d && rom->content[0xf8cf] == 0x39
+            && rom->content[0xf8d0] == 0x60) {
+        uint16_t quest = find_free_space(rom->content, FIXED_FREE_START, 18);
+        vpatch(rom, quest, 18,
+            0x8d, 0x39, 0x60,                         /* sta $6039 (moved) */
+            0xa9, 0x00,                               /* lda #0          */
+            0x8d, LO(AP_LOADED), HI(AP_LOADED),       /* sta loaded      */
+            0x8d, LO(AP_RECV), HI(AP_RECV),           /* sta recv        */
+            0x8d, LO(AP_RECV + 1), HI(AP_RECV + 1),
+            0xad, 0x39, 0x60,                         /* lda $6039: A and flags as before */
+            0x60                                      /* rts             */
+        );
+        vpatch(rom, 0xf8ce, 3, 0x20, LO(quest), HI(quest));
+    } else {
+        printf("AP: unexpected code at $F8CE, a reset during Continue can carry its state into a new game\n");
+    }
+
     /* Game start ($CA1A, a jsr to the code that loads the throne room). The AP
-     * work runs first, so nothing sees the old state, then it jumps on. A new
-     * game clears the counter, the location bits and this slot's saved counter,
-     * tags the slot, and writes this ROM's seed hash. */
+     * work runs first, so nothing sees the old state, then it jumps on.
+     * New game: tag the slot, clear the counter (live and saved), the location
+     * bits, and write this ROM's seed hash.
+     * Continue: when this ROM tagged the slot but another seed started a game
+     * since (the hash differs), the location bits are that game's, so clear
+     * them and write this ROM's hash. */
     chain = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
-    start = find_free_space(rom->content, FIXED_FREE_START, 57);
-    vpatch(rom, start, 57,
-        0xa9, 0x00,                                   /* lda #0          */
-        0x8d, LO(AP_MAIL_FLAG), HI(AP_MAIL_FLAG),     /* stale mail flag */
-        0xae, LO(AP_LOADED), HI(AP_LOADED),           /* ldx loaded      */
-        0x8d, LO(AP_LOADED), HI(AP_LOADED),           /* sta loaded (0)  */
-        0xd0, 0x25,                                   /* bne go: continue */
-        0xad, LO(SAVE_SLOT), HI(SAVE_SLOT),           /* lda slot        */
-        0x0a, 0xaa,                                   /* asl, tax        */
-        0xa9, ap_slot_tag(hash),                      /* lda #tag        */
-        0x9d, LO(AP_SLOT_TAG), HI(AP_SLOT_TAG),       /* sta slot_tag,x  */
-        0xa9, 0x00,                                   /* lda #0: A stays 0 for the loop */
-        0x9d, LO(AP_SLOT_RECV), HI(AP_SLOT_RECV),     /* clear slot_recv,x */
-        0x9d, LO(AP_SLOT_RECV + 1), HI(AP_SLOT_RECV + 1),
-        0xa2, AP_SEARCH - AP_RECV,                    /* ldx #6          */
-        0x9d, LO(AP_RECV), HI(AP_RECV),               /* - sta recv,x: counter, chest and search bits */
-        0xca,                                         /*   dex           */
-        0x10, 0xfa,                                   /*   bpl -         */
-        0xa2, 0x03,                                   /* ldx #3          */
-        0xbd, LO(start + 53), HI(start + 53),         /* - lda hash,x    */
-        0x9d, LO(AP_SEED_HASH), HI(AP_SEED_HASH),     /*   sta seed_hash,x */
-        0xca,                                         /*   dex           */
-        0x10, 0xf7,                                   /*   bpl -         */
-        0x4c, LO(chain), HI(chain),                   /* go: jmp chain   */
-        hash & 0xff, (hash >> 8) & 0xff, (hash >> 16) & 0xff, hash >> 24  /* hash */
+    start = find_free_space(rom->content, FIXED_FREE_START, 92);
+    vpatch(rom, start, 92,
+        0xa9, 0x00,                                   /* 0:  lda #0          */
+        0x8d, LO(AP_MAIL_FLAG), HI(AP_MAIL_FLAG),     /* 2:  stale mail flag */
+        0xae, LO(AP_LOADED), HI(AP_LOADED),           /* 5:  ldx loaded      */
+        0x8d, LO(AP_LOADED), HI(AP_LOADED),           /* 8:  sta loaded (0)  */
+        0xd0, 0x30,                                   /* 11: bne cont (61)   */
+        0xad, LO(SAVE_SLOT), HI(SAVE_SLOT),           /* 13: lda slot        */
+        0x0a, 0xaa,                                   /* 16: asl, tax        */
+        0xa9, ap_slot_tag(hash),                      /* 18: lda #tag        */
+        0x9d, LO(AP_SLOT_TAG), HI(AP_SLOT_TAG),       /* 20: sta slot_tag,x  */
+        0xa9, 0x00,                                   /* 23: lda #0          */
+        0x9d, LO(AP_SLOT_RECV), HI(AP_SLOT_RECV),     /* 25: sta slot_recv,x */
+        0x9d, LO(AP_SLOT_RECV + 1), HI(AP_SLOT_RECV + 1), /* 28 */
+        0x8d, LO(AP_RECV), HI(AP_RECV),               /* 31: sta recv        */
+        0x8d, LO(AP_RECV + 1), HI(AP_RECV + 1),       /* 34: sta recv+1      */
+        0xa9, 0x00,                                   /* 37: wipe: lda #0    */
+        0xa2, AP_SEARCH - AP_CHESTS,                  /* 39: ldx #4          */
+        0x9d, LO(AP_CHESTS), HI(AP_CHESTS),           /* 41: - sta chests,x (and search) */
+        0xca,                                         /* 44:   dex           */
+        0x10, 0xfa,                                   /* 45:   bpl - (41)    */
+        0xa2, 0x03,                                   /* 47: ldx #3          */
+        0xbd, LO(start + 88), HI(start + 88),         /* 49: - lda hash,x    */
+        0x9d, LO(AP_SEED_HASH), HI(AP_SEED_HASH),     /* 52:   sta seed_hash,x */
+        0xca,                                         /* 55:   dex           */
+        0x10, 0xf7,                                   /* 56:   bpl - (49)    */
+        0x4c, LO(chain), HI(chain),                   /* 58: go: jmp chain   */
+        0xad, LO(SAVE_SLOT), HI(SAVE_SLOT),           /* 61: cont: lda slot  */
+        0x0a, 0xaa,                                   /* 64: asl, tax        */
+        0xbd, LO(AP_SLOT_TAG), HI(AP_SLOT_TAG),       /* 66: lda slot_tag,x  */
+        0xc9, ap_slot_tag(hash),                      /* 69: cmp #tag        */
+        0xd0, 0xf1,                                   /* 71: bne go (58)     */
+        0xa2, 0x03,                                   /* 73: ldx #3          */
+        0xbd, LO(start + 88), HI(start + 88),         /* 75: - lda hash,x    */
+        0xdd, LO(AP_SEED_HASH), HI(AP_SEED_HASH),     /* 78:   cmp seed_hash,x */
+        0xd0, 0xd2,                                   /* 81:   bne wipe (37) */
+        0xca,                                         /* 83:   dex           */
+        0x10, 0xf5,                                   /* 84:   bpl - (75)    */
+        0x30, 0xe2,                                   /* 86: bmi go (58)     */
+        hash & 0xff, (hash >> 8) & 0xff, (hash >> 16) & 0xff, hash >> 24  /* 88: hash */
     );
     vpatch(rom, 0xca1a, 3, 0x20, LO(start), HI(start));
 }

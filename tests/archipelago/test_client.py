@@ -170,6 +170,19 @@ class GiveItem(unittest.TestCase):
         self.assertIn("replaces your Torch", log.output[0])
         self.assertEqual(len([w for w in writes if w[2] == "RAM"]), 1)
 
+    def test_scale_waits_for_room_instead_of_being_dropped(self):
+        self.ram[C.INVENTORY:C.INVENTORY + 4] = bytes([0xAA, 0xAA, 0xAA, 0xAA])  # Silver Harps
+        self.assertEqual(give(["Dragon's Scale"], self.ram), [])
+
+    def test_ring_replaces_a_torch_when_the_bag_is_full(self):
+        self.ram[C.INVENTORY:C.INVENTORY + 4] = bytes([0x11, 0xAA, 0xAA, 0xAA])
+        writes, _ = give(["Fighter's Ring"], self.ram)[0]
+        self.assertIn((C.INVENTORY, bytes([0x16]), "RAM"), writes)
+
+    def test_quest_item_never_replaces_the_scale_or_ring(self):
+        self.ram[C.INVENTORY:C.INVENTORY + 4] = bytes([0x64, 0x64, 0x64, 0x64])  # Scale and Ring
+        self.assertEqual(give(["Silver Harp"], self.ram), [])
+
     def test_quest_item_without_room_waits_and_logs_once(self):
         for i in range(4):
             self.ram[C.INVENTORY + i] = 0xAA  # every slot holds a Silver Harp
@@ -275,7 +288,7 @@ class SeedCheck(unittest.TestCase):
     def test_own_slot_after_another_seeds_game_takes_the_hash_back(self):
         other = b"\x09\x09\x09\x09"
         ok, calls = self.check(other, tag=C.slot_tag(self.ROM))
-        self.assertTrue(ok)
+        self.assertFalse(ok)   # this poll's snapshot still has the old bits: send nothing
         writes, guards = calls[0]
         self.assertIn((C.SEED_HASH, self.ROM, "System Bus"), writes)
         self.assertIn((C.AP_RECV + 2, bytes(5), "System Bus"), writes)

@@ -69,10 +69,10 @@
     ]
   },
   {
-    "name": "Throne Room",
+    "name": "Tantegel Throne Room",
     "children": [
       {
-        "name": "Throne Room Chest 1",
+        "name": "Tantegel Throne Room Chest 1",
         "sections": [
           {
             "name": "Chest 1",
@@ -88,7 +88,7 @@
         ]
       },
       {
-        "name": "Throne Room Chest 2",
+        "name": "Tantegel Throne Room Chest 2",
         "sections": [
           {
             "name": "Chest 2",
@@ -104,7 +104,7 @@
         ]
       },
       {
-        "name": "Throne Room Chest 3",
+        "name": "Tantegel Throne Room Chest 3",
         "sections": [
           {
             "name": "Chest 3",

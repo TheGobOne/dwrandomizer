@@ -309,7 +309,7 @@ input[type=file]{min-width:0;max-width:100%}
 .skipopts{position:absolute;left:-9999px}
 .skipopts:focus{position:static;display:block;width:100%;margin-top:.2rem}
 .romstat.romneed{color:#ffd23f}
-.apcheck{font-size:.85em;opacity:.8;min-height:1.4em}
+.apcheck{font-size:.9em;min-height:2.7em;align-items:flex-start}
 .apcheck.apbad{color:#ffd23f;opacity:1}
 .packstatus{color:#ffd23f}
 dialog.resultwin{width:min(36rem,calc(100vw - 4rem));max-height:80vh;overflow:auto;background:var(--blue);color:#fff;margin:auto}
@@ -814,7 +814,7 @@ function matches(it,q){ q=q.toLowerCase(); return !q||it[1].toLowerCase().includ
 const AP_REJECT=['chestloc','stairs','cursed','three','radish','disguised'];
 function itemLabel(id){ for(const t of TABS) for(const it of t.items) if(it[0]===id) return it[1]; return id; }
 function flagsBlock(){
-  const fi=el('input',{id:'flags',type:'text','aria-label':'Flags','aria-describedby':'apmsg',value:State.flags()});
+  const fi=el('input',{id:'flags',type:'text','aria-describedby':'apmsg',value:State.flags()});
   fi.addEventListener('change',()=>{ let ok; State.oddFlags=false; State.oddBits=false;
     const raw=fi.value, clean=raw.replace(/^\s*flags\s*:?/i,'').replace(/[\s-]/g,'').toUpperCase();
     State.keepPersonal(()=>{ ok=State.setFlags(clean); }); if(!ok) fi.value=State.flags();
@@ -834,10 +834,13 @@ function flagsBlock(){
   const apMsg=el('span',{id:'apmsg',role:'status'});
   const ap=el('div',{class:'row apcheck'},el('label',{'aria-hidden':'true'}),apMsg);
   const apPaint=()=>{ const bad=AP_REJECT.filter(id=>State.v[id]|0).map(itemLabel);
-    // At most two names keep the line short, so the rows below do not jump; the title has them all.
-    const names=bad.length>2?bad.slice(0,2).join(', ')+' and '+(bad.length-2)+' more':bad.join(' and ');
+    // At most three names fit the two lines kept for this row, so the rows below do not jump.
+    // The title and the screen reader label have them all.
+    const list=a=>a.length>1?a.slice(0,-1).join(', ')+' and '+a[a.length-1]:a.join('');
+    const names=bad.length>3?bad.slice(0,2).join(', ')+' and '+(bad.length-2)+' more':list(bad);
     const text=bad.length?'Archipelago: set '+names+' to off.':'Archipelago accepts these flags.';
-    apMsg.title=bad.length>2?bad.join(', '):'';
+    apMsg.title=bad.length>3?bad.join(', '):'';
+    if(bad.length>3) apMsg.setAttribute('aria-label','Archipelago: set '+list(bad)+' to off.'); else apMsg.removeAttribute('aria-label');
     ap.classList.toggle('apbad',bad.length>0);
     if(apMsg.textContent!==text) apMsg.textContent=text; };
   State.on(apPaint); apPaint();

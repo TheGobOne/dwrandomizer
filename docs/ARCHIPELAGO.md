@@ -59,7 +59,7 @@ Licenses: DWR and Archipelago are MIT. The APWorld repo inherits Archipelago's M
 
 | Part | Where | Notes |
 |---|---|---|
-| AP mode in the patcher | `common/dwr.c`, `common/dwr.h`, `cli/main.c` | New entry point, e.g. `dwr_randomize_ap(input, seed, flags, ap_opts, out)`. Calls the same `apply_stuff_to_rom()` then an `ap_changes()` port. Writes `DWAPV` + version at the ROM signature. CLI gets `--ap` options for testing. |
+| AP mode in the patcher | `common/dwr.c`, `common/dwr.h`, `cli/main.c` | New entry point, e.g. `dwr_randomize_ap(input, seed, flags, ap_opts, out)`. Calls the same `apply_stuff_to_rom()` then an `ap_changes()` port. Writes `DWRAP` + version at the ROM signature. CLI gets `--ap` options for testing. |
 | Python binding (as built: none, the APWorld runs `dwrandomizer.exe --ap-slot/--ap-patch`) | new `ap/` folder | Cython or `ctypes` wrapper around the AP entry point. `ctypes` + a plain shared library is simpler to build for several Python versions. |
 | APWorld | fork of Serpikmin's world | Swap the flag builder for one that packs DWR's flag bytes directly (`common/dwr.h` macros), then base32 encode. Add options for DWR-only flags that are safe in AP. |
 | Client | Serpikmin's `client.py` | Keep as is for the proof of concept. Later: read a persistent checked-locations bitfield and use a mailbox for received items. |
@@ -122,7 +122,7 @@ Built on branch `feature/archipelago`, with its own hooks on DWR's code:
 | Part | Where | What it does |
 |---|---|---|
 | AP mode | `common/archipelago.c`, CLI `--ap-slot <name>` | Runs last in `apply_stuff_to_rom()` |
-| Chests | hook at `$E221` (chest found, Y = index * 4) | Sets bit n of `$6822-$6825`, marks the chest open, shows "Thou hast found the APItem." No item or gold is given. |
+| Chests | hook at `$E221` (chest found, Y = index * 4) | Sets bit n of `$6822-$6825`, marks the chest open, shows "Thou hast found the <item name>." (APItem without a patch file). No item or gold is given. |
 | Search spots | hook at `$E12D` (search entry X matched) | Sets bit X of `$6826`, same message |
 | Items received counter | `$6820-$6821`, saved per slot at `$6828 + slot * 2` | Save hook at `$FA18`, restored by LoadSavedData at `$FB6B`. A new game (a start with no Continue load) clears it. |
 | ROM signature | PRG `$7FE0` | `DWRAP` and the version (`003` now), a pointer to the 32-byte UTF-8 slot name, a custom music flag, the 4-byte seed hash, and the herb and key carry caps |
@@ -187,7 +187,7 @@ How the mailbox works: the client writes the item name in DW tiles to `$6850` an
 ## Phase 5 status (2026-11-16)
 
 - Setup guide: `docs/ARCHIPELAGO_SETUP.md`, with Serpikmin credited. The Launcher menu names and BizHawk connection steps come from the code, not a recorded run.
-- PopTracker: no published DWR pack was found. `archipelago/poptracker/build_pack.py` builds one from the APWorld tables (15 items, 35 checks, AP autotracker). Its JSON passes PopTracker 0.36.0's schemas, and PopTracker 0.36.0 loads it with no errors, including the AP autotracking scripts. Live tracking works: connected to a finished seed, it lit all 15 items with the right counts and cleared all 35 checks.
+- PopTracker: no pack that matches DWR's locations and items was found. `archipelago/poptracker/build_pack.py` builds one from the APWorld tables (15 items, 35 checks, AP autotracker). Its JSON passes PopTracker 0.36.0's schemas, and PopTracker 0.36.0 loads it with no errors, including the AP autotracking scripts. Live tracking works: connected to a finished seed, it lit all 15 items with the right counts and cleared all 35 checks.
 - Linux and macOS builds: dropped from Phase 5 by the user (Windows only).
 - Public release: waiting on the user's approval.
 
@@ -201,6 +201,7 @@ How the mailbox works: the client writes the item name in DW tiles to `$6850` an
 - Found-message names are stored end to end at the top of bank 3, and another player's item names the player, cut to fit 16 characters ("Bartholo.'s Herb"), with accents folded for the DW font.
 - Slot names are 32 bytes of UTF-8 (Archipelago itself cuts them to 16 characters).
 - Round 2: a New Game also tags its slot. A slot this ROM saved takes the seed hash back after another seed started a game in another slot, and clears the shared chest and search bits. An unknown ROM version is refused. The client warns when the save has more items than the server sent. Drop and swap log lines appear only once the write lands.
+- Round 3: the ROM itself takes the seed hash back at Continue when it tagged the slot, clearing the other seed's location bits. Only the king's save tags a slot (Change Message Speed on the title menu also saves). New Quest zeroes the counter before it saves the new hero. The Dragon's Scale and Fighter's Ring wait for room like quest items. The client sends nothing on the poll that takes the hash back.
 - PopTracker: gray items you do not have, area labels with counts, a legend, and hint highlights by hint status.
 - The DWR site names any flag Archipelago rejects under the flag string.
 
