@@ -6,16 +6,16 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 
 ## New flags
 
-- **Fast Hills:** a step onto a hill takes as long as a step onto grass (16 frames instead of 19). This used to be part of Responsive Controls. Command line: `--fast-hills on`.
-- **Disable Cursor Blink:** the menu cursor arrow stays on instead of blinking. It is a comfort option, so presets and pasted codes keep it. Command line: `--cursor-blink off`.
-- **Swap Quick Spell:** with Quick Spell on, SPELL takes the top right slot of the battle window and the quick spell goes under it. Command line: `--quick-spell-swap on`.
+- Fast Hills: a step onto a hill takes as long as a step onto grass (16 frames instead of 19). This used to be part of Responsive Controls. Command line: `--fast-hills on`.
+- Disable Cursor Blink: the menu cursor arrow stays on instead of blinking. It is a comfort option, so presets and pasted codes keep it. Command line: `--cursor-blink off`.
+- Swap Quick Spell: with Quick Spell on, SPELL takes the top right slot of the battle window and the quick spell goes under it. Command line: `--quick-spell-swap on`.
 
 ## Random maps
 
-- Caldera, Wasteland, Riverlands and Lake have a wobbly coast with bays and points instead of a square, and use all 120 rows.
+- Refined map generation algorithm for all maps.
+- Caldera, Wasteland and Riverlands now use all 120 rows.
 - North-south bridges have their own tiles: rails down both sides with the deck between them. Bridges are drawn along their longer run, so L-shaped bridges look right.
-- Bridges that join land masses are picked from the whole map and can run north to south.
-- Every random map follows the same placement rules: no town or cave on a bridge, the Rainbow Drop spot or the Return point, and every place reachable from Tantegel.
+- Bridges that join land masses are picked from the whole map and can run north to south. Previously, the north half of the map was favored when placing 1 tile bridges.
 - Caldera's two passes always open onto walkable land.
 - Earth: after a raft ride the hero faces away from the pier.
 
