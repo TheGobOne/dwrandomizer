@@ -188,7 +188,7 @@ How the mailbox works: the client writes the item name in DW tiles to `$6850` an
 
 - Setup guide: `docs/ARCHIPELAGO_SETUP.md`, with Serpikmin credited. The Launcher menu names and BizHawk connection steps come from the code, not a recorded run.
 - PopTracker: no Dragon Warrior or DWR pack with Archipelago autotracking was found. A pack is new work (items, locations by AP ID, maps).
-- Linux and macOS builds: not possible on this machine (no WSL, no Mac). CI only builds the site (`.github/workflows/pages.yml`).
+- Linux and macOS builds: dropped from Phase 5 by the user (Windows only).
 - Public release: waiting on the user's approval.
 
 ## Test notes
