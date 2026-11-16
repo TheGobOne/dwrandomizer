@@ -58,7 +58,7 @@ def _load_client():
     pkg = types.ModuleType("dwrtest")
     pkg.__path__ = [DWR_DIR]
     sys.modules["dwrtest"] = pkg
-    for name in ("data", "client"):
+    for name in ("data", "text", "client"):
         spec = importlib.util.spec_from_file_location("dwrtest." + name,
                                                       os.path.join(DWR_DIR, name + ".py"))
         mod = importlib.util.module_from_spec(spec)
@@ -72,21 +72,28 @@ C = _load_client()
 
 
 class FakeCtx:
-    def __init__(self, names):
-        self.items_received = [types.SimpleNamespace(item=i, player=1) for i in range(len(names))]
+    def __init__(self, names, sender=2, location=-1):
+        # Items sent by another player (2) from a location in their world, unless told otherwise.
+        self.items_received = [types.SimpleNamespace(item=i, player=sender, location=location)
+                               for i in range(len(names))]
         self._names = names
         self.item_names = types.SimpleNamespace(lookup_in_game=lambda item: self._names[item])
-        self.player_names = {1: "Tester"}
+        self.player_names = {1: "Tester", 2: "Friend"}
+        self.slot = 1
         self.bizhawk_ctx = None
 
 
-def give(names, ram, received=0, mail_flag=0, guard_ok=True):
+def give(names, ram, received=0, mail_flag=0, guard_ok=True, client=None, chests=0, **ctx_args):
     BH.calls.clear()
     BH.guard_result = guard_ok
-    block = bytes([received & 0xFF, received >> 8, 0, 0, 0, 0, 0])
-    client = C.DWRClient()
-    asyncio.run(client._give_item(FakeCtx(names), bytes(ram), block, mail_flag))
+    block = bytes([received & 0xFF, received >> 8]) + chests.to_bytes(4, "little") + b"\x00"
+    client = client or C.DWRClient()
+    asyncio.run(client._give_item(FakeCtx(names, **ctx_args), bytes(ram), block, mail_flag))
     return BH.calls
+
+
+def addrs(writes):
+    return [w[0] for w in writes]
 
 
 class GiveItem(unittest.TestCase):
@@ -102,6 +109,7 @@ class GiveItem(unittest.TestCase):
         self.assertIn((C.HERBS, bytes([4]), "RAM"), writes)
         self.assertIn((C.HERBS, bytes([3]), "RAM"), guards)
         self.assertIn((C.AP_RECV, b"\x00\x00", "System Bus"), guards)
+        self.assertIn(C.MAIL_FLAG, addrs(writes))
 
     def test_gold_write_guards_both_gold_bytes(self):
         self.ram[C.GOLD] = 0x2C
@@ -111,32 +119,48 @@ class GiveItem(unittest.TestCase):
         self.assertIn((C.GOLD, bytes([0x2C, 0x01]), "RAM"), guards)
 
     def test_inventory_write_guards_the_slot_byte(self):
-        self.ram[C.INVENTORY] = 0x00
         writes, guards = give(["Silver Harp"], self.ram)[0]
         ram_writes = [w for w in writes if w[2] == "RAM"]
         self.assertEqual(len(ram_writes), 1)
         addr = ram_writes[0][0]
         self.assertIn((addr, bytes([self.ram[addr]]), "RAM"), guards)
 
-    def test_herb_at_six_waits(self):
+    def test_herb_at_the_cap_is_dropped_without_a_message(self):
         self.ram[C.HERBS] = 6
-        with self.assertLogs("Client", level="INFO") as log:
-            calls = give(["Herb"], self.ram)
-        self.assertEqual(calls, [])
-        self.assertIn("No room for Herb", log.output[0])
+        with self.assertLogs("Client", level="WARNING") as log:
+            writes, guards = give(["Herb"], self.ram)[0]
+        self.assertIn("Dropped Herb", log.output[0])
+        self.assertEqual(addrs(writes), [C.AP_RECV])   # counted, nothing given, no message
 
-    def test_key_at_six_waits(self):
-        self.ram[C.KEYS] = 6
-        self.assertEqual(give(["Magic Key"], self.ram), [])
+    def test_caps_come_from_the_rom(self):
+        client = C.DWRClient()
+        client.herb_cap, client.key_cap = 3, 9
+        self.ram[C.HERBS] = 3
+        self.ram[C.KEYS] = 8
+        writes, _ = give(["Herb"], self.ram, client=client)[0]
+        self.assertEqual(addrs(writes), [C.AP_RECV])
+        writes, _ = give(["Magic Key"], self.ram, client=client)[0]
+        self.assertIn((C.KEYS, bytes([9]), "RAM"), writes)
 
-    def test_full_bag_drops_with_a_log(self):
+    def test_full_bag_drops_with_a_log_and_no_message(self):
         for i in range(4):
             self.ram[C.INVENTORY + i] = 0x11  # every slot holds a Torch
         with self.assertLogs("Client", level="WARNING") as log:
             writes, guards = give(["Wings"], self.ram)[0]
         self.assertIn("Dropped Wings", log.output[0])
-        self.assertEqual([w for w in writes if w[2] == "RAM"], [])
+        self.assertEqual(addrs(writes), [C.AP_RECV])
         self.assertEqual(guards, [(C.AP_RECV, b"\x00\x00", "System Bus")])
+
+    def test_quest_item_already_held_gets_no_message(self):
+        self.ram[C.INVENTORY] = 0x0A  # Silver Harp
+        writes, _ = give(["Silver Harp"], self.ram)[0]
+        self.assertEqual(addrs(writes), [C.AP_RECV])
+
+    def test_unknown_item_is_logged(self):
+        with self.assertLogs("Client", level="WARNING") as log:
+            writes, _ = give(["Mystery Box"], self.ram)[0]
+        self.assertIn("Mystery Box", log.output[0])
+        self.assertEqual(addrs(writes), [C.AP_RECV])
 
     def test_full_bag_quest_item_swaps_with_a_log(self):
         for i in range(4):
@@ -145,6 +169,45 @@ class GiveItem(unittest.TestCase):
             writes, guards = give(["Silver Harp"], self.ram)[0]
         self.assertIn("replaces your Torch", log.output[0])
         self.assertEqual(len([w for w in writes if w[2] == "RAM"]), 1)
+
+    def test_quest_item_without_room_waits_and_logs_once(self):
+        for i in range(4):
+            self.ram[C.INVENTORY + i] = 0xAA  # every slot holds a Silver Harp
+        client = C.DWRClient()
+        with self.assertLogs("Client", level="INFO") as log:
+            self.assertEqual(give(["Staff of Rain"], self.ram, client=client), [])
+            self.assertEqual(give(["Staff of Rain"], self.ram, client=client), [])
+        self.assertEqual(sum("No room for Staff of Rain" in line for line in log.output), 1)
+
+    def test_own_chest_item_has_no_mailbox_message(self):
+        writes, _ = give(["Herb"], self.ram, sender=1, location=C.BASE + 4, chests=1 << 4)[0]
+        self.assertIn(C.HERBS, addrs(writes))
+        self.assertNotIn(C.MAIL_FLAG, addrs(writes))
+
+    def test_own_unopened_chest_item_gets_a_message(self):
+        # !collect or a release sends items from chests the player never opened.
+        writes, _ = give(["Herb"], self.ram, sender=1, location=C.BASE + 4, chests=1 << 5)[0]
+        self.assertIn(C.MAIL_FLAG, addrs(writes))
+
+    def test_drop_is_logged_only_when_the_write_lands(self):
+        self.ram[C.HERBS] = 6
+        logger = logging.getLogger("Client")
+        with self.assertLogs("Client", level="INFO") as log:
+            logger.info("marker")
+            give(["Herb"], self.ram, guard_ok=False)
+        self.assertFalse(any("Dropped" in line for line in log.output))
+
+    def test_save_ahead_of_the_server_warns_once(self):
+        client = C.DWRClient()
+        with self.assertLogs("Client", level="WARNING") as log:
+            self.assertEqual(give(["Herb"], self.ram, received=5, client=client), [])
+            give(["Herb"], self.ram, received=5, client=client)
+        self.assertEqual(sum("has received 5 items" in line for line in log.output), 1)
+
+    def test_own_gwaelin_item_still_gets_a_message(self):
+        gwaelin = C.LOCATION_NAME_TO_ID[C.GWAELIN]
+        writes, _ = give(["Herb"], self.ram, sender=1, location=gwaelin)[0]
+        self.assertIn(C.MAIL_FLAG, addrs(writes))
 
     def test_open_mailbox_waits(self):
         self.assertEqual(give(["Herb"], self.ram, mail_flag=1), [])
@@ -160,6 +223,75 @@ class GiveItem(unittest.TestCase):
         text = C.dw_text("Stones of Sunlight")
         self.assertEqual(text, C.dw_text("Sunlight Stones"))
         self.assertEqual(len(text), len("Sunlight Stones") + 1)
+
+    def test_every_item_name_fits_the_message(self):
+        data = sys.modules["dwrtest.data"]
+        text = sys.modules["dwrtest.text"]
+        for name in data.ITEMS:
+            shown = text.SHORT_NAMES.get(name, name)
+            self.assertLessEqual(len(shown), 16, name)
+
+
+class SeedCheck(unittest.TestCase):
+    ROM = b"\x01\x02\x03\x04"
+
+    def check(self, saved, tag=0, rom_hash=ROM, guard_ok=True):
+        BH.calls.clear()
+        BH.guard_result = guard_ok
+        client = C.DWRClient()
+        client.seed_hash = rom_hash
+        client.slot_tag = C.slot_tag(rom_hash)
+        ok = asyncio.run(client._check_seed(FakeCtx([]), saved, tag))
+        return ok, list(BH.calls)
+
+    def test_old_save_without_hash_is_adopted(self):
+        for empty in (b"\x00\x00\x00\x00", b"\xff\xff\xff\xff"):
+            ok, calls = self.check(empty)
+            self.assertTrue(ok)
+            writes, guards = calls[0]
+            self.assertEqual(writes, [(C.SEED_HASH, self.ROM, "System Bus")])
+            self.assertEqual(guards, [(C.SEED_HASH, empty, "System Bus")])
+
+    def test_failed_adopt_waits_a_poll(self):
+        ok, _ = self.check(b"\x00\x00\x00\x00", guard_ok=False)
+        self.assertFalse(ok)
+
+    def test_same_seed_goes_on(self):
+        ok, calls = self.check(self.ROM, tag=C.slot_tag(self.ROM))
+        self.assertTrue(ok)
+        self.assertEqual(calls, [])
+
+    def test_untagged_slot_goes_on(self):
+        self.assertTrue(self.check(self.ROM, tag=0)[0])
+        self.assertTrue(self.check(self.ROM, tag=0xFF)[0])
+
+    def test_other_seed_stops_with_one_warning(self):
+        with self.assertLogs("Client", level="WARNING") as log:
+            ok, calls = self.check(b"\x09\x09\x09\x09")
+        self.assertFalse(ok)
+        self.assertEqual(calls, [])
+        self.assertIn("different DWR seed", log.output[0])
+
+    def test_own_slot_after_another_seeds_game_takes_the_hash_back(self):
+        other = b"\x09\x09\x09\x09"
+        ok, calls = self.check(other, tag=C.slot_tag(self.ROM))
+        self.assertTrue(ok)
+        writes, guards = calls[0]
+        self.assertIn((C.SEED_HASH, self.ROM, "System Bus"), writes)
+        self.assertIn((C.AP_RECV + 2, bytes(5), "System Bus"), writes)
+        self.assertEqual(guards, [(C.SEED_HASH, other, "System Bus")])
+
+    def test_slot_saved_by_another_seed_stops(self):
+        ok, _ = self.check(self.ROM, tag=0x33)
+        self.assertFalse(ok)
+
+    def test_rom_without_hash_is_not_checked(self):
+        self.assertTrue(self.check(b"\x09\x09\x09\x09", rom_hash=b"")[0])
+
+    def test_slot_tag_matches_the_rom_rule(self):
+        self.assertEqual(C.slot_tag(b"\x4c\x8b\x6f\x66"), 0x4C)
+        self.assertEqual(C.slot_tag(b"\x00\x01\x02\x03"), 0x5A)
+        self.assertEqual(C.slot_tag(b"\xff\x01\x02\x03"), 0x5A)
 
 
 if __name__ == "__main__":

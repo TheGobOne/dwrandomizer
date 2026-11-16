@@ -96,6 +96,7 @@ Run Mechanics (Battle tab) and Run Bank are separate things. Run Mechanics chang
 - Its seeds and flags are not compatible with mcgrew's or juef17's versions.
 - Custom music cannot replace sound effects, and each ROM fits at most 24 songs from a pack, in about 17 KB.
 - Phone play is not a supported way to use it.
+- Archipelago play is Windows only, and six flags are rejected for it: Random Chest Locations, Stair Shuffle, Cursed Princess, Three's Company, Radish Finish and Disguised Dragonlord. See [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
 
 ## Known issues
 

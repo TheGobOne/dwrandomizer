@@ -73,6 +73,7 @@ local tgt_x, tgt_y = 0, 0
 -- FCEUX is Lua 5.1: no | or // operators. Bits use FCEUX's OR(). registerbefore can run more
 -- than once per frame, so the test steps run once per emu.framecount() and repeats only re-send input.
 local last_frame, last_pad = -1, {}
+local deliver_t0, last_count, last_change = 0, -1, 0
 local function driver()
   local fc = emu.framecount()
   if fc == last_frame then joypad.set(1, last_pad); return end
@@ -163,7 +164,24 @@ local function driver()
   elseif step == "events" then
     if age() == 1 then wr(0xdf, OR(rd(0xdf), 0x01)); log("set Gwaelin carried bit") end
     if age() == 180 then wr(0xe4, OR(rd(0xe4), 0x04)); log("set Dragonlord defeated bit") end
-    if age() == 400 then log("final AP " .. ap()); set_step("report") end
+    if age() == 400 then log("AP after events " .. ap()); deliver_t0 = os.time(); set_step("deliver") end
+  elseif step == "deliver" then
+    -- Turbo runs the script in seconds, but the client polls in real time (about every 0.5 s),
+    -- so wait in real time for the items. Take a step now and then: a received item's message
+    -- shows only after a step, and the next item waits for it.
+    local count = rd(0x6820) + 256 * rd(0x6821)
+    if count ~= last_count then
+      last_count = count; last_change = os.time()
+      log(string.format("received %d, mail flag %d", count, rd(0x682e)))
+    end
+    if age() % 90 == 10 then press[(age() % 180 < 90) and "left" or "right"] = 18 end
+    if age() % 90 == 50 then press.B = 4 end
+    local now = os.time()
+    if (now - deliver_t0 >= 20 and now - last_change >= 15) or now - deliver_t0 >= 120 then
+      log("final AP " .. ap() .. string.format(", mail flag %d, seed hash %02x%02x%02x%02x, slot tags %02x %02x %02x",
+        rd(0x682e), rd(0x6842), rd(0x6843), rd(0x6844), rd(0x6845), rd(0x6846), rd(0x6848), rd(0x684a)))
+      set_step("report")
+    end
   elseif step == "report" then
     if not done_at then done_at = frame; log("done") end
   end

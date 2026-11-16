@@ -1,6 +1,6 @@
 # Archipelago support for DWR: research and plan
 
-Status: research only. No ROM behavior has changed. Written 2026-11-14.
+Status: Phases 1 to 5 are built on `feature/archipelago`. The public release waits on approval. Sections 1 to 4 are the original research (2026-11-14).
 
 ## 1. Existing Dragon Warrior APWorld
 
@@ -60,12 +60,12 @@ Licenses: DWR and Archipelago are MIT. The APWorld repo inherits Archipelago's M
 | Part | Where | Notes |
 |---|---|---|
 | AP mode in the patcher | `common/dwr.c`, `common/dwr.h`, `cli/main.c` | New entry point, e.g. `dwr_randomize_ap(input, seed, flags, ap_opts, out)`. Calls the same `apply_stuff_to_rom()` then an `ap_changes()` port. Writes `DWAPV` + version at the ROM signature. CLI gets `--ap` options for testing. |
-| Python binding | new `ap/` folder | Cython or `ctypes` wrapper around the AP entry point. `ctypes` + a plain shared library is simpler to build for several Python versions. |
+| Python binding (as built: none, the APWorld runs `dwrandomizer.exe --ap-slot/--ap-patch`) | new `ap/` folder | Cython or `ctypes` wrapper around the AP entry point. `ctypes` + a plain shared library is simpler to build for several Python versions. |
 | APWorld | fork of Serpikmin's world | Swap the flag builder for one that packs DWR's flag bytes directly (`common/dwr.h` macros), then base32 encode. Add options for DWR-only flags that are safe in AP. |
 | Client | Serpikmin's `client.py` | Keep as is for the proof of concept. Later: read a persistent checked-locations bitfield and use a mailbox for received items. |
 | Logic | `regions.py` | Today assumes vanilla map, no stair shuffle. DWR's stair shuffle, random map and biomes need either "disabled in AP" or new logic. |
 
-DWR flags that conflict with AP and should start disabled: Random Chest Locations (`flags[0] & 0x30`), Stair Shuffle, the Charlock flags noted in project memory, Cursed Princess and Three's Company (they move or replace quest items), and No Keys.
+DWR flags that conflict with AP and should start disabled: Random Chest Locations (`flags[0] & 0x30`), Stair Shuffle, Cursed Princess and Three's Company (they move or replace quest items), Radish Finish and Disguised Dragonlord. As built, `archipelago/dwr/flags.py` rejects these six; No Keys is allowed, since key doors are not in logic.
 
 ## 3. DWR locations, items and RAM
 
@@ -96,7 +96,7 @@ Item shops (Herb, Torch, Wings, Dragon's Scale, Fairy Water) and key vendors are
 
 ### RAM and SRAM that DWR already uses
 
-From `notes/ram.txt`: `$6800-$6815` (return/whistle, step counter, per-slot copies), `$6900-$6BFF` (custom music driver), `$6670-$675F` (monster fought/won/died stats). Serpikmin's patch uses `$7000` for the received counter and RAM `$0E`, which DWR's search code also uses as a flag. DWR's search code also uses `$0E`, so the AP block is in work RAM instead: `$6820-$682D` (see Phase 1 status).
+From `notes/ram.txt`: `$6800-$6815` (return/whistle, step counter, per-slot copies), `$6900-$6BFF` (custom music driver), `$6670-$675F` (monster fought/won/died stats). Serpikmin's patch uses `$7000` for the received counter and RAM `$0E`, which DWR's search code also uses as a flag, so the AP block is in work RAM instead: `$6820-$6860` (the full map is at the top of `common/archipelago.c`).
 
 ## 4. Phased plan
 
@@ -109,7 +109,7 @@ From `notes/ram.txt`: `$6800-$6815` (return/whistle, step counter, per-slot copi
 | 4. DWR flag coverage | Logic for stair shuffle, random map and biomes, or mark them off in AP. Option list on the site. | 1 to 3 days | Each enabled flag has a generated, beaten test seed |
 | 5. Release | Docs, setup guide, PopTracker check, builds for Linux and macOS, credit Serpikmin. | 1 day | Public release, after the user approves |
 
-Only Phase 1 is in scope until the user approves the rest.
+All five phases were approved and built.
 
 First concrete step (about 30 minutes): build a DWR ROM with Serpikmin's default flags, then compare the bytes at each of the 25 or so hook addresses in Serpikmin's `ap_changes()` (`0xE226`, `0xFA18`, `0xFB6B`, `0xD627`, `0xEDB8`, `0xCCF6` and the rest) with a vanilla ROM. Any address where DWR already changed the bytes needs a new hook. Known overlaps so far: `0x196B` (DWR's `shuffle_key_prices` writes there) and the search code at `0xE10B-0xE141` (DWR rewrites it). DWR also hooks `0xCCF0` for credits, next to Serpikmin's `0xCCF6` hook.
 
@@ -124,8 +124,8 @@ Built on branch `feature/archipelago`, with its own hooks on DWR's code:
 | AP mode | `common/archipelago.c`, CLI `--ap-slot <name>` | Runs last in `apply_stuff_to_rom()` |
 | Chests | hook at `$E221` (chest found, Y = index * 4) | Sets bit n of `$6822-$6825`, marks the chest open, shows "Thou hast found the APItem." No item or gold is given. |
 | Search spots | hook at `$E12D` (search entry X matched) | Sets bit X of `$6826`, same message |
-| Items received counter | `$6820-$6821`, saved per slot at `$6828 + slot * 2` | Save hook at `$FA18`, restored on continue through the `$CA1A` chain. A new game (0 XP) clears it. |
-| ROM signature | PRG `$7FE0` | `DWRAP001`, then a pointer to the 16-byte slot name |
+| Items received counter | `$6820-$6821`, saved per slot at `$6828 + slot * 2` | Save hook at `$FA18`, restored by LoadSavedData at `$FB6B`. A new game (a start with no Continue load) clears it. |
+| ROM signature | PRG `$7FE0` | `DWRAP` and the version (`003` now), a pointer to the 32-byte UTF-8 slot name, a custom music flag, the 4-byte seed hash, and the herb and key carry caps |
 | Throne room | tile (4,7) | Door removed, since the key chest is an AP check |
 | Staff shrine | `$D2FC` | The old man lets you in with the harp even if you already have the staff |
 | APWorld | `archipelago/dwr/` (game "DWR") | 31 chests, 3 search spots, Gwaelin rescue, Dragonlord goal. Logic: harp for the shrine chest; Stones, Staff and Token for Charlock. |
@@ -149,7 +149,7 @@ Known limits of the proof of concept:
 - Key doors are not in logic (keys can be bought).
 - No patch file: the player builds the ROM with the DWR CLI and their slot name.
 
-Phase 2 removed the first and last of these limits: the found message shows the real item name, and generation writes a `.apdwr` patch that the BizHawk Client turns into a ROM (`archipelago/dwr/patch.py`).
+Phase 3 removed the second (the mailbox). Phase 2 removed the first and last: the found message shows the real item name, and generation writes a `.apdwr` patch that the BizHawk Client turns into a ROM (`archipelago/dwr/patch.py`).
 
 ## Phase 3 readiness (2026-11-15)
 
@@ -163,7 +163,7 @@ FCEUX checks, run in turbo (sound muted) on the client-built ROM with Permanent 
 | The bits survive closing and reopening the emulator | `tests/fceux/p3check.lua`, run "two" | Pass (`$6822 = $10` at power on) |
 | A fresh save starts with no bits set | reset test with the `.sav` deleted | Pass |
 
-The AP block sits in battery RAM, so it is kept in the `.sav` even when the player never saves in game. Found while testing: starting a new game on an old `.sav` keeps the old chest and search bits. That is harmless for the same seed (AP already has those checks), and a new seed gets a new ROM file name and so a new `.sav`. Clearing the bits on a new game is a Phase 3 item.
+The AP block sits in battery RAM, so it is kept in the `.sav` even when the player never saves in game. Found while testing: starting a new game on an old `.sav` keeps the old chest and search bits. That is harmless for the same seed (AP already has those checks), and a new seed gets a new ROM file name and so a new `.sav`. Phase 3 fixed this: a new game clears them.
 
 Nothing found blocks Phase 3.
 
@@ -176,7 +176,7 @@ Nothing found blocks Phase 3.
 | Random Chest Locations: a moved chest sets its index's bit | Pass (run five, chest 0 at 24,21 in Tantegel) |
 | Mailbox: received items show "Thou hast found the <name>." | Pass (run six: message on screen; full AP run: each item cleared the mailbox before the next) |
 
-How the mailbox works: the client writes the item name in DW tiles to `$6850` and sets `$682E`. The ROM hooks the after-step code at `$CDBF`. After the hero's next step it shows the message and clears the flag. The client gives the next item only after the flag clears. The ROM is version `002`.
+How the mailbox works: the client writes the item name in DW tiles to `$6850` and sets `$682E`. The ROM hooks the after-step code at `$CDBF`. After the hero's next step it shows the message and clears the flag. The client gives the next item only after the flag clears. The ROM was version `002` then (`003` now).
 
 ## Phase 4 status (2026-11-16)
 
@@ -191,6 +191,19 @@ How the mailbox works: the client writes the item name in DW tiles to `$6850` an
 - Linux and macOS builds: dropped from Phase 5 by the user (Windows only).
 - Public release: waiting on the user's approval.
 
+## Review fixes (2026-11-16)
+
+- Seed check: the ROM writes its 4-byte seed hash to `$6842` at a new game and tags each save slot at `$6846` (stride 2) when it saves. The client compares both with the ROM signature and sends nothing for a save from another seed. A save from before the hash (0 or `$FF` there) takes this ROM's hash. ROM version is `003`.
+- Game start: the AP work now runs before the throne room loads, so nothing sees the old state, and the mailbox flag is cleared there.
+- Copy Quest copies the slot's item count and tag with the save.
+- Herb and Magic Key caps come from the ROM signature, so Random Herb Carry and Random Key Carry work. An item at the cap is dropped with a log line instead of holding up the items behind it.
+- Items that are not given (dropped, already held) and items from your own opened chests and search spots get no mailbox message. Items from `!collect` or a release get one.
+- Found-message names are stored end to end at the top of bank 3, and another player's item names the player, cut to fit 16 characters ("Bartholo.'s Herb"), with accents folded for the DW font.
+- Slot names are 32 bytes of UTF-8 (Archipelago itself cuts them to 16 characters).
+- Round 2: a New Game also tags its slot. A slot this ROM saved takes the seed hash back after another seed started a game in another slot, and clears the shared chest and search bits. An unknown ROM version is refused. The client warns when the save has more items than the server sent. Drop and swap log lines appear only once the write lands.
+- PopTracker: gray items you do not have, area labels with counts, a legend, and hint highlights by hint status.
+- The DWR site names any flag Archipelago rejects under the flag string.
+
 ## Test notes
 
-Use the project test rules for every AP test ROM: reduce flashing on, default music, max stats and a permanent repel. AP play testing uses FCEUX with the user's FCEUX connector (`connector_fceux_generic.lua`) and the AP BizHawk client. Mesen `--testrunner` scripts are still fine for checking the ROM-side hooks.
+Use the project test rules for every AP test ROM: reduce flashing on, default music, max stats and a permanent repel, and run emulator tests in turbo with sound muted. AP play testing uses FCEUX with the user's FCEUX connector (`connector_fceux_generic.lua`, loaded from the Archipelago `data/lua` folder) and the AP BizHawk client. The scripts in `tests/fceux/` write logs and screenshots to `C:/Users/Ryan/code/dwr-ap-testbed/fx/` (set at the top of each script, edit it for another machine). That folder also holds the test seed, ROMs and helper scripts. Unit tests: `python -m unittest discover tests/archipelago`. Mesen `--testrunner` scripts are still fine for checking the ROM-side hooks.

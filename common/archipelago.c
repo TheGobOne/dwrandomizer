@@ -13,10 +13,17 @@
  *   $6827        1 between a continue's load and game start
  *   $6828-$682d  items received, saved copy for save slots 0-2
  *   $682e        mailbox: nonzero when the client has a "received" message waiting
+ *   $6830-$6840  found-message name buffer
+ *   $6842-$6845  seed hash of the ROM that started this game (written by the
+ *                ROM at a new game), so a save from another seed is caught
+ *   $6846-$684b  slot tags: low byte of the seed hash of the ROM that last saved
+ *                each slot (stride 2, like $6828), for the client to compare
  *   $6850-$6860  mailbox text, the item name in DW tiles, ended by $FA
  *
  * The ROM signature at PRG $7FE0: "DWRAP", 3 version digits, then a little
- * endian pointer to the 32 byte slot name (UTF-8, zero padded).
+ * endian pointer to the 32 byte slot name (UTF-8, zero padded), 1 if custom
+ * music went in, the 4 byte seed hash (little endian, never 0), then the herb
+ * cap in the high nibble and the key cap in the low nibble.
  *
  * Based on Serpikmin's ap_changes() for the Dragon Warrior APWorld, rewritten
  * for DWR's chest and search code.
@@ -42,10 +49,12 @@
 #define AP_LOADED     0x6827
 #define AP_SLOT_RECV  0x6828
 #define AP_MAIL_FLAG  0x682e
+#define AP_SEED_HASH  0x6842
+#define AP_SLOT_TAG   0x6846
 #define SAVE_SLOT     0x6039
 
-#define AP_VERSION    "002"
-#define AP_NAME_LEN   32  /* UTF-8 bytes: 16 characters of up to 2 bytes; longer names are cut at a character */
+#define AP_VERSION    "003"
+#define AP_NAME_LEN   32  /* UTF-8 bytes. Archipelago cuts slot names to 16 characters; longer byte strings are cut at a character */
 /* The unused Tablet: its index in the item name list, and its 6 letters. */
 #define TABLET_NAME   24
 #define TABLET_TEXT   0x7b56
@@ -64,6 +73,8 @@ static char ap_text[AP_TEXT_LOCS][AP_TEXT_LEN + 1];
 /* Where the found-message data starts in bank 3 for this build ($C000 when AP
  * is off). Custom music reads it after ap_changes has run. */
 static uint16_t ap_bank3_start = 0xc000;
+/* Where the found-message routine sets $A3 from A, so the mailbox can share its tail. */
+static uint16_t ap_show_tail = 0;
 
 void dwr_set_ap(BOOL enabled, const char *slot_name)
 {
@@ -233,15 +244,15 @@ static void ap_chest_and_search(dw_rom *rom)
         at = (uint16_t)(at + lens[i]);
     }
 
-    /* Four separate pieces: bit table (8), chest (33), show (61), search (19),
+    /* Four separate pieces: bit table (8), chest (31), show (61), search (19),
      * so they fit in small gaps. The name pointer tables sit in bank 3 with the
      * names, which saves fixed bank room. */
     bits = find_free_space(rom->content, FIXED_FREE_START, 8);
     vpatch(rom, bits, 8, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80);
     show = find_free_space(rom->content, FIXED_FREE_START, 61);
     memset(&rom->content[show], 0, 61);   /* held while the others are placed */
-    chest = find_free_space(rom->content, FIXED_FREE_START, 33);
-    memset(&rom->content[chest], 0, 33);
+    chest = find_free_space(rom->content, FIXED_FREE_START, 31);
+    memset(&rom->content[chest], 0, 31);
     search = find_free_space(rom->content, FIXED_FREE_START, 19);
 
     /* $D9 prints its name with $F9, and $F9 prints the text at ($A3). */
@@ -259,7 +270,7 @@ static void ap_chest_and_search(dw_rom *rom)
 
     /* Hooked at $E221, where the chest at Y/4 was found. Goes to show with
      * X = chest index. */
-    vpatch(rom, chest, 33,
+    vpatch(rom, chest, 31,
         0x98,                               /* tya                       */
         0x4a, 0x4a,                         /* lsr, lsr: chest index     */
         0x48,                               /* pha                       */
@@ -273,12 +284,13 @@ static void ap_chest_and_search(dw_rom *rom)
         0xa5, 0xde,                         /* lda $de                   */
         0x1d, LO(AP_CHESTS), HI(AP_CHESTS), /* ora AP_CHESTS,x           */
         0x9d, LO(AP_CHESTS), HI(AP_CHESTS), /* sta AP_CHESTS,x           */
-        0x68, 0xaa,                         /* pla, tax: chest index     */
-        0xa9, 0x00,                         /* lda #0: a chest           */
+        0x68, 0xaa,                         /* pla, tax: chest index; A = the
+                                               index too, never $FF, so show
+                                               takes it as a chest       */
         0x4c, LO(show), HI(show)            /* jmp show                  */
     );
 
-    /* A = 0 for a chest, $ff for a search, X = name index. $E355 marks the
+    /* A < $FF for a chest, $FF for a search, X = name index. $E355 marks the
      * chest open and plays the sound for a chest, and overwrites $A3. */
     vpatch(rom, show, 61,
         0x85, 0x0e,                         /* sta $0e                   */
@@ -310,6 +322,10 @@ static void ap_chest_and_search(dw_rom *rom)
         0xa9, 0xd9,                         /* lda #$d9: found message   */
         0x4c, 0x42, 0xd2                    /* jmp $d242                 */
     );
+    /* The mailbox jumps to the sta $a3 above with its own low byte in A. */
+    ap_show_tail = show + 50;
+    if (rom->content[ap_show_tail] != 0x85 || rom->content[ap_show_tail + 1] != 0xa3)
+        ap_show_tail = 0;
 
     /* Hooked at $E12D, where search entry X matched. */
     vpatch(rom, search, 19,
@@ -341,20 +357,37 @@ static void ap_chest_and_search(dw_rom *rom)
  * clears the counter and the location bits. XP is not used, so a save made at
  * 0 XP continues correctly.
  */
+static uint8_t ap_slot_tag(uint32_t hash)
+{
+    uint8_t tag = hash & 0xff;
+
+    return (tag == 0 || tag == 0xff) ? 0x5a : tag;   /* 0 and $FF mean "no tag" */
+}
+
+static uint32_t ap_seed_hash(dw_rom *rom)
+{
+    uint32_t hash = (uint32_t)(rom->seed ^ (rom->seed >> 32));
+
+    return (hash && hash != 0xffffffff) ? hash : 1;   /* 0 and $FF.. in RAM mean no hash yet */
+}
+
 static void ap_save_and_load(dw_rom *rom)
 {
-    uint16_t save, restore, start, chain, cont;
+    uint16_t save, restore, start, chain, cont, copy;
+    uint32_t hash = ap_seed_hash(rom);
 
-    save = find_free_space(rom->content, FIXED_FREE_START, 26);
-    vpatch(rom, save, 26,
-        0x8a, 0x48,                                   /* txa, pha        */
+    /* Y is free on entry: the moved code starts with ldy #0. The slot tag says
+     * which seed last saved this slot. */
+    save = find_free_space(rom->content, FIXED_FREE_START, 27);
+    vpatch(rom, save, 27,
         0xad, LO(SAVE_SLOT), HI(SAVE_SLOT),           /* lda slot        */
-        0x0a, 0xaa,                                   /* asl, tax        */
+        0x0a, 0xa8,                                   /* asl, tay        */
         0xad, LO(AP_RECV), HI(AP_RECV),               /* lda recv        */
-        0x9d, LO(AP_SLOT_RECV), HI(AP_SLOT_RECV),     /* sta slot_recv,x */
+        0x99, LO(AP_SLOT_RECV), HI(AP_SLOT_RECV),     /* sta slot_recv,y */
         0xad, LO(AP_RECV + 1), HI(AP_RECV + 1),
-        0x9d, LO(AP_SLOT_RECV + 1), HI(AP_SLOT_RECV + 1),
-        0x68, 0xaa,                                   /* pla, tax        */
+        0x99, LO(AP_SLOT_RECV + 1), HI(AP_SLOT_RECV + 1),
+        0xa9, ap_slot_tag(hash),                      /* lda #tag        */
+        0x99, LO(AP_SLOT_TAG), HI(AP_SLOT_TAG),       /* sta slot_tag,y  */
         0xa0, 0x00,                                   /* ldy #0 (moved)  */
         0xa5, 0xba,                                   /* lda $ba (moved) */
         0x60                                          /* rts             */
@@ -362,16 +395,14 @@ static void ap_save_and_load(dw_rom *rom)
     /* SaveData at $FA18 was ldy #0, lda $ba. */
     vpatch(rom, 0xfa18, 4, 0x20, LO(save), HI(save), 0xea);
 
-    restore = find_free_space(rom->content, FIXED_FREE_START, 26);
-    vpatch(rom, restore, 26,
-        0x8a, 0x48,                                   /* txa, pha        */
+    restore = find_free_space(rom->content, FIXED_FREE_START, 22);
+    vpatch(rom, restore, 22,
         0xad, LO(SAVE_SLOT), HI(SAVE_SLOT),           /* lda slot        */
-        0x0a, 0xaa,                                   /* asl, tax        */
-        0xbd, LO(AP_SLOT_RECV), HI(AP_SLOT_RECV),     /* lda slot_recv,x */
+        0x0a, 0xa8,                                   /* asl, tay        */
+        0xb9, LO(AP_SLOT_RECV), HI(AP_SLOT_RECV),     /* lda slot_recv,y */
         0x8d, LO(AP_RECV), HI(AP_RECV),
-        0xbd, LO(AP_SLOT_RECV + 1), HI(AP_SLOT_RECV + 1),
+        0xb9, LO(AP_SLOT_RECV + 1), HI(AP_SLOT_RECV + 1),
         0x8d, LO(AP_RECV + 1), HI(AP_RECV + 1),
-        0x68, 0xaa,                                   /* pla, tax        */
         0xa0, 0x00,                                   /* ldy #0 (moved)  */
         0xb1, 0x22,                                   /* lda ($22),y (moved) */
         0x60                                          /* rts             */
@@ -379,16 +410,37 @@ static void ap_save_and_load(dw_rom *rom)
     /* LoadSavedData at $FB6B was ldy #0, lda ($22),y. */
     vpatch(rom, 0xfb6b, 4, 0x20, LO(restore), HI(restore), 0xea);
 
+    /* Copy Quest copies a slot's save block from slot $6039 to slot $6031 with
+     * no save or load, so the AP counter and tag are copied here. The hook
+     * replaces lda $6031 at $F6EA, before sta $6039 makes the copy current. */
+    if (rom->content[0xf6ea] == 0xad && rom->content[0xf6eb] == 0x31
+            && rom->content[0xf6ec] == 0x60 && rom->content[0xf6ed] == 0x8d) {
+        copy = find_free_space(rom->content, FIXED_FREE_START, 32);
+        vpatch(rom, copy, 32,
+            0xad, 0x39, 0x60, 0x0a, 0xa8,             /* source slot * 2 in Y */
+            0xad, 0x31, 0x60, 0x0a, 0xaa,             /* copy slot * 2 in X   */
+            0xb9, LO(AP_SLOT_RECV), HI(AP_SLOT_RECV), /* counter          */
+            0x9d, LO(AP_SLOT_RECV), HI(AP_SLOT_RECV),
+            0xb9, LO(AP_SLOT_RECV + 1), HI(AP_SLOT_RECV + 1),
+            0x9d, LO(AP_SLOT_RECV + 1), HI(AP_SLOT_RECV + 1),
+            0xb9, LO(AP_SLOT_TAG), HI(AP_SLOT_TAG),   /* tag              */
+            0x9d, LO(AP_SLOT_TAG), HI(AP_SLOT_TAG),
+            0xad, 0x31, 0x60,                         /* lda $6031 (moved) */
+            0x60                                      /* rts              */
+        );
+        vpatch(rom, 0xf6ea, 3, 0x20, LO(copy), HI(copy));
+    } else {
+        printf("AP: unexpected code at $F6EA, Copy Quest will not copy the item counter\n");
+    }
+
     /* The Continue menu loads the chosen slot with jsr $FAC1 at $F8BE, then rts. */
     if (rom->content[0xf8be] == 0x20 && rom->content[0xf8bf] == 0xc1
             && rom->content[0xf8c0] == 0xfa) {
-        cont = find_free_space(rom->content, FIXED_FREE_START, 14);
-        vpatch(rom, cont, 14,
+        cont = find_free_space(rom->content, FIXED_FREE_START, 9);
+        vpatch(rom, cont, 9,
             0x20, 0xc1, 0xfa,                         /* jsr $fac1 (moved) */
             0xa9, 0x01,                               /* lda #1          */
             0x8d, LO(AP_LOADED), HI(AP_LOADED),       /* sta loaded      */
-            0xa9, 0x00,                               /* lda #0          */
-            0x8d, LO(AP_MAIL_FLAG), HI(AP_MAIL_FLAG), /* clear stale mail flag */
             0x60                                      /* rts             */
         );
         vpatch(rom, 0xf8be, 3, 0x4c, LO(cont), HI(cont));  /* jmp; $F8C1 rts is now unused */
@@ -396,29 +448,36 @@ static void ap_save_and_load(dw_rom *rom)
         printf("AP: unexpected code at $F8BE, a continue will be treated as a new game\n");
     }
 
+    /* Game start ($CA1A, a jsr to the code that loads the throne room). The AP
+     * work runs first, so nothing sees the old state, then it jumps on. A new
+     * game clears the counter, the location bits and this slot's saved counter,
+     * tags the slot, and writes this ROM's seed hash. */
     chain = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
-    start = find_free_space(rom->content, FIXED_FREE_START, 52);
-    vpatch(rom, start, 52,
-        0x20, LO(chain), HI(chain),                   /* jsr chain       */
-        0xad, LO(AP_LOADED), HI(AP_LOADED),           /* lda loaded      */
-        0xf0, 0x06,                                   /* beq new_game    */
+    start = find_free_space(rom->content, FIXED_FREE_START, 57);
+    vpatch(rom, start, 57,
         0xa9, 0x00,                                   /* lda #0          */
-        0x8d, LO(AP_LOADED), HI(AP_LOADED),           /* sta loaded      */
-        0x60,                                         /* rts: continue   */
-        0xad, LO(SAVE_SLOT), HI(SAVE_SLOT),           /* new_game: lda slot */
+        0x8d, LO(AP_MAIL_FLAG), HI(AP_MAIL_FLAG),     /* stale mail flag */
+        0xae, LO(AP_LOADED), HI(AP_LOADED),           /* ldx loaded      */
+        0x8d, LO(AP_LOADED), HI(AP_LOADED),           /* sta loaded (0)  */
+        0xd0, 0x25,                                   /* bne go: continue */
+        0xad, LO(SAVE_SLOT), HI(SAVE_SLOT),           /* lda slot        */
         0x0a, 0xaa,                                   /* asl, tax        */
-        0xa9, 0x00,                                   /* lda #0          */
+        0xa9, ap_slot_tag(hash),                      /* lda #tag        */
+        0x9d, LO(AP_SLOT_TAG), HI(AP_SLOT_TAG),       /* sta slot_tag,x  */
+        0xa9, 0x00,                                   /* lda #0: A stays 0 for the loop */
         0x9d, LO(AP_SLOT_RECV), HI(AP_SLOT_RECV),     /* clear slot_recv,x */
         0x9d, LO(AP_SLOT_RECV + 1), HI(AP_SLOT_RECV + 1),
-        0x8d, LO(AP_RECV), HI(AP_RECV),
-        0x8d, LO(AP_RECV + 1), HI(AP_RECV + 1),
-        0x8d, LO(AP_CHESTS), HI(AP_CHESTS),
-        0x8d, LO(AP_CHESTS + 1), HI(AP_CHESTS + 1),
-        0x8d, LO(AP_CHESTS + 2), HI(AP_CHESTS + 2),
-        0x8d, LO(AP_CHESTS + 3), HI(AP_CHESTS + 3),
-        0x8d, LO(AP_SEARCH), HI(AP_SEARCH),
-        0x8d, LO(AP_MAIL_FLAG), HI(AP_MAIL_FLAG),     /* stale mail flag */
-        0x60                                          /* rts             */
+        0xa2, AP_SEARCH - AP_RECV,                    /* ldx #6          */
+        0x9d, LO(AP_RECV), HI(AP_RECV),               /* - sta recv,x: counter, chest and search bits */
+        0xca,                                         /*   dex           */
+        0x10, 0xfa,                                   /*   bpl -         */
+        0xa2, 0x03,                                   /* ldx #3          */
+        0xbd, LO(start + 53), HI(start + 53),         /* - lda hash,x    */
+        0x9d, LO(AP_SEED_HASH), HI(AP_SEED_HASH),     /*   sta seed_hash,x */
+        0xca,                                         /*   dex           */
+        0x10, 0xf7,                                   /*   bpl -         */
+        0x4c, LO(chain), HI(chain),                   /* go: jmp chain   */
+        hash & 0xff, (hash >> 8) & 0xff, (hash >> 16) & 0xff, hash >> 24  /* hash */
     );
     vpatch(rom, 0xca1a, 3, 0x20, LO(start), HI(start));
 }
@@ -430,11 +489,16 @@ static void ap_signature(dw_rom *rom)
             AP_NAME_LEN);
     uint8_t padded[AP_NAME_LEN] = { 0 };
 
+    uint32_t hash = ap_seed_hash(rom);
+    /* The carry caps Random Herb Carry and Random Key Carry may have set. */
+    uint8_t caps = (uint8_t)((rom->content[0xd6fa] << 4) | (rom->content[0xd80e] & 0x0f));
+
     memcpy(padded, ap_slot_name, strlen(ap_slot_name));
     patch(rom, name, AP_NAME_LEN, padded);
     vpatch(rom, 0x7fe0, 16, 'D', 'W', 'R', 'A', 'P',
             AP_VERSION[0], AP_VERSION[1], AP_VERSION[2],
-            LO(name), HI(name), 0, 0, 0, 0, 0, 0);
+            LO(name), HI(name), 0,
+            hash & 0xff, (hash >> 8) & 0xff, (hash >> 16) & 0xff, hash >> 24, caps);
 }
 
 /*
@@ -449,6 +513,7 @@ static void ap_signature(dw_rom *rom)
  * ends in $CF6A's rts back to the field loop, like a command does.
  */
 #define AP_MAIL_TEXT 0x6850
+_Static_assert(((AP_MAIL_TEXT) >> 8) == ((AP_NAME_BUF) >> 8), "the mailbox shares the show routine's $A4");
 
 static void ap_mailbox(dw_rom *rom)
 {
@@ -459,8 +524,13 @@ static void ap_mailbox(dw_rom *rom)
         printf("AP mailbox: unexpected code at $CDBF, received items will have no message\n");
         return;
     }
-    hook = find_free_space(rom->content, FIXED_FREE_START, 30);
-    vpatch(rom, hook, 30,
+    if (!ap_show_tail) {
+        printf("AP mailbox: no found-message routine, received items will have no message\n");
+        return;
+    }
+    /* The show routine's tail sets $A3 from A, $A4 to $68 and shows $D9. */
+    hook = find_free_space(rom->content, FIXED_FREE_START, 22);
+    vpatch(rom, hook, 22,
         0xad, LO(AP_MAIL_FLAG), HI(AP_MAIL_FLAG),     /* lda flag        */
         0xd0, 0x05,                                   /* bne show        */
         0xa5, 0xe4,                                   /* lda $e4 (moved) */
@@ -469,10 +539,8 @@ static void ap_mailbox(dw_rom *rom)
         0x68, 0x68,                                   /* show: pla, pla  */
         0xa9, 0x00,                                   /* lda #0          */
         0x8d, LO(AP_MAIL_FLAG), HI(AP_MAIL_FLAG),     /* sta flag        */
-        0xa9, LO(AP_MAIL_TEXT), 0x85, 0xa3,           /* text pointer    */
-        0xa9, HI(AP_MAIL_TEXT), 0x85, 0xa4,
-        0xa9, 0xd9,                                   /* lda #$d9        */
-        0x4c, 0x42, 0xd2                              /* jmp $d242       */
+        0xa9, LO(AP_MAIL_TEXT),                       /* lda #<text      */
+        0x4c, LO(ap_show_tail), HI(ap_show_tail)      /* jmp show tail   */
     );
     /* The nop keeps the beq at $CDC3, which tests the moved and #$04. */
     vpatch(rom, 0xcdbf, 4, 0x20, LO(hook), HI(hook), 0xea);

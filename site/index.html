@@ -309,6 +309,8 @@ input[type=file]{min-width:0;max-width:100%}
 .skipopts{position:absolute;left:-9999px}
 .skipopts:focus{position:static;display:block;width:100%;margin-top:.2rem}
 .romstat.romneed{color:#ffd23f}
+.apcheck{font-size:.85em;opacity:.8;min-height:1.4em}
+.apcheck.apbad{color:#ffd23f;opacity:1}
 .packstatus{color:#ffd23f}
 dialog.resultwin{width:min(36rem,calc(100vw - 4rem));max-height:80vh;overflow:auto;background:var(--blue);color:#fff;margin:auto}
 dialog.resultwin::backdrop{background:rgba(0,0,0,.65)}
@@ -809,8 +811,10 @@ function tabById(id){ return TABS.find(t=>t.id===id); }
 function matches(it,q){ q=q.toLowerCase(); return !q||it[1].toLowerCase().includes(q)||it[2].toLowerCase().includes(q)||(Array.isArray(it[4])&&it[4].some(o=>String(o).toLowerCase().includes(q))); }
 
 /* Shared chrome pieces */
+const AP_REJECT=['chestloc','stairs','cursed','three','radish','disguised'];
+function itemLabel(id){ for(const t of TABS) for(const it of t.items) if(it[0]===id) return it[1]; return id; }
 function flagsBlock(){
-  const fi=el('input',{id:'flags',type:'text','aria-label':'Flags',value:State.flags()});
+  const fi=el('input',{id:'flags',type:'text','aria-label':'Flags','aria-describedby':'apmsg',value:State.flags()});
   fi.addEventListener('change',()=>{ let ok; State.oddFlags=false; State.oddBits=false;
     const raw=fi.value, clean=raw.replace(/^\s*flags\s*:?/i,'').replace(/[\s-]/g,'').toUpperCase();
     State.keepPersonal(()=>{ ok=State.setFlags(clean); }); if(!ok) fi.value=State.flags();
@@ -825,7 +829,19 @@ function flagsBlock(){
   /* A checksum only belongs to the flags and seed it was made from. */
   State.showChecksum=v=>{ sum.value=v; };
   State.on(i=>{ fi.value=State.flags(); sd.value=State.seed; if(i!=='pack'&&i!=='rom'){ State.showChecksum(''); State.clearDone&&State.clearDone(); } });
-  return {flags:fi,seed:sd,rnd,copy:cp,sum};
+  /* The DWR APWorld turns these down (archipelago/dwr/flags.py UNSUPPORTED): say so before the flags are copied. */
+  /* An empty label lines the text up under the flags box. Only a change of text is announced. */
+  const apMsg=el('span',{id:'apmsg',role:'status'});
+  const ap=el('div',{class:'row apcheck'},el('label',{'aria-hidden':'true'}),apMsg);
+  const apPaint=()=>{ const bad=AP_REJECT.filter(id=>State.v[id]|0).map(itemLabel);
+    // At most two names keep the line short, so the rows below do not jump; the title has them all.
+    const names=bad.length>2?bad.slice(0,2).join(', ')+' and '+(bad.length-2)+' more':bad.join(' and ');
+    const text=bad.length?'Archipelago: set '+names+' to off.':'Archipelago accepts these flags.';
+    apMsg.title=bad.length>2?bad.join(', '):'';
+    ap.classList.toggle('apbad',bad.length>0);
+    if(apMsg.textContent!==text) apMsg.textContent=text; };
+  State.on(apPaint); apPaint();
+  return {flags:fi,seed:sd,rnd,copy:cp,sum,ap};
 }
 /* Header and minimum size dwr_init expects. */
 function romProblem(b){ return b.length>=81936&&b[0]===0x4e&&b[1]===0x45&&b[2]===0x53&&b[3]===0x1a?'':'That file is not an uncompressed Dragon Warrior ROM (.nes, at least 81,936 bytes).'; }
@@ -1152,7 +1168,7 @@ scr.append(backLink(),
  el('section',{class:'win title'},el('h1',{text:'DRAGON WARRIOR RANDOMIZER - THEGOBONE REMIX'}),el('p',{text:'A command window for a new quest. Choose a command with the arrow keys.'})),
  el('section',{class:'win'},el('h2',{text:'Setup'}),
    el('div',{class:'row'},el('span',{text:'ROM'}),rb.label,rb.input,rb.forget,rb.status),
-   el('div',{class:'idrow'},el('div',{class:'idfields'},el('div',{class:'row'},el('label',{for:'flags',text:'Flags'}),fb.flags),
+   el('div',{class:'idrow'},el('div',{class:'idfields'},el('div',{class:'row'},el('label',{for:'flags',text:'Flags'}),fb.flags),fb.ap,
    el('div',{class:'row'},el('label',{for:'seed',text:'Seed'}),fb.seed,fb.rnd),
    el('div',{class:'row'},el('label',{for:'checksum',text:'Checksum'}),fb.sum,fb.copy,gb.button),gb.spoiler,gb.result),
    el('div',{class:'idpresets'},presetArea()))));

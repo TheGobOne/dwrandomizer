@@ -26,6 +26,7 @@ from Options import OptionError
 
 from .client import DWRClient  # noqa: F401  registers the BizHawk client
 from . import flags as dwr_flags
+from .text import found_text
 from .host_settings import DWRSettings
 from .options import DWROptions
 from .patch import DWRPatch
@@ -57,9 +58,10 @@ class DWRWorld(World):
     def generate_early(self) -> None:
         # The ROM keeps the slot name in 32 bytes of UTF-8 for the client to log in with.
         if len(self.player_name.encode("utf-8")) > 32:
-            raise OptionError(f"{self.player_name}: the slot name is too long for DWR "
-                              "(32 bytes of UTF-8, about 16 letters or fewer with accents).")
-        text = self.options.dwr_flags.value.strip()
+            raise OptionError(f"{self.player_name}: the slot name is "
+                              f"{len(self.player_name.encode('utf-8'))} bytes of UTF-8, and DWR keeps 32. "
+                              "Use fewer non-Latin characters.")
+        text = dwr_flags.clean(self.options.dwr_flags.value)
         try:
             bad = dwr_flags.unsupported(text)
             self.free_charlock = dwr_flags.free_charlock(text)
@@ -121,7 +123,7 @@ class DWRWorld(World):
         player = self.player
         lines = [
             f"slot {self.multiworld.player_name[player]}",
-            f"flags {self.options.dwr_flags.value.strip()}",
+            f"flags {dwr_flags.clean(self.options.dwr_flags.value)}",
             f"seed {self.random.getrandbits(63)}",
             f"free_charlock {1 if self.free_charlock else 0}",
         ]
@@ -129,10 +131,8 @@ class DWRWorld(World):
             if location.address is None or location.item is None:
                 continue
             item = location.item
-            text = item.name
-            if item.player != player:
-                text = f"{self.multiworld.player_name[item.player]}'s {item.name}"
-            lines.append(f"loc {location.address:x} {text}")
+            owner = self.multiworld.player_name[item.player] if item.player != player else ""
+            lines.append(f"loc {location.address:x} {found_text(item.name, owner)}")
         name = self.multiworld.get_out_file_name_base(player) + DWRPatch.patch_file_ending
         DWRPatch(os.path.join(output_directory, name), player=player,
                  player_name=self.multiworld.player_name[player],

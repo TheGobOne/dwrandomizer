@@ -33,6 +33,10 @@ def load_data():
     return scope
 
 
+# Shown names for map rows whose area name alone is unclear.
+AREA_LABELS = {"Throne Room": "Tantegel Throne Room"}
+
+
 def code_of(name):
     return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
 
@@ -102,19 +106,20 @@ def main():
 
     row_h, left, top, dot = 40, 340, 20, 30
     width = left + 8 * (dot + 8) + 20
-    height = top + (len(areas) + 1) * row_h + 10   # one more row for the legend
+    height = top + (len(areas) + 2) * row_h + 10   # two more rows for the legend
     board = Image.new("RGBA", (width, height), (24, 24, 40, 255))
     d = ImageDraw.Draw(board)
     locations, loc_map = [], {}
     for row, (area, entries) in enumerate(areas.items()):
         y = top + row * row_h
         kinds = {section for _, section, _ in entries}
+        shown = AREA_LABELS.get(area, area)
         if kinds == {"Search Spot"}:
-            label = f"{area} (search)"
+            label = f"{shown} ({len(entries)} search spot{'s' if len(entries) > 1 else ''})"
         elif all(k.startswith("Chest") for k in kinds):
-            label = f"{area} ({len(entries)} chest{'s' if len(entries) > 1 else ''})"
+            label = f"{shown} ({len(entries)} chest{'s' if len(entries) > 1 else ''})"
         else:
-            label = area
+            label = shown
         d.text((10, y + dot // 2), label, fill=(230, 230, 230, 255), font=font(20), anchor="lm")
         children = []
         for col, (name, section, loc_id) in enumerate(entries):
@@ -131,9 +136,12 @@ def main():
             children.append(child)
             loc_map[loc_id] = f"@{area}/{name}/{section}"
         locations.append({"name": area, "children": children})
-    d.text((10, top + len(areas) * row_h + dot // 2),
-           "Green: can check now.  Red: needs items.  Gray: checked.",
-           fill=(180, 180, 180, 255), font=font(16), anchor="lm")
+    # Only the Charlock chests and the Staff of Rain shrine have item rules, so green means
+    # no known need, not reachable for sure.
+    for i, line in enumerate(("Green: no known item needed.  Red: needs items.",
+                              "Gray: checked.  Highlighted: someone hinted an item there.")):
+        d.text((10, top + (len(areas) + i) * row_h + dot // 2), line,
+               fill=(180, 180, 180, 255), font=font(16), anchor="lm")
     board.save(os.path.join(PACK, "images", "maps", "checks.png"))
     json.dump(locations, open(os.path.join(PACK, "locations", "locations.json"), "w"), indent=2)
     json.dump([{"name": "Checks", "img": "images/maps/checks.png", "location_size": dot,
@@ -195,12 +203,44 @@ local function reset()
   end
   for _, path in pairs(LOCATION_MAPPING) do
     local obj = Tracker:FindObjectForCode(path)
-    if obj then obj.AvailableChestCount = obj.ChestCount end
+    if obj then
+      obj.AvailableChestCount = obj.ChestCount
+      if Highlight then obj.Highlight = Highlight.None end
+    end
+  end
+end
+
+-- Hints: a location in this world that someone hinted gets a highlight until it is checked.
+local hint_key = nil
+
+-- Archipelago hint status: 0 unspecified, 10 no priority, 20 avoid, 30 priority, 40 found.
+local function hint_highlight(hint)
+  if hint.found or hint.status == 40 then return Highlight.None end
+  if hint.status == 30 then return Highlight.Priority end
+  if hint.status == 20 then return Highlight.Avoid end
+  if hint.status == 10 then return Highlight.NoPriority end
+  if hint.status == nil then return Highlight.Priority end  -- servers before hint status
+  return Highlight.Unspecified
+end
+
+local function on_hints(key, value)
+  if key ~= hint_key or type(value) ~= "table" or not Highlight then return end
+  for _, hint in ipairs(value) do
+    if hint.finding_player == Archipelago.PlayerNumber then
+      local path = LOCATION_MAPPING[hint.location]
+      local obj = path and Tracker:FindObjectForCode(path)
+      if obj then obj.Highlight = hint_highlight(hint) end
+    end
   end
 end
 
 local function on_clear(slot_data)
   reset()
+  if Archipelago.TeamNumber and Archipelago.PlayerNumber then
+    hint_key = "_read_hints_" .. Archipelago.TeamNumber .. "_" .. Archipelago.PlayerNumber
+    Archipelago:SetNotify({hint_key})
+    Archipelago:Get({hint_key})
+  end
 end
 
 local function on_item(index, item_id, item_name, player_number)
@@ -216,11 +256,14 @@ local function on_location(location_id, location_name)
   if not path then return end
   local obj = Tracker:FindObjectForCode(path)
   if obj and obj.AvailableChestCount > 0 then obj.AvailableChestCount = obj.AvailableChestCount - 1 end
+  if obj and Highlight then obj.Highlight = Highlight.None end
 end
 
 Archipelago:AddClearHandler("dwr clear", on_clear)
 Archipelago:AddItemHandler("dwr item", on_item)
 Archipelago:AddLocationHandler("dwr location", on_location)
+Archipelago:AddSetReplyHandler("dwr hints", function(key, value, old) on_hints(key, value) end)
+Archipelago:AddRetrievedHandler("dwr hints get", function(key, value) on_hints(key, value) end)
 """
 
 if __name__ == "__main__":

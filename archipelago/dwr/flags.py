@@ -21,12 +21,17 @@ UNSUPPORTED = [
 FREE_CHARLOCK = (11, 0x02)
 
 
+def clean(flags: str) -> str:
+    """The flag string without spaces, line breaks or "=" padding, in upper case."""
+    return "".join(flags.split()).rstrip("=").upper()
+
+
 def decode(flags: str) -> List[int]:
     """Return the flag bytes for a base32 flag string (extra trailing bits are dropped)."""
     bits = 0
     count = 0
     out = []
-    for c in flags.strip().upper():
+    for c in clean(flags):
         value = BASE32.find(c)
         if value < 0:
             raise ValueError(f"'{c}' is not a DWR flag character")
