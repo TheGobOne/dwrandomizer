@@ -305,45 +305,45 @@ static inline BOOL needs_bridge(uint8_t left, uint8_t right)
  */
 static BOOL add_bridges(dw_map *map)
 {
-    /* this could use more work */
-    uint8_t x, y, left, right, x_candidate[120], y_candidate[120];
-    uint64_t which;
-    int count = 0;
-    dw_tile tile;
+    /* Every one-tile gap between two land masses, across or up and down, has the same chance (the same
+     * pick as biome_add_bridge). The gap is filled with the land beside it when there is some, so it looks
+     * like a narrow neck of land, and with a bridge otherwise. */
+    int x, y, count = 0, bx = 0, by = 0, vertical = 0, across, down;
 
-    for (y=0; y < 120; y++) {
-        for (x=2; x < 118; x++) {
-            tile = map->tiles[x][y];
-            if (tile == TILE_WATER) {
-                left = map->walkable[x-1][y];
-                right = map->walkable[x+1][y];
-                if (needs_bridge(left, right)){
-                    x_candidate[count]   = x;
-                    y_candidate[count++] = y;
-                }
-            }
-            if (count >= 120) {
-                printf("Maximum bridge candidates reached\n");
-                goto max_candidates;
+    for (y = 1; y < 119; y++) {
+        for (x = 1; x < 119; x++) {
+            if (map->tiles[x][y] != TILE_WATER)
+                continue;
+            across = needs_bridge(map->walkable[x-1][y], map->walkable[x+1][y]);
+            down = needs_bridge(map->walkable[x][y-1], map->walkable[x][y+1]);
+            if (!across && !down)
+                continue;
+            count++;
+            if (mt_rand(0, count - 1) == 0) {
+                bx = x;
+                by = y;
+                vertical = !across;
             }
         }
     }
-max_candidates:
-    if (count) {
-        which = mt_rand(0, count-1);
-        x = x_candidate[which];
-        y = y_candidate[which];
-        if (y > 0 && tile_is_walkable(map->tiles[x][y-1])) {
-            map->tiles[x][y] = map->tiles[x][y-1];
-
-        } else if (y < 119 && tile_is_walkable(map->tiles[x][y+1])) {
-            map->tiles[x][y] = map->tiles[x][y+1];
-        } else {
-            map->tiles[x][y] = TILE_BRIDGE;
-        }
-        return TRUE;
+    if (!count)
+        return FALSE;
+    if (!vertical) {
+        if (tile_is_walkable(map->tiles[bx][by-1]))
+            map->tiles[bx][by] = map->tiles[bx][by-1];
+        else if (tile_is_walkable(map->tiles[bx][by+1]))
+            map->tiles[bx][by] = map->tiles[bx][by+1];
+        else
+            map->tiles[bx][by] = TILE_BRIDGE;
+    } else {
+        if (tile_is_walkable(map->tiles[bx-1][by]))
+            map->tiles[bx][by] = map->tiles[bx-1][by];
+        else if (tile_is_walkable(map->tiles[bx+1][by]))
+            map->tiles[bx][by] = map->tiles[bx+1][by];
+        else
+            map->tiles[bx][by] = TILE_BRIDGE;
     }
-    return FALSE;
+    return TRUE;
 }
 
 /* Lake sizes, shared by the terrain, the Tantegel check and the area check. */
@@ -352,6 +352,8 @@ max_candidates:
 
 /* Set when a land mass has no free spot left, so the map is thrown away and drawn again. */
 static BOOL land_missing;
+/* Set once Tantegel and its Return point are placed on this try. */
+static BOOL tantegel_placed;
 
 /* Earth and Westeros are drawn from an outline. This holds the outline letter under each tile, '.' for sea.
  * The letters are listed in biome_maps.h. */
@@ -456,15 +458,17 @@ static dw_border_tile border_for(dw_tile tile)
  * @param lm_two The second acceptable land mass for the location
  * @return The tile type on the overworld which was replaced by the new tile
  */
-/* Extra rules for where a town or cave may go in the newer biomes (Lake and later). Older biomes keep
- * their old picks, so their flag codes still make the same maps. */
+/* Extra rules for where a town or cave may go on a random map. */
 static BOOL new_biome_spot(dw_map *map, int x, int y)
 {
     const dw_warp *charlock = &map->warps_from[WARP_CHARLOCK];
     int dx, dy;
 
-    if (!RANDOM_MAP(map) || BIOME(map) < BIOME_LAKE)
+    if (!RANDOM_MAP(map))
         return TRUE;
+    /* Not where Return and Wings land, outside Tantegel. */
+    if (tantegel_placed && x == map->return_point->x && y == map->return_point->y)
+        return FALSE;
     /* On a bridge it would cut the land beyond it off. */
     if (map->tiles[x][y] == TILE_BRIDGE)
         return FALSE;
@@ -609,19 +613,29 @@ static uint8_t place_tantegel(dw_map *map, int largest, int next)
 
     map->love_calc->x = x;
     map->love_calc->y = y;
-    if (y < 119 && tile_is_walkable(map->tiles[x][y+1])) { 
-        map->return_point->x = x;
-        map->return_point->y = y+1;
-    } else if (y > 0 && tile_is_walkable(map->tiles[x][y-1])) { 
-        map->return_point->x = x;
-        map->return_point->y = y-1;
-    } else if (x > 0 && tile_is_walkable(map->tiles[x-1][y])) { 
-        map->return_point->x = x-1;
-        map->return_point->y = y;
-    } else if (x < 119 && tile_is_walkable(map->tiles[x+1][y])) { 
-        map->return_point->x = x+1;
-        map->return_point->y = y;
+    /* Return and Wings land beside the castle, south first. Not on a town, cave or castle placed earlier:
+     * the hero would land in its doorway. */
+    {
+        static const int side[4][2] = {{0, 1}, {0, -1}, {-1, 0}, {1, 0}};
+        int i, nx, ny;
+        BOOL found = FALSE;
+
+        for (i = 0; i < 4 && !found; i++) {
+            nx = x + side[i][0];
+            ny = y + side[i][1];
+            if (map_ob(nx) || map_ob(ny) || !tile_is_walkable(map->tiles[nx][ny]))
+                continue;
+            if (RANDOM_MAP(map) && (map->tiles[nx][ny] == TILE_TOWN || map->tiles[nx][ny] == TILE_CAVE ||
+                    map->tiles[nx][ny] == TILE_CASTLE))
+                continue;
+            map->return_point->x = nx;
+            map->return_point->y = ny;
+            found = TRUE;
+        }
+        if (!found && RANDOM_MAP(map))
+            land_missing = TRUE;
     }
+    tantegel_placed = TRUE;
     /* do some stuff */
     map->meta[TANTEGEL].border = old_tile;
     return map->walkable[x][y];
@@ -883,6 +897,7 @@ static BOOL place_landmarks(dw_map *map)
     find_walkable_area(map, lm_sizes, &largest, &next);
 
     land_missing = FALSE;
+    tantegel_placed = FALSE;
     warp = &map->warps_from[WARP_CHARLOCK];
     place_charlock(map, largest, next);
     if (land_missing) {
@@ -1146,25 +1161,62 @@ static void biome_fill(dw_rom *rom, dw_tile *tiles, dw_tile base, int layers)
     map_smooth(&rom->map);
 }
 
-/* Cuts the land down to a rough rounded square. The square is map->size tiles across, centered between
- * rows and columns 59 and 60, so a normal size map reaches all 120 rows. */
+/* Unit directions around the coast: 64 steps of 1000 * (cos, sin), in order. Integers only, so every
+ * build draws the same coast for a seed. */
+static const int coast_dir[64][2] = {
+    {1000, 0}, {995, 98}, {981, 195}, {957, 290}, {924, 383}, {882, 471}, {831, 556}, {773, 634},
+    {707, 707}, {634, 773}, {556, 831}, {471, 882}, {383, 924}, {290, 957}, {195, 981}, {98, 995},
+    {0, 1000}, {-98, 995}, {-195, 981}, {-290, 957}, {-383, 924}, {-471, 882}, {-556, 831}, {-634, 773},
+    {-707, 707}, {-773, 634}, {-831, 556}, {-882, 471}, {-924, 383}, {-957, 290}, {-981, 195}, {-995, 98},
+    {-1000, 0}, {-995, -98}, {-981, -195}, {-957, -290}, {-924, -383}, {-882, -471}, {-831, -556}, {-773, -634},
+    {-707, -707}, {-634, -773}, {-556, -831}, {-471, -882}, {-383, -924}, {-290, -957}, {-195, -981}, {-98, -995},
+    {0, -1000}, {98, -995}, {195, -981}, {290, -957}, {383, -924}, {471, -882}, {556, -831}, {634, -773},
+    {707, -707}, {773, -634}, {831, -556}, {882, -471}, {924, -383}, {957, -290}, {981, -195}, {995, -98}
+};
+
+/* Cuts the land down to a wobbly circle around the middle. The radius changes gently from one direction to the
+ * next, so the coast has bays and points on every side. The radius starts at 46% of the map size and stays
+ * between 36% and size / 2 - 2, so a ring or lake drawn in the middle always fits. Radii are in tiles; the
+ * distance test uses doubled coordinates because the centre is between tiles 59 and 60. */
 static void biome_coast(dw_map *map)
 {
-    int x, y, dy, a, left = 0, right = 0;
-    int half = map->size / 2 - 1;
-    int radius = map->size * 62 / 100;
+    int r[64], s[64], k, pass, x, y, px, py, d2, sector, lo, hi, min, max, step;
+
+    min = map->size * 36 / 100;
+    max = map->size / 2 - 2;
+    r[0] = map->size * 46 / 100;
+    for (k = 1; k < 64; k++) {
+        step = (int)mt_rand(0, 2) - 1;
+        r[k] = r[k - 1] + step;
+        if (r[k] < min) r[k] = min;
+        if (r[k] > max) r[k] = max;
+    }
+    /* Smooth round the circle, twice, so no direction is a sharp spike. */
+    for (pass = 0; pass < 2; pass++) {
+        for (k = 0; k < 64; k++)
+            s[k] = (r[(k + 63) % 64] + 2 * r[k] + r[(k + 1) % 64] + 2) / 4;
+        for (k = 0; k < 64; k++)
+            r[k] = s[k];
+    }
 
     for (y = 0; y < 120; y++) {
-        dy = y < 60 ? 59 - y : y - 60;
-        left = biome_drift(left, 4);
-        right = biome_drift(right, 4);
-        a = -1;
-        if (dy <= half && dy < radius) {
-            a = biome_isqrt(radius * radius - dy * dy);
-            if (a > half) a = half;
-        }
         for (x = 0; x < 120; x++) {
-            if (a < 0 || x < 59 - a + left || x > 60 + a + right)
+            /* Doubled coordinates, so the centre (59.5, 59.5) is the origin. */
+            px = 2 * x - 119;
+            py = 2 * y - 119;
+            d2 = px * px + py * py;
+            if (d2 == 0) continue;
+            /* The sector whose two edge directions bracket this tile's direction. */
+            sector = -1;
+            for (k = 0; k < 64; k++) {
+                lo = coast_dir[k][0] * py - coast_dir[k][1] * px;
+                hi = coast_dir[(k + 1) % 64][0] * py - coast_dir[(k + 1) % 64][1] * px;
+                if (lo >= 0 && hi < 0) {
+                    sector = k;
+                    break;
+                }
+            }
+            if (sector < 0 || d2 > 4 * r[sector] * r[sector])
                 map->tiles[x][y] = TILE_WATER;
         }
     }
@@ -1173,7 +1225,7 @@ static void biome_coast(dw_map *map)
 /* A mountain ring around a basin with two passes. Charlock goes in the middle. */
 static void biome_caldera(dw_map *map)
 {
-    int x, y, dy, t, dist, outer, inner, first, second;
+    int x, y, dy, t, dist, outer, inner, first, second, side;
     int left = 0, right = 0;
     int r_out = map->size * 27 / 100;
     int r_in = r_out - 5;
@@ -1207,7 +1259,6 @@ static void biome_caldera(dw_map *map)
     second = (first + 1 + (int)mt_rand(0, 2)) % 4;
     for (t = r_in - 4; t <= r_out + 4; t++) {
         for (dist = 0; dist < 2; dist++) {
-            int side;
             for (side = 0; side < 2; side++) {
                 int dir = side ? second : first;
                 if (dir == 0) map->tiles[60 + dist][60 - t] = TILE_GRASS;
@@ -1215,6 +1266,25 @@ static void biome_caldera(dw_map *map)
                 if (dir == 2) map->tiles[60 - t][60 + dist] = TILE_GRASS;
                 if (dir == 3) map->tiles[60 + t][60 + dist] = TILE_GRASS;
             }
+        }
+    }
+    /* Past the ring, keep cutting each pass through any mountains the land fill left in its way, so a
+     * pass always opens onto land that can be walked. */
+    for (side = 0; side < 2; side++) {
+        int dir = side ? second : first;
+        for (t = r_out + 5; t <= 59; t++) {
+            BOOL cut = FALSE;
+            for (dist = 0; dist < 2; dist++) {
+                uint8_t *tile = dir == 0 ? &map->tiles[60 + dist][60 - t] :
+                                dir == 1 ? &map->tiles[60 + dist][60 + t] :
+                                dir == 2 ? &map->tiles[60 - t][60 + dist] : &map->tiles[60 + t][60 + dist];
+                if (*tile == TILE_MOUNTAIN) {
+                    *tile = TILE_GRASS;
+                    cut = TRUE;
+                }
+            }
+            if (!cut)
+                break;
         }
     }
 }
@@ -1988,7 +2058,7 @@ retry_map:
     if (!map_find_land(&rom->map, largest, next, &rom->search_table->x[0],
             &rom->search_table->y[0], TRUE))
         goto retry_map;
-    if (RAFT_BIOME(rom)) {
+    {
         /* The token can't be under a pier or any other entrance, where the hero never stands. */
         for (i = 0; rom->map.tiles[rom->search_table->x[0]][rom->search_table->y[0]] == TILE_CAVE ||
                 rom->map.tiles[rom->search_table->x[0]][rom->search_table->y[0]] == TILE_BRIDGE ||
@@ -2003,8 +2073,7 @@ retry_map:
     if (SAFE_START(rom))
         safe_start(&rom->map);
 
-    /* Older biomes are left alone so their flag codes keep making the same maps. */
-    if (RANDOM_MAP(rom) && BIOME(rom) >= BIOME_LAKE && !places_reachable(rom)) {
+    if (RANDOM_MAP(rom) && !places_reachable(rom)) {
         printf("A place cannot be reached, retrying...\n");
         goto retry_map;
     }

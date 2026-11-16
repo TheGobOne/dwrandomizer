@@ -1,4 +1,10 @@
 # Unreleased #
+* Random maps: every random map now changes for the same flags and seed, Continent included. All racers need the same version; the checksum on the title screen shows a mismatch. The same version still makes the same map for everyone, on the site and the desktop build
+* Random maps: towns and caves never go on a bridge, on the Rainbow Drop spot or where Return and Wings land, and every place must be reachable from Tantegel. Before, only Lake and later biomes had these rules
+* Random maps: the overworld search spot is never under a town, cave, castle or bridge
+* Random maps: Return and Wings never land in a cave or town doorway beside Tantegel
+* Random maps: bridges that join land masses are picked evenly from the whole map, and can run north to south. Before, a big map only bridged gaps in its northern part
+* Caldera: both passes through the mountain ring always open onto walkable land
 * Fast Flute now plays only the climb up the scale from the original song (about 0.8 seconds) instead of all of it sped up. A randomized flute song is still sped up note by note
 * Disable Spell Flashing also keeps the menu cursor from blinking
 * Free Charlock no longer starts the Dragonlord fight by itself. You arrive beside him, facing him, and talk to him
@@ -6,6 +12,7 @@
 * New flag: Swap Quick Spell. With Quick Spell on, SPELL takes the top right slot of the battle window and the quick spell goes under it. It is the first spare bit of a 42-character code. CLI: --quick-spell-swap
 * Site: the Run Bank description explains the dots after the bank number, and several option descriptions are reworded
 * North-south bridges now have their own tiles: rails down both sides with the deck between them, instead of east-west bridges stacked in a column. They act exactly like other bridges. They show up in Lake, Earth and Riverlands maps
+* Caldera, Wasteland, Riverlands and Lake maps have a wobbly, irregular coast with bays and points, instead of a square. Maps for these biomes change again for the same flags and seed
 * Caldera, Wasteland, Riverlands and Lake maps now use all 120 rows. Before, the top 2 rows and the bottom row were always water. Maps for these biomes change for the same flags and seed
 
 # 1.1.0 - TheGobOne Remix #
