@@ -47,9 +47,11 @@ Put your YAML in Archipelago's `Players` folder and generate. The output is a `.
 
 1. Open the built ROM in BizHawk with the NES core.
 2. In the BizHawk Client, connect to the server with your room address and slot name.
-3. Each item's message appears after your next step. On that one step, swamp and barrier damage and random battles are skipped.
-4. Chests and search spots send checks. Items you receive appear in your inventory, and the game shows "Thou hast found the <item>." when one arrives.
-4. Defeating the Dragonlord sends your goal.
+3. Each item's message appears after your next step on the overworld or in a room. A step onto a town, cave or stair tile shows it one step later. On the step that shows a message, swamp and barrier damage and random battles are skipped.
+4. Chests, search spots and rescuing Gwaelin send checks. Items you receive appear in your inventory, and the game shows "Thou hast found the <item>." when one arrives.
+5. Defeating the Dragonlord sends your goal.
+
+After the first session, always start with Continue. New Game on a slot that already has a save clears the received-item count and the checks stored in the ROM, so Archipelago sends your items again.
 
 ## Credits
 
@@ -59,5 +61,6 @@ DWR's Archipelago support builds on Serpikmin's Dragon Warrior APWorld ([Serpikm
 
 - **The server loads an old save:** the Archipelago server keeps progress in an `.apsave` file next to the zip. Delete it to start a fresh game.
 - **"Could not read the AP patch file":** this comes from `dwrandomizer.exe`. Update both `dwr.apworld` and `dwrandomizer.exe` to the latest versions.
+- **An item does not arrive:** quest items (Fairy Flute, Erdrick's Token, Silver Harp, Stones of Sunlight, Staff of Rain) wait until you have a free inventory slot. The BizHawk Client log says "No room for <item> yet." Herbs and Magic Keys wait until you have fewer than 6. Other items are dropped when the inventory is full, and the log says "Dropped <item>."
 - **"DWR could not build the ROM":** check the paths in `host.yaml`.
 - **"Invalid or missing manifest" in the Archipelago log:** older `dwr.apworld` files lack the version fields Archipelago 0.7.0 needs. Update to the latest `dwr.apworld`.

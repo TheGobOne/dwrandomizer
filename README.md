@@ -72,6 +72,8 @@ dwrandomizer --encounters low --bank-level easy --music pack.json5 dw.nes out/
 
 Every option is listed in [docs/FLAGS.md](docs/FLAGS.md#command-line-options). Run the program with no arguments to see the sprite names.
 
+To play a DWR seed in Archipelago (Windows, BizHawk), see [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
+
 ## Custom music and lag
 
 To make a pack, use the [NES Custom Music Tool](https://github.com/TheGobOne/NES-Custom-Music-Tool).

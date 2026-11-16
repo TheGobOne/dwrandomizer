@@ -41,6 +41,7 @@
 #define AP_SEARCH     0x6826
 #define AP_LOADED     0x6827
 #define AP_SLOT_RECV  0x6828
+#define AP_MAIL_FLAG  0x682e
 #define SAVE_SLOT     0x6039
 
 #define AP_VERSION    "002"
@@ -336,11 +337,13 @@ static void ap_save_and_load(dw_rom *rom)
     /* The Continue menu loads the chosen slot with jsr $FAC1 at $F8BE, then rts. */
     if (rom->content[0xf8be] == 0x20 && rom->content[0xf8bf] == 0xc1
             && rom->content[0xf8c0] == 0xfa) {
-        cont = find_free_space(rom->content, FIXED_FREE_START, 9);
-        vpatch(rom, cont, 9,
+        cont = find_free_space(rom->content, FIXED_FREE_START, 14);
+        vpatch(rom, cont, 14,
             0x20, 0xc1, 0xfa,                         /* jsr $fac1 (moved) */
             0xa9, 0x01,                               /* lda #1          */
             0x8d, LO(AP_LOADED), HI(AP_LOADED),       /* sta loaded      */
+            0xa9, 0x00,                               /* lda #0          */
+            0x8d, LO(AP_MAIL_FLAG), HI(AP_MAIL_FLAG), /* clear stale mail flag */
             0x60                                      /* rts             */
         );
         vpatch(rom, 0xf8be, 3, 0x4c, LO(cont), HI(cont));  /* jmp; $F8C1 rts is now unused */
@@ -349,15 +352,19 @@ static void ap_save_and_load(dw_rom *rom)
     }
 
     chain = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
-    start = find_free_space(rom->content, FIXED_FREE_START, 38);
-    vpatch(rom, start, 38,
+    start = find_free_space(rom->content, FIXED_FREE_START, 52);
+    vpatch(rom, start, 52,
         0x20, LO(chain), HI(chain),                   /* jsr chain       */
         0xad, LO(AP_LOADED), HI(AP_LOADED),           /* lda loaded      */
         0xf0, 0x06,                                   /* beq new_game    */
         0xa9, 0x00,                                   /* lda #0          */
         0x8d, LO(AP_LOADED), HI(AP_LOADED),           /* sta loaded      */
         0x60,                                         /* rts: continue   */
-        0xa9, 0x00,                                   /* new_game: lda #0 */
+        0xad, LO(SAVE_SLOT), HI(SAVE_SLOT),           /* new_game: lda slot */
+        0x0a, 0xaa,                                   /* asl, tax        */
+        0xa9, 0x00,                                   /* lda #0          */
+        0x9d, LO(AP_SLOT_RECV), HI(AP_SLOT_RECV),     /* clear slot_recv,x */
+        0x9d, LO(AP_SLOT_RECV + 1), HI(AP_SLOT_RECV + 1),
         0x8d, LO(AP_RECV), HI(AP_RECV),
         0x8d, LO(AP_RECV + 1), HI(AP_RECV + 1),
         0x8d, LO(AP_CHESTS), HI(AP_CHESTS),
@@ -365,6 +372,7 @@ static void ap_save_and_load(dw_rom *rom)
         0x8d, LO(AP_CHESTS + 2), HI(AP_CHESTS + 2),
         0x8d, LO(AP_CHESTS + 3), HI(AP_CHESTS + 3),
         0x8d, LO(AP_SEARCH), HI(AP_SEARCH),
+        0x8d, LO(AP_MAIL_FLAG), HI(AP_MAIL_FLAG),     /* stale mail flag */
         0x60                                          /* rts             */
     );
     vpatch(rom, 0xca1a, 3, 0x20, LO(start), HI(start));
@@ -395,7 +403,6 @@ static void ap_signature(dw_rom *rom)
  * hook drops its own return address and jumps to $D242 (show message), which
  * ends in $CF6A's rts back to the field loop, like a command does.
  */
-#define AP_MAIL_FLAG 0x682e
 #define AP_MAIL_TEXT 0x6850
 
 static void ap_mailbox(dw_rom *rom)

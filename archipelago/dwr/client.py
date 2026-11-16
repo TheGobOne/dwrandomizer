@@ -35,8 +35,13 @@ DW_FONT = ("0123456789abcdefghijklmnopqrstuvwxyz"
            "ABCDEFGHIJKLMNOPQRSTUVWXYZ[]'*>_:=_.,-_?!;)(``/'___________ \n")
 
 
+# Names longer than the 16 characters the message has room for, shortened for the game only.
+SHORT_NAMES = {"Stones of Sunlight": "Sunlight Stones"}
+
+
 def dw_text(name: str) -> bytes:
     """The item name as DW tiles, ended by $FA, for the mailbox."""
+    name = SHORT_NAMES.get(name, name)
     codes = [DW_FONT.index(c) if c in DW_FONT else DW_FONT.index(" ") for c in name[:16]]
     return bytes(codes + [0xFA])
 
@@ -141,9 +146,13 @@ class DWRClient(BizHawkClient):
         writes.append((AP_RECV, bytes([nxt & 0xFF, nxt >> 8]), "System Bus"))
         writes.append((MAIL_TEXT, dw_text(name), "System Bus"))
         writes.append((MAIL_FLAG, b"\x01", "System Bus"))
-        # Only write if the counter has not changed since it was read (a save loaded, a reset).
-        ok = await bizhawk.guarded_write(ctx.bizhawk_ctx, writes,
-                                         [(AP_RECV, bytes(block[0:2]), "System Bus")])
+        # Only write if nothing changed since the snapshot: the counter (a save loaded, a reset),
+        # and every game byte the effect rewrites (a shop purchase or herb use in between).
+        guards = [(AP_RECV, bytes(block[0:2]), "System Bus")]
+        for addr, data, domain in writes:
+            if domain == "RAM":
+                guards.append((addr, bytes(ram[addr:addr + len(data)]), "RAM"))
+        ok = await bizhawk.guarded_write(ctx.bizhawk_ctx, writes, guards)
         if ok:
             sender = ctx.player_names.get(item.player, "?")
             logger.info("Received %s from %s.", name, sender)
@@ -152,9 +161,13 @@ class DWRClient(BizHawkClient):
     def _effect(name: str, ram: bytes):
         """RAM writes that give the item, or None if there is no room for it."""
         if name == "Herb":
-            return [(HERBS, bytes([min(ram[HERBS] + 1, 6)]), "RAM")]
+            if ram[HERBS] >= 6:
+                return None  # the game holds 6: wait until one is used
+            return [(HERBS, bytes([ram[HERBS] + 1]), "RAM")]
         if name == "Magic Key":
-            return [(KEYS, bytes([min(ram[KEYS] + 1, 6)]), "RAM")]
+            if ram[KEYS] >= 6:
+                return None  # the game holds 6: wait until one is used
+            return [(KEYS, bytes([ram[KEYS] + 1]), "RAM")]
         if name == "100 Gold":
             gold = min(ram[GOLD] | ram[GOLD + 1] << 8, 0xFFFF - 100) + 100
             return [(GOLD, gold.to_bytes(2, "little"), "RAM")]
@@ -177,7 +190,10 @@ class DWRClient(BizHawkClient):
                     target = held.index(give_up)
                     break
         if target is None:
-            return None if value in QUEST else []  # quest items wait for room, others are dropped
+            if value in QUEST:
+                return None  # quest items wait for room
+            logger.warning("Dropped %s: the inventory is full.", name)
+            return []
         i, shift = slots[target]
         inv[i] = (inv[i] & (0xF0 >> shift)) | (value << shift)
         return [(INVENTORY + i, bytes([inv[i]]), "RAM")]
