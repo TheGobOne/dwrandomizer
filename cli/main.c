@@ -48,6 +48,8 @@ static void print_usage(const char *command, char *default_flags)
     printf("  --key-herb on|off\n");
     printf("  --quick-spell on|off\n");
     printf("  --quick-spell-swap on|off   (SPELL top right, quick spell under it)\n");
+    printf("  --cursor-blink on|off   (off: Disable Cursor Blink)\n");
+    printf("  --fast-hills on|off\n");
     printf("  --bank-cap 1-99\n");
     printf("  --bank-level normal|easy|strict|verystrict\n");
     printf("\n");
@@ -71,7 +73,7 @@ int main(int argc, char **argv)
     char *input_file, *output_dir;
     static const char *const bank_levels[4] = {"normal", "easy", "strict", "verystrict"};
     /* -1 and 0 for the cap: not given, so the flags decide. */
-    int responsive = -1, bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, quick_swap = -1, key_herb = -1, free_charlock = -1, auto_return = -1, auto_stairs = -1, biome = -1;
+    int responsive = -1, bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, quick_swap = -1, no_blink = -1, fast_hills = -1, key_herb = -1, free_charlock = -1, auto_return = -1, auto_stairs = -1, biome = -1;
     static const char *const encounter_rates[4] = {"default", "low", "medium", "high"};
     /* Same order as BIOME_* in dwr.h, then "random". */
     static const char *const biome_names[BIOME_COUNT + 1] = {"continent", "caldera", "wasteland", "riverlands", "lake",
@@ -120,6 +122,10 @@ int main(int argc, char **argv)
             quick_spell = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--quick-spell-swap")) {
             quick_swap = on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--cursor-blink")) {
+            no_blink = !on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--fast-hills")) {
+            fast_hills = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--bank-cap")) {
             bank_cap = atoi(argv[2]);
             if (bank_cap < 1 || bank_cap > 99) {
@@ -166,10 +172,11 @@ int main(int argc, char **argv)
         sprite = "Random";
     }
 
-    if (bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || quick_swap >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0 || responsive >= 0 || auto_stairs >= 0 || biome >= 0) {
-        /* 26 bytes plus room for the 2 spare bits a 42 character code decodes into. */
-        uint8_t raw[27] = {0};
-        strncpy(encoded, flags, 42);
+    if (bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || quick_swap >= 0 || no_blink >= 0 || fast_hills >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0 || responsive >= 0 || auto_stairs >= 0 || biome >= 0) {
+        /* 27 bytes plus room for the 4 spare bits a 44 character code decodes into. */
+        uint8_t raw[28] = {0};
+        int length;
+        strncpy(encoded, flags, 44);
         base32_decode((uint8_t *)encoded, raw);
         if (bank_cap)
             raw[12] = (uint8_t)((raw[12] & 0x80) | bank_cap);
@@ -195,6 +202,10 @@ int main(int argc, char **argv)
             raw[11] = (uint8_t)((raw[11] & 0xfe) | (quick_spell ? 0x01 : 0));
         if (quick_swap >= 0)
             raw[26] = (uint8_t)((raw[26] & 0x7f) | (quick_swap ? 0x80 : 0));
+        if (no_blink >= 0)
+            raw[26] = (uint8_t)((raw[26] & 0xbf) | (no_blink ? 0x40 : 0));
+        if (fast_hills >= 0)
+            raw[26] = (uint8_t)((raw[26] & 0xdf) | (fast_hills ? 0x20 : 0));
         if (biome >= 0) {
             raw[2] &= (uint8_t)~0x33;
             raw[25] = 0;
@@ -207,13 +218,12 @@ int main(int argc, char **argv)
             if (!(raw[0] & 0x03))
                 fprintf(stderr, "--biome needs Random Map on in the flags; without it the map is the original one.\n");
         }
-        /* Byte 25 (biome number) and the swap bit (the first spare bit after byte 25) only go in the code when set, so old codes stay 40 characters. */
-        base32_encode(raw, (raw[25] || (raw[26] & 0x80)) ? 26 : 25, (uint8_t *)encoded);
-        encoded[(raw[25] || (raw[26] & 0x80)) ? 42 : 40] = '\0';
-        if (raw[26] & 0x80) {
-            static const char alphabet[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-            encoded[41] = alphabet[(strchr(alphabet, encoded[41]) - alphabet) | 2];
-        }
+        /* Byte 25 (the biome number) and byte 26 only go in the code when set, so old codes stay 40
+         * characters. The top 2 bits of byte 26 fit in the 42nd character; the others need 44. */
+        raw[27] = 0;
+        length = (raw[26] & 0x3f) ? 44 : (raw[25] || raw[26]) ? 42 : 40;
+        base32_encode(raw, 27, (uint8_t *)encoded);   /* then cut to the length */
+        encoded[length] = '\0';
         flags = encoded;
     }
 

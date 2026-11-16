@@ -114,19 +114,32 @@ static BOOL bridge_tile_is(dw_map *map, int x, int y, dw_tile tile)
     return x >= 0 && x < 120 && y >= 0 && y < 120 && map->tiles[x][y] == tile;
 }
 
-/* The tile to store for this spot: a bridge that only joins bridges or land above and below is vertical. */
+/* How many bridge tiles in a straight line run through (x, y), going by (dx, dy) and back. */
+static int bridge_run(dw_map *map, int x, int y, int dx, int dy)
+{
+    int n = 1, i;
+
+    for (i = 1; bridge_tile_is(map, x + i * dx, y + i * dy, TILE_BRIDGE); i++)
+        n++;
+    for (i = 1; bridge_tile_is(map, x - i * dx, y - i * dy, TILE_BRIDGE); i++)
+        n++;
+    return n;
+}
+
+/* The tile to store for this spot: a bridge is drawn along its longer straight run, so the corner of an L and
+ * two north-south bridges side by side are drawn the right way. */
 static uint8_t map_encoded_tile(dw_map *map, int x, int y)
 {
-    BOOL across, down;
+    int across, down;
 
     if (map->tiles[x][y] != TILE_BRIDGE)
         return map->tiles[x][y];
-    across = bridge_tile_is(map, x - 1, y, TILE_BRIDGE) || bridge_tile_is(map, x + 1, y, TILE_BRIDGE);
-    down = bridge_tile_is(map, x, y - 1, TILE_BRIDGE) || bridge_tile_is(map, x, y + 1, TILE_BRIDGE);
-    if (across)
-        return TILE_BRIDGE;
-    if (down)
+    across = bridge_run(map, x, y, 1, 0);
+    down = bridge_run(map, x, y, 0, 1);
+    if (down > across)
         return TILE_BRIDGE_V;
+    if (across > 1)
+        return TILE_BRIDGE;
     /* A single bridge: vertical when it has water on both sides and something else above or below. */
     if ((x == 0 || map->tiles[x - 1][y] == TILE_WATER) && (x == 119 || map->tiles[x + 1][y] == TILE_WATER) &&
             ((y > 0 && map->tiles[x][y - 1] != TILE_WATER) || (y < 119 && map->tiles[x][y + 1] != TILE_WATER)))
@@ -142,11 +155,14 @@ static BOOL map_encode(dw_map *map)
 
     memset(encoded, 0xff, 120 * 120);
     e = encoded;
+    map->vertical_bridges = FALSE;
 
     for (y=0; y < 120; y++) {
         pointers[y] = e - encoded + 0x9d5d;
         for (x=0; x < 120; x++) {
             t = map_encoded_tile(map, x, y);
+            if (t == TILE_BRIDGE_V)
+                map->vertical_bridges = TRUE;
             if (*e == 0xff) {
                 *e = t << 4;
             } else if (*e >> 4 == t) {
@@ -1191,6 +1207,13 @@ static void biome_coast(dw_map *map)
         if (r[k] < min) r[k] = min;
         if (r[k] > max) r[k] = max;
     }
+    /* The walk does not come back to where it started: tilt it so the last direction meets the first. */
+    step = r[63] - r[0];
+    for (k = 1; k < 64; k++) {
+        r[k] -= step * k / 63;
+        if (r[k] < min) r[k] = min;
+        if (r[k] > max) r[k] = max;
+    }
     /* Smooth round the circle, twice, so no direction is a sharp spike. */
     for (pass = 0; pass < 2; pass++) {
         for (k = 0; k < 64; k++)
@@ -1598,6 +1621,14 @@ static BOOL earth_dock(dw_map *map, char region, uint8_t *dock_x, uint8_t *dock_
 
 /* Two rafts: one from North America and one from South America, each to a different one of Europe, Asia
  * and Africa. A raft is 2 warps, one each way, and each lands beside the other dock. */
+/* The way to face when landing on (lx, ly) beside the pier at (px, py): away from the pier. */
+static uint8_t raft_facing(int px, int py, int lx, int ly)
+{
+    if (lx > px) return DIR_RIGHT;
+    if (lx < px) return DIR_LEFT;
+    return ly > py ? DIR_DOWN : DIR_UP;
+}
+
 static BOOL earth_rafts(dw_map *map)
 {
     static const char *const names = "NSEAF";
@@ -1617,6 +1648,9 @@ static BOOL earth_rafts(dw_map *map)
         map->warps_to[out[r]] = (dw_warp){ 1, blx, bly };
         map->warps_from[back[r]] = (dw_warp){ 1, bx, by };
         map->warps_to[back[r]] = (dw_warp){ 1, alx, aly };
+        /* Land facing away from the pier, onto the land, not toward the water. */
+        map->warp_facing[out[r]] = raft_facing(bx, by, blx, bly);
+        map->warp_facing[back[r]] = raft_facing(ax, ay, alx, aly);
         printf("Raft from %s (%d, %d) to %s (%d, %d)\n", long_names[r], ax, ay,
                 long_names[strchr(names, dest[r]) - names], bx, by);
     }

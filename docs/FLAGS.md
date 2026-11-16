@@ -36,7 +36,7 @@ Adds a battle command that casts your last spell again, without opening the spel
 
 #### Swap Quick Spell ####
 
-Needs Quick Spell. Puts SPELL in the top right slot of the battle window and the quick spell command under it. Without it the quick spell is the top right slot and SPELL is under it. The flag is the first spare bit after the 26th byte, so a code with it on is 42 characters.
+Needs Quick Spell. Puts SPELL in the top right slot of the battle window and the quick spell command under it. Without it the quick spell is the top right slot and SPELL is under it. The flag is the first bit of the 27th flag byte, so a code with it on is at least 42 characters.
 
 
 #### Biome ####
@@ -80,7 +80,12 @@ When the Dragonlord's second form dies, Return is cast for you and you arrive in
 
 #### Responsive Controls ####
 
-On the overworld, walking, the command window and pause answer a press at once instead of waiting up to 15 frames. In towns and dungeons a short press is kept until the game can act on it, because NPCs move in time with that wait. A button newly pressed during a step is kept for when the step ends, unless that step starts a battle, a warp, stairs or anything else that takes time, so the hero no longer walks by himself after a fight. Hills no longer slow you down: the original game waits 3 extra frames on every hill step. Very full ROMs may not build with it on. It is part of the checksum. Command line: `--responsive-controls on`.
+On the overworld, walking, the command window and pause answer a press at once instead of waiting up to 15 frames. In towns and dungeons a short press is kept until the game can act on it, because NPCs move in time with that wait. A button newly pressed during a step is kept for when the step ends, unless that step starts a battle, a warp, stairs or anything else that takes time, so the hero no longer walks by himself after a fight. Very full ROMs may not build with it on. It is part of the checksum. Command line: `--responsive-controls on`.
+
+
+#### Fast Hills ####
+
+A step onto a hill takes as long as a step onto grass. The original game waits 3 extra frames on every hill step. It is the third bit of the 27th flag byte, so a code with it on is 44 characters. Command line: `--fast-hills on`.
 
 
 #### Auto Stairs ####
@@ -90,7 +95,7 @@ Stepping onto stairs takes them at once, the way stepping onto a town enters it,
 
 #### Free Charlock ####
 
-Entering Charlock from the overworld puts you in the Dragonlord's room, beside him and facing him. Nothing starts by itself: talk to him when you are ready, and the usual dialogue and fight follow. Short Charlock, Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. On a very full ROM the build stops, as it does for other flags that need space. It is part of the checksum, along with Auto Return. Command line: `--free-charlock on`.
+Entering Charlock from the overworld puts you in the Dragonlord's room, beside him and facing him. Nothing starts by itself: talk to him when you are ready, and the usual dialogue and fight follow. Erdrick's Sword and Erdrick's Armor are never in a Charlock chest, since most of Charlock is skipped. Short Charlock, Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. On a very full ROM the build stops, as it does for other flags that need space. It is part of the checksum, along with Auto Return. Command line: `--free-charlock on`.
 
 
 #### Show Key & Herb Counter ####
@@ -193,7 +198,12 @@ Walking into walls can deal damage to the player. The amount is chosen on the we
 
 #### Disable Spell Flashing ####
 
-Prevents the screen from flashing when you cast spells, and keeps the menu cursor from blinking: the arrow stays on all the time.
+Prevents the screen from flashing when you cast spells.
+
+
+#### Disable Cursor Blink ####
+
+The menu cursor arrow stays on all the time instead of blinking. It is the second bit of the 27th flag byte, so a code with it on is at least 42 characters. Command line: `--cursor-blink off`.
 
 
 #### Disable Red Flashes ####
@@ -426,11 +436,18 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | Option | Values |
 |---|---|
 | `--music` | Path to a JSON5 pack |
+| `--music-exact` | Path to a JSON5 pack. For testing: each song goes in as tagged, with none of the site's picks |
+| `--biome` | `continent`, `caldera`, `wasteland`, `riverlands`, `lake`, `earth`, `westeros`, `random`. Needs Random Map |
+| `--free-charlock` | `on` or `off` |
+| `--auto-return` | `on` or `off` |
+| `--responsive-controls` | `on` or `off` |
 | `--bank-cap` | 1 to 99 |
 | `--bank-level` | `normal`, `easy`, `strict`, `verystrict` |
 | `--encounters` | `default`, `low`, `medium`, `high` |
-| `--quick-spell` | `on` |
-| `--quick-spell-swap` | `on`: SPELL top right, quick spell under it. Needs Quick Spell |
+| `--quick-spell` | `on` or `off` |
+| `--quick-spell-swap` | `on` or `off`. `on`: SPELL top right, quick spell under it. Needs Quick Spell |
+| `--cursor-blink` | `off`: Disable Cursor Blink |
+| `--fast-hills` | `on`: Fast Hills |
 | `--key-herb` | `on`: adds a keys and herbs row to the stats window |
 | `--auto-stairs` | `on`: stepping onto stairs takes them |
 | `--spoiler` | `on`: writes a `.spoiler.txt` next to the ROM. It changes the checksum, so a spoiler seed never matches one without |

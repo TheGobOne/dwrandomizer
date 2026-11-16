@@ -148,9 +148,10 @@ static void update_flags(dw_rom *rom)
     if(RANDOM_TOWN_ENTRANCES(rom) == 2) rom->flags[24] = (rom->flags[24] | 0x03) & ((mt_rand(0, 1)     ) | 0xfc);
 
     /* Byte 25 is the biome number for biomes past the first four. BIOME_RANDOM picks any biome. */
-    rom->flags[26] &= 0x80;   /* the second spare bit stays unused */
+    rom->flags[26] &= 0xe0;   /* the other bits of byte 26 are unused */
+    rom->flags[27] = 0;
     if (QUICK_SPELL_SWAP(rom) && !QUICK_SPELL(rom)) {
-        rom->flags[26] = 0;
+        rom->flags[26] &= 0x7f;
         printf("Swap Quick Spell needs Quick Spell, so it is ignored.\n");
     }
     if (rom->flags[25] == BIOME_RANDOM) {
@@ -212,8 +213,8 @@ static BOOL dwr_init(dw_rom *rom, const char *input_file, char *flags)
     }
 
     rom->content = &rom->header[0x10];
-    strncpy((char *)rom->flags_encoded, flags, 42);
-    rom->flags_encoded[42] = '\0'; /* Make sure it's null terminated */
+    strncpy((char *)rom->flags_encoded, flags, 44);
+    rom->flags_encoded[44] = '\0'; /* Make sure it's null terminated */
     rom->map.flags = rom->flags;
     memset(rom->flags, 0, sizeof(rom->flags));
     base32_decode(rom->flags_encoded, rom->flags);
@@ -227,6 +228,7 @@ static BOOL dwr_init(dw_rom *rom, const char *input_file, char *flags)
     rom->map.meta = (dw_map_meta*)&rom->content[0x1a];
     rom->map.warps_from = (dw_warp*)&rom->content[0xf3c8];
     rom->map.warps_to   = (dw_warp*)&rom->content[0xf461];
+    rom->map.warp_facing = &rom->content[0x1914];   /* $9914 in bank 0: the way the hero faces after each warp */
     rom->map.love_calc = (dw_love_calc*)&rom->content[0xdf3b];
     rom->map.return_point = (dw_return_point*)&rom->content[0xdb01];
     rom->map.rainbow_drop = (dw_rainbow_drop*)&rom->content[0xde8b];
@@ -2757,6 +2759,8 @@ static void vertical_bridges(dw_rom *rom)
     const uint8_t tile_left = 0x55, tile_right = 0x56;
     uint16_t base, clear, lookup, draw, entry, shore;
 
+    if (!rom->map.vertical_bridges)
+        return;
     base = find_free_space(rom->content, FIXED_FREE_START, 80);
     clear = base;
     lookup = base + 10;
@@ -2812,10 +2816,6 @@ static void no_screen_flash(dw_rom *rom)
     /* Change the PPUMASK writes to disable flashing during spells */
     vpatch(rom, 0x0d38e,    1,  0x18);
     vpatch(rom, 0x0db40,    1,  0x18);
-    /* The menu cursor is the arrow ($42) for half of every 32 frames and a blank ($5f) for the other half:
-     * ldx #$5f : lda $4f : and #$1f : cmp #$10 : bcs +2 : ldx #$42. Making the first load the arrow means both
-     * paths give the arrow. That ldx is in bank 1 at $A96C. */
-    vpatch(rom, 0x696d,     1,  0x42);
 }
 
 /**
@@ -4197,8 +4197,9 @@ static uint16_t rc_space(dw_rom *rom, uint8_t n)
 static void responsive_controls(dw_rom *rom)
 {
     const uint16_t stamp = 0x680b, state = 0x680c, buf = 0x680d, prev = 0x680e, pend = 0x680f;
+    const uint16_t stamp_x = 0x6817, stamp_y = 0x6818;
     const uint8_t READING = 0xa5, DONE = 0x5a; /* other values, as in fresh RAM, mean nothing is saved */
-    uint16_t read_hook, frame_hook, step_end;
+    uint16_t read_hook, frame_hook, step_end, battle_start;
     size_t i;
 
     if (!RESPONSIVE_CONTROLS(rom))
@@ -4237,17 +4238,28 @@ static void responsive_controls(dw_rom *rom)
         0x68, 0xa8,
         0x28, 0x4c, 0x74, 0xff, 0xea); /* The real frame wait: NMI only runs its work from there. The nop keeps $FF from looking free. */
     /* After a step, $B219 runs the tile's effects: a battle, a warp, stairs, damage. The presses saved during the step
-     * are kept only when that took no frames ($4F counts frames), so a press made on the step that starts a battle
-     * is not replayed as a step after the battle. This one returns from $B219, and a battle may leave another bank
-     * at $8000, so it lives in the fixed bank. */
-    step_end = find_free_space(rom->content, FIXED_FREE_START, 21);
-    vpatch(rom, step_end, 21,
-        0xa5, 0x4f, 0x8d, LO(stamp), HI(stamp),   /* lda $4f : sta stamp          */
-        0x20, 0x19, 0xb2,                         /* jsr $b219 : the tile effects */
-        0xa5, 0x4f, 0xcd, LO(stamp), HI(stamp),   /* lda $4f : cmp stamp          */
-        0xd0, 0x05,                               /* bne : time passed, drop them */
+     * are kept for the next step unless that step started a battle or moved the hero (a warp or stairs changes the
+     * map or the position). A step on a damage tile such as swamp keeps them, even though it waits a few frames.
+     * This one returns from $B219, and a battle may leave another bank at $8000, so it lives in the fixed bank. */
+    step_end = find_free_space(rom->content, FIXED_FREE_START, 50);
+    vpatch(rom, step_end, 50,
         0xa9, DONE, 0x8d, LO(state), HI(state),   /* lda #DONE : sta state        */
+        0xa5, 0x45, 0x8d, LO(stamp), HI(stamp),   /* where the step ended         */
+        0xa5, 0x3a, 0x8d, LO(stamp_x), HI(stamp_x),
+        0xa5, 0x3b, 0x8d, LO(stamp_y), HI(stamp_y),
+        0x20, 0x19, 0xb2,                         /* jsr $b219 : the tile effects */
+        0xa5, 0x45, 0xcd, LO(stamp), HI(stamp), 0xd0, 0x0e,       /* moved: drop them */
+        0xa5, 0x3a, 0xcd, LO(stamp_x), HI(stamp_x), 0xd0, 0x07,
+        0xa5, 0x3b, 0xcd, LO(stamp_y), HI(stamp_y), 0xf0, 0x05,
+        0xa9, 0x00, 0x8d, LO(state), HI(state),   /* drop: lda #0 : sta state     */
         0x60);
+    /* A battle starting drops them too: $E4DF stores the enemy number when every fight begins. */
+    battle_start = find_free_space(rom->content, FIXED_FREE_START, 12);
+    vpatch(rom, battle_start, 12,
+        0x85, 0xe0, 0x85, 0x40,                   /* sta $e0 : sta $40 (the code this replaced) */
+        0x48, 0xa9, 0x00, 0x8d, LO(state), HI(state), 0x68,  /* pha : lda #0 : sta state : pla */
+        0x60);
+    vpatch(rom, 0xe4df, 4, 0x20, LO(battle_start), HI(battle_start), 0xea);
     vpatch(rom, 0xcaa2, 4, 0x20, LO(RC_CPU(read_hook)), HI(RC_CPU(read_hook)), 0xea);
     /* The frame waits in the four step routines, so nothing else pays for reading the buttons, as it would
      * while booting and in menus if $FF74 itself were hooked. */
@@ -4259,10 +4271,32 @@ static void responsive_controls(dw_rom *rom)
     vpatch(rom, 0xcb04 + 1, 2, LO(RC_CPU(step_end)), HI(RC_CPU(step_end)));
     vpatch(rom, 0xcb18 + 1, 2, LO(RC_CPU(step_end)), HI(RC_CPU(step_end)));
     vpatch(rom, 0xcb2a + 1, 2, LO(RC_CPU(step_end)), HI(RC_CPU(step_end)));
-    /* Hills: the step code waits 3 extra frames on a hill (3 x JSR WaitForNMI at $CE0A). Branch over them to
-     * $CE13 so a hill step costs the same as grass. Z is set here: the CMP #$02 above just matched. */
-    vpatch(rom, 0xce0a, 2, 0xf0, 0x07);   /* BEQ $CE13 */
     gameplay_patches |= 4;
+}
+
+/**
+ * Fast Hills: the step code waits 3 extra frames on a hill (3 x JSR WaitForNMI at $CE0A). Branch over them to
+ * $CE13 so a hill step costs the same as grass. Z is set here: the CMP #$02 above just matched.
+ */
+static void fast_hills(dw_rom *rom)
+{
+    if (!FAST_HILLS(rom))
+        return;
+    printf("Hills no longer slow you down...\n");
+    vpatch(rom, 0xce0a, 2, 0xf0, 0x07);   /* BEQ $CE13 */
+}
+
+/**
+ * Disable Cursor Blink. The menu cursor is the arrow ($42) for half of every 32 frames and a blank ($5f) for
+ * the other half: ldx #$5f : lda $4f : and #$1f : cmp #$10 : bcs +2 : ldx #$42. Making the first load the arrow
+ * means both paths give the arrow. That ldx is in bank 1 at $A96C.
+ */
+static void disable_cursor_blink(dw_rom *rom)
+{
+    if (!DISABLE_CURSOR_BLINK(rom))
+        return;
+    printf("Keeping the menu cursor from blinking...\n");
+    vpatch(rom, 0x696d, 1, 0x42);
 }
 
 /**
@@ -5104,6 +5138,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     free_charlock(rom);
     auto_return(rom);
     responsive_controls(rom);
+    fast_hills(rom);
 }
 
 
@@ -5309,7 +5344,7 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
     winter_theme(rom);
 
     apply_stuff_to_rom(rom);
-    /* Always: the map can hold vertical bridges (tile $D) whatever the flags. */
+    /* Only when the map has a north-south bridge (tile $D). */
     vertical_bridges(rom);
 
     crc = rom_checksum(rom);
@@ -5332,6 +5367,7 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
 
     update_title_screen(rom);
     no_screen_flash(rom);
+    disable_cursor_blink(rom);
     no_red_flash(rom);
     no_screen_shake(rom);
     disable_music(rom);

@@ -6,9 +6,16 @@
 * Random maps: bridges that join land masses are picked evenly from the whole map, and can run north to south. Before, a big map only bridged gaps in its northern part
 * Caldera: both passes through the mountain ring always open onto walkable land
 * Fast Flute now plays only the climb up the scale from the original song (about 0.8 seconds) instead of all of it sped up. A randomized flute song is still sped up note by note
-* Disable Spell Flashing also keeps the menu cursor from blinking
+* New flag: Disable Cursor Blink. The menu cursor arrow stays on instead of blinking. CLI: --cursor-blink off
+* New flag: Fast Hills. A step onto a hill takes as long as a step onto grass. It used to be part of Responsive Controls, which no longer changes hills. CLI: --fast-hills on
+* Flag codes can now be 44 characters: Fast Hills is in the 27th flag byte. Codes without it stay 40 or 42 characters. Gob Standard now has both new flags on
 * Free Charlock no longer starts the Dragonlord fight by itself. You arrive beside him, facing him, and talk to him
-* Responsive Controls: a direction pressed during the step that starts a battle, a warp or stairs is no longer replayed as a step afterwards
+* Free Charlock keeps Erdrick's Sword and Erdrick's Armor out of Charlock chests
+* Responsive Controls: a direction pressed during the step that starts a battle, a warp or stairs is no longer replayed as a step afterwards. A press during a swamp or other damage step is still kept
+* Earth: after a raft ride the hero faces away from the pier, onto the land
+* Bridges are drawn along their longer straight run, so the corner of an L-shaped bridge and two north-south bridges side by side look right. The vertical bridge code only goes in when the map has one
+* The wobbly coast no longer has a small step due east of the middle
+* Site: the Flags field fits a whole 44-letter code, turning Quick Spell off also turns Swap Quick Spell off, and unused bits in a pasted code are reported
 * New flag: Swap Quick Spell. With Quick Spell on, SPELL takes the top right slot of the battle window and the quick spell goes under it. It is the first spare bit of a 42-character code. CLI: --quick-spell-swap
 * Site: the Run Bank description explains the dots after the bank number, and several option descriptions are reworded
 * North-south bridges now have their own tiles: rails down both sides with the deck between them, instead of east-west bridges stacked in a column. They act exactly like other bridges. They show up in Lake, Earth and Riverlands maps

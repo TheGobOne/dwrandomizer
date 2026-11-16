@@ -22,7 +22,9 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 | **Show Key & Herb Counter** | Keys and herbs on the bottom row of the stats window. |
 | **Disable Screen Shake** | Keeps the screen still when you take damage. |
 | **Auto Stairs** | Stepping onto stairs takes them right away, with no STAIRS command. |
-| **Responsive Controls** | Short presses are no longer missed; on the overworld, walking and the command window answer at once, and hills no longer slow you down. |
+| **Responsive Controls** | Short presses are no longer missed; on the overworld, walking and the command window answer at once. |
+| **Fast Hills** | A step onto a hill takes as long as a step onto grass. |
+| **Disable Cursor Blink** | The menu cursor arrow stays on instead of blinking. |
 | **Fast Flute** | The Fairy Flute plays only the climb up the scale from its song, with or without Speed Hacks. |
 | **DK Flute** | With a full inventory, the flute can be dropped for a new item, or sold to a shop for 1 gold. |
 | **Website** | A single-page generator with the options grouped into tabs. |
@@ -95,7 +97,7 @@ Run Mechanics (Battle tab) and Run Bank are separate things. Run Mechanics chang
 
 - Some random flag sets fail to build with "Not enough space" (about 1 in 18 random sets). Turn off one of `Build Options`, `Hurtmore Doors` or `Warp Whistle`.
 - The first step off a standstill in towns can take up to 25 frames.
-- Tested in FCEUX only, not on hardware.
+- Tested in FCEUX and Mesen, not on hardware.
 
 ## Troubleshooting
 
