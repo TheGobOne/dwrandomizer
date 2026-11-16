@@ -68,6 +68,7 @@ local plan = {
 local p, side, done_at, in_throne = 1, 1, nil, 0
 local sx, sy = 0, 0
 local tries = 0
+local tgt_x, tgt_y = 0, 0
 
 -- FCEUX is Lua 5.1: no | or // operators. Bits use FCEUX's OR(). registerbefore can run more
 -- than once per frame, so the test steps run once per emu.framecount() and repeats only re-send input.
@@ -118,7 +119,7 @@ local function driver()
     if not spot then set_step("events")
     elseif spot.town == OVERWORLD then
       local x, y = rd(0xe139), rd(0xe13c)
-      go(x, y); log(string.format("teleported to overworld spot %d,%d", x, y)); set_step("search")
+      go(x, y); tgt_x, tgt_y = x, y; log(string.format("teleported to overworld spot %d,%d", x, y)); set_step("search")
     else
       local ex, ey = warp_entry(spot.town)
       if not ex then log("no entrance for map " .. spot.town); p = p + 1; return end
@@ -131,7 +132,7 @@ local function driver()
     local spot = plan[p]
     if map == spot.town and age() > 60 then
       local x, y = rd(0xe139 + spot.idx), rd(0xe13c + spot.idx)
-      go(x, y); log(string.format("in town, teleported to %d,%d", x, y)); set_step("search")
+      go(x, y); tgt_x, tgt_y = x, y; log(string.format("in town, teleported to %d,%d", x, y)); set_step("search")
     elseif age() > 150 then
       side = side + 1
       if side > 4 then log("could not enter map " .. spot.town); shot(spot.name .. "_enter_fail"); side = 1; p = p + 1 end
@@ -140,6 +141,9 @@ local function driver()
   elseif step == "search" then
     -- The search keys take 200 frames, so look at the result well after that. If the
     -- search bit is not set (a press was dropped), close any window and try again.
+    -- Re-teleport and clear any window before each attempt: a missed A press lets the
+    -- down presses walk the player off the search tile.
+    if age() == 1 then go(tgt_x, tgt_y); keys({ {1, "B"} }) end
     if age() == 30 then search() end
     if age() == 330 then shot(plan[p].name); log("after search, AP " .. ap()) end
     if age() == 420 then keys({ {5, "A"}, {30, "A"}, {30, "B"}, {30, "B"}, {30, "B"} }) end
