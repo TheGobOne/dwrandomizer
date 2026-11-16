@@ -12,6 +12,8 @@
  *   $6826        search spot bits, bit n = search table entry n
  *   $6827        1 between a continue's load and game start
  *   $6828-$682d  items received, saved copy for save slots 0-2
+ *   $682e        mailbox: nonzero when the client has a "received" message waiting
+ *   $6850-$6860  mailbox text, the item name in DW tiles, ended by $FA
  *
  * The ROM signature at PRG $7FE0: "DWRAP", 3 version digits, then a little
  * endian pointer to the 16 byte slot name.
@@ -41,7 +43,7 @@
 #define AP_SLOT_RECV  0x6828
 #define SAVE_SLOT     0x6039
 
-#define AP_VERSION    "001"
+#define AP_VERSION    "002"
 #define AP_NAME_LEN   16
 /* The unused Tablet: its index in the item name list, and its 6 letters. */
 #define TABLET_NAME   24
@@ -367,6 +369,48 @@ static void ap_signature(dw_rom *rom)
             LO(name), HI(name), 0, 0, 0, 0, 0, 0);
 }
 
+/*
+ * Mailbox for received items. The client gives the item through RAM, writes
+ * its name to AP_MAIL_TEXT and sets AP_MAIL_FLAG. After the hero's next step
+ * the game shows "Thou hast found the <name>." and goes back to the field.
+ *
+ * The hook replaces lda $e4, and #$04 at $CDBF, in the after-step code, which
+ * the field loop calls with jsr. Town, cave and stair tiles jump away before
+ * $CDBF, so the message never interrupts a map change. To show the message the
+ * hook drops its own return address and jumps to $D242 (show message), which
+ * ends in $CF6A's rts back to the field loop, like a command does.
+ */
+#define AP_MAIL_FLAG 0x682e
+#define AP_MAIL_TEXT 0x6850
+
+static void ap_mailbox(dw_rom *rom)
+{
+    uint16_t hook;
+
+    if (rom->content[0xcdbf] != 0xa5 || rom->content[0xcdc0] != 0xe4
+            || rom->content[0xcdc1] != 0x29 || rom->content[0xcdc2] != 0x04) {
+        printf("AP mailbox: unexpected code at $CDBF, received items will have no message\n");
+        return;
+    }
+    hook = find_free_space(rom->content, FIXED_FREE_START, 30);
+    vpatch(rom, hook, 30,
+        0xad, LO(AP_MAIL_FLAG), HI(AP_MAIL_FLAG),     /* lda flag        */
+        0xd0, 0x05,                                   /* bne show        */
+        0xa5, 0xe4,                                   /* lda $e4 (moved) */
+        0x29, 0x04,                                   /* and #$04 (moved) */
+        0x60,                                         /* rts             */
+        0x68, 0x68,                                   /* show: pla, pla  */
+        0xa9, 0x00,                                   /* lda #0          */
+        0x8d, LO(AP_MAIL_FLAG), HI(AP_MAIL_FLAG),     /* sta flag        */
+        0xa9, LO(AP_MAIL_TEXT), 0x85, 0xa3,           /* text pointer    */
+        0xa9, HI(AP_MAIL_TEXT), 0x85, 0xa4,
+        0xa9, 0xd9,                                   /* lda #$d9        */
+        0x4c, 0x42, 0xd2                              /* jmp $d242       */
+    );
+    /* The nop keeps the beq at $CDC3, which tests the moved and #$04. */
+    vpatch(rom, 0xcdbf, 4, 0x20, LO(hook), HI(hook), 0xea);
+}
+
 void ap_changes(dw_rom *rom)
 {
     int i;
@@ -390,5 +434,6 @@ void ap_changes(dw_rom *rom)
 
     ap_chest_and_search(rom);
     ap_save_and_load(rom);
+    ap_mailbox(rom);
     ap_signature(rom);
 }

@@ -23,10 +23,22 @@ logger = logging.getLogger("Client")
 
 SIGNATURE = 0x7FE0
 MAGIC = b"DWRAP"
-ROM_VERSION = b"001"
+ROM_VERSION = b"002"
 
 AP_RECV = 0x6820
 AP_BLOCK_SIZE = 7  # $6820-$6826
+MAIL_FLAG = 0x682E  # 1 while a received item's message is waiting to be shown
+MAIL_TEXT = 0x6850  # the item name in DW tiles, ended by $FA
+
+# DW's font order (common/dwr.c alphabet): a DW tile code is the index in this string.
+DW_FONT = ("0123456789abcdefghijklmnopqrstuvwxyz"
+           "ABCDEFGHIJKLMNOPQRSTUVWXYZ[]'*>_:=_.,-_?!;)(``/'___________ \n")
+
+
+def dw_text(name: str) -> bytes:
+    """The item name as DW tiles, ended by $FA, for the mailbox."""
+    codes = [DW_FONT.index(c) if c in DW_FONT else DW_FONT.index(" ") for c in name[:16]]
+    return bytes(codes + [0xFA])
 
 MAP = 0x45          # 0 until a game is running
 GOLD = 0xBC         # 2 bytes
@@ -82,9 +94,10 @@ class DWRClient(BizHawkClient):
         if ctx.server is None or ctx.slot is None:
             return
         try:
-            ram, block = await bizhawk.read(ctx.bizhawk_ctx, [
+            ram, block, mail = await bizhawk.read(ctx.bizhawk_ctx, [
                 (0x0000, 0x100, "RAM"),
                 (AP_RECV, AP_BLOCK_SIZE, "System Bus"),
+                (MAIL_FLAG, 1, "System Bus"),
             ])
         except bizhawk.RequestFailedError:
             return
@@ -92,7 +105,7 @@ class DWRClient(BizHawkClient):
             return  # title screen or menus: nothing in RAM is the game yet
 
         await self._send_checks(ctx, ram, block)
-        await self._give_item(ctx, ram, block)
+        await self._give_item(ctx, ram, block, mail[0])
 
     async def _send_checks(self, ctx, ram: bytes, block: bytes) -> None:
         found = set()
@@ -112,7 +125,9 @@ class DWRClient(BizHawkClient):
             ctx.finished_game = True
             await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
 
-    async def _give_item(self, ctx, ram: bytes, block: bytes) -> None:
+    async def _give_item(self, ctx, ram: bytes, block: bytes, mail_flag: int) -> None:
+        if mail_flag:
+            return  # the last item's message is still open: wait for it to close
         received = block[0] | block[1] << 8
         if received >= len(ctx.items_received):
             return
@@ -124,6 +139,8 @@ class DWRClient(BizHawkClient):
             return
         nxt = received + 1
         writes.append((AP_RECV, bytes([nxt & 0xFF, nxt >> 8]), "System Bus"))
+        writes.append((MAIL_TEXT, dw_text(name), "System Bus"))
+        writes.append((MAIL_FLAG, b"\x01", "System Bus"))
         # Only write if the counter has not changed since it was read (a save loaded, a reset).
         ok = await bizhawk.guarded_write(ctx.bizhawk_ctx, writes,
                                          [(AP_RECV, bytes(block[0:2]), "System Bus")])

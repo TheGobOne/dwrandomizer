@@ -167,6 +167,17 @@ The AP block sits in battery RAM, so it is kept in the `.sav` even when the play
 
 Nothing found blocks Phase 3.
 
+## Phase 3 complete (2026-11-16)
+
+| Item | Result |
+|---|---|
+| New game clears the AP block | Pass (`p3check.lua`, run four, with stale bits planted) |
+| Continue keeps the bits | Pass (run three) |
+| Random Chest Locations: a moved chest sets its index's bit | Pass (run five, chest 0 at 24,21 in Tantegel) |
+| Mailbox: received items show "Thou hast found the <name>." | Pass (run six: message on screen; full AP run: each item cleared the mailbox before the next) |
+
+How the mailbox works: the client writes the item name in DW tiles to `$6850` and sets `$682E`. The ROM hooks the after-step code at `$CDBF`. After the hero's next step it shows the message and clears the flag. The client gives the next item only after the flag clears. The ROM is version `002`.
+
 ## Test notes
 
 Use the project test rules for every AP test ROM: reduce flashing on, default music, max stats and a permanent repel. AP play testing uses FCEUX with the user's FCEUX connector (`connector_fceux_generic.lua`) and the AP BizHawk client. Mesen `--testrunner` scripts are still fine for checking the ROM-side hooks.

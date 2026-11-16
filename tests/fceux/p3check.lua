@@ -40,6 +40,8 @@ local CHEST_X, CHEST_Y, CHEST_BIT = 4, 4, 0x10   -- throne room chest index 4: $
 local in_throne, tries, side, sx, sy = 0, 0, 1, 0, 0
 local last_frame, last_pad = -1, {}
 local last_block = ""
+local DIRS = { "down", "left", "right", "up" }
+local mail_dir, mail_seen, mail_x, mail_y = 1, nil, 0, 0
 
 local started = os.clock()
 local function finish()
@@ -92,7 +94,7 @@ local function driver()
   elseif step == "intro" then
     if age() < 400 and age() % 30 == 0 then press.B = 2 end
     if age() == 420 then
-      if MODE == "five" then sx, sy = warp(5, 4); side = 1; set_step("stairs")
+      if MODE == "five" or MODE == "six" then sx, sy = warp(5, 4); side = 1; set_step("stairs")
       else set_step("take") end
     end
   elseif step == "take" then
@@ -113,6 +115,7 @@ local function driver()
     if map == 4 and age() > 30 then
       log("in Tantegel (map 4), block " .. block())
       if MODE == "five" then set_step("tgt")
+      elseif MODE == "six" then set_step("mail")
       else
         if AND(rd(0x6822), CHEST_BIT) ~= 0 then log("PASS chest bit kept across map change")
         else log("FAIL chest bit lost on map change") end
@@ -138,6 +141,31 @@ local function driver()
         else log("FAIL moved chest 0 bit not set, block " .. block()); finish() end
       end
     end
+  elseif step == "mail" then
+    -- Run "six": put "Herb" in the mailbox, take a step, and check the message shows and play goes on.
+    if age() == 1 then
+      local text = { 0x2B, 0x0E, 0x1B, 0x0B, 0xFA }   -- "Herb" in DW tiles
+      for i, v in ipairs(text) do wr(0x6850 + i - 1, v) end
+      wr(0x682E, 1); log("mailbox set, flag " .. rd(0x682E))
+      mail_x, mail_y = rd(0x3a), rd(0x3b)
+    end
+    if age() >= 30 and age() < 400 and age() % 90 == 30 and rd(0x682E) ~= 0 then
+      press[DIRS[mail_dir]] = 18; mail_dir = mail_dir % 4 + 1
+    end
+    if rd(0x682E) == 0 and not mail_seen then
+      mail_seen = frame; log(string.format("flag cleared after a step, at %d,%d", rd(0x3a), rd(0x3b)))
+    end
+    if mail_seen and frame == mail_seen + 90 and gui.savescreenshotas then gui.savescreenshotas(OUT .. "mail.png") end
+    if mail_seen and frame == mail_seen + 120 then keys({ {1, "A"}, {20, "B"}, {20, "B"} }) end
+    if mail_seen and frame >= mail_seen + 200 and frame < mail_seen + 560 and (frame - mail_seen) % 90 == 20 then
+      press[DIRS[mail_dir]] = 18; mail_dir = mail_dir % 4 + 1
+    end
+    if mail_seen and frame == mail_seen + 600 then
+      log(string.format("after closing, at %d,%d map %d, flag %d", rd(0x3a), rd(0x3b), rd(0x45), rd(0x682E)))
+      if gui.savescreenshotas then gui.savescreenshotas(OUT .. "mail_after.png") end
+      finish()
+    end
+    if age() == 1500 and not mail_seen then log("FAIL mailbox flag never cleared"); finish() end
   elseif step == "save" then
     if age() == 60 then log("exiting so the .sav is written"); finish() end
   end
