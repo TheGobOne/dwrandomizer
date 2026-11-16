@@ -55,6 +55,10 @@ class DWRWorld(World):
     free_charlock: bool = False
 
     def generate_early(self) -> None:
+        # The ROM keeps the slot name in 32 bytes of UTF-8 for the client to log in with.
+        if len(self.player_name.encode("utf-8")) > 32:
+            raise OptionError(f"{self.player_name}: the slot name is too long for DWR "
+                              "(32 bytes of UTF-8, about 16 letters or fewer with accents).")
         text = self.options.dwr_flags.value.strip()
         try:
             bad = dwr_flags.unsupported(text)

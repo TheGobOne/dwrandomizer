@@ -53,6 +53,11 @@ class DWRPatch(APAutoPatchInterface):
                 self.text = opened.read(PATCH_TEXT).decode("utf-8")
         rom = options.rom_file
         exe = options.randomizer
+        missing = [f"{key}: {path}" for key, path in (("rom_file", rom), ("randomizer", exe))
+                   if not os.path.isfile(str(path))]
+        if missing:
+            raise RuntimeError("DWR could not build the ROM. These files in host.yaml (dwr_options) "
+                               "were not found:\n" + "\n".join(missing))
         with tempfile.TemporaryDirectory() as work:
             text_path = os.path.join(work, PATCH_TEXT)
             with open(text_path, "w", encoding="utf-8") as f:

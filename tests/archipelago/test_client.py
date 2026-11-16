@@ -138,6 +138,14 @@ class GiveItem(unittest.TestCase):
         self.assertEqual([w for w in writes if w[2] == "RAM"], [])
         self.assertEqual(guards, [(C.AP_RECV, b"\x00\x00", "System Bus")])
 
+    def test_full_bag_quest_item_swaps_with_a_log(self):
+        for i in range(4):
+            self.ram[C.INVENTORY + i] = 0x11  # every slot holds a Torch
+        with self.assertLogs("Client", level="WARNING") as log:
+            writes, guards = give(["Silver Harp"], self.ram)[0]
+        self.assertIn("replaces your Torch", log.output[0])
+        self.assertEqual(len([w for w in writes if w[2] == "RAM"]), 1)
+
     def test_open_mailbox_waits(self):
         self.assertEqual(give(["Herb"], self.ram, mail_flag=1), [])
 

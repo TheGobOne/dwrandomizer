@@ -82,7 +82,8 @@ def main():
         code = code_of(name)
         img = f"images/items/{code}.png"
         item_image(os.path.join(PACK, img), texts[name], colors[item.classification])
-        entry = {"name": name, "codes": code, "img": img}
+        # Items you do not have yet show grayed out.
+        entry = {"name": name, "codes": code, "img": img, "disabled_img_mods": "@disabled"}
         if item.count > 1:
             entry.update(type="consumable", max_quantity=item.count * 2)
         else:
@@ -99,15 +100,22 @@ def main():
         area, section = area_of(name)
         areas.setdefault(area, []).append((name, section, loc_id))
 
-    row_h, left, top, dot = 40, 280, 20, 30
+    row_h, left, top, dot = 40, 340, 20, 30
     width = left + 8 * (dot + 8) + 20
-    height = top + len(areas) * row_h + 10
+    height = top + (len(areas) + 1) * row_h + 10   # one more row for the legend
     board = Image.new("RGBA", (width, height), (24, 24, 40, 255))
     d = ImageDraw.Draw(board)
     locations, loc_map = [], {}
     for row, (area, entries) in enumerate(areas.items()):
         y = top + row * row_h
-        d.text((10, y + dot // 2), area, fill=(230, 230, 230, 255), font=font(20), anchor="lm")
+        kinds = {section for _, section, _ in entries}
+        if kinds == {"Search Spot"}:
+            label = f"{area} (search)"
+        elif all(k.startswith("Chest") for k in kinds):
+            label = f"{area} ({len(entries)} chest{'s' if len(entries) > 1 else ''})"
+        else:
+            label = area
+        d.text((10, y + dot // 2), label, fill=(230, 230, 230, 255), font=font(20), anchor="lm")
         children = []
         for col, (name, section, loc_id) in enumerate(entries):
             x = left + col * (dot + 8) + dot // 2
@@ -123,6 +131,9 @@ def main():
             children.append(child)
             loc_map[loc_id] = f"@{area}/{name}/{section}"
         locations.append({"name": area, "children": children})
+    d.text((10, top + len(areas) * row_h + dot // 2),
+           "Green: can check now.  Red: needs items.  Gray: checked.",
+           fill=(180, 180, 180, 255), font=font(16), anchor="lm")
     board.save(os.path.join(PACK, "images", "maps", "checks.png"))
     json.dump(locations, open(os.path.join(PACK, "locations", "locations.json"), "w"), indent=2)
     json.dump([{"name": "Checks", "img": "images/maps/checks.png", "location_size": dot,

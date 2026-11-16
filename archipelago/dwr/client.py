@@ -23,6 +23,7 @@ logger = logging.getLogger("Client")
 
 SIGNATURE = 0x7FE0
 MAGIC = b"DWRAP"
+SLOT_NAME_LEN = 32  # bytes of UTF-8 the ROM keeps for the slot name
 ROM_VERSION = b"002"
 
 AP_RECV = 0x6820
@@ -72,6 +73,7 @@ class DWRClient(BizHawkClient):
     def __init__(self) -> None:
         super().__init__()
         self.slot_name = ""
+        self.music_noted = False
 
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         try:
@@ -82,10 +84,13 @@ class DWRClient(BizHawkClient):
                 logger.warning("This ROM is DWR AP version %s, the client expects %s.",
                                sig[5:8].decode(errors="replace"), ROM_VERSION.decode())
             name_at = sig[8] | sig[9] << 8
-            name = (await bizhawk.read(ctx.bizhawk_ctx, [(name_at, 16, "PRG ROM")]))[0]
+            name = (await bizhawk.read(ctx.bizhawk_ctx, [(name_at, SLOT_NAME_LEN, "PRG ROM")]))[0]
         except bizhawk.RequestFailedError:
             return False
-        self.slot_name = name.split(b"\x00")[0].decode("ascii", errors="replace")
+        self.slot_name = name.split(b"\x00")[0].decode("utf-8", errors="replace")
+        if sig[10] == 1 and not self.music_noted:
+            self.music_noted = True
+            logger.info("This ROM has custom music, which changes frame timing a little.")
         ctx.game = self.game
         ctx.items_handling = 0b111  # receive everything, own items included
         ctx.want_slot_data = False
@@ -188,6 +193,8 @@ class DWRClient(BizHawkClient):
             for give_up in REPLACEABLE:
                 if give_up in held:
                     target = held.index(give_up)
+                    lost = next(n for n, v in INVENTORY_ITEMS.items() if v == give_up)
+                    logger.warning("The inventory is full: %s replaces your %s.", name, lost)
                     break
         if target is None:
             if value in QUEST:

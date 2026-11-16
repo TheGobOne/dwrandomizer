@@ -12,7 +12,11 @@
 /* In AP mode the top of expansion bank 3 holds the found-message data: a low
  * and a high pointer table (one byte per location each), then the names in
  * fixed slots, ending at $BFFF. Custom music stops its bank 3 songs below it. */
-#define AP_BANK3_NAMES (0xc000 - AP_TEXT_LOCS * (AP_TEXT_LEN + 1 + 2))
+#define AP_BANK3_NAMES (0xc000 - AP_TEXT_LOCS * (AP_TEXT_LEN + 1 + 2))  /* longest names */
+
+/* Where that data starts in this build: names are stored end to end, so short
+ * names start it higher. $C000 when AP mode is off. Valid after ap_changes. */
+uint16_t dwr_ap_bank3_start(void);
 
 /* Turns Archipelago mode on for the next build. slot_name may be NULL. */
 void dwr_set_ap(BOOL enabled, const char *slot_name);
@@ -27,6 +31,10 @@ BOOL dwr_load_ap_patch(const char *path);
 const char *dwr_ap_patch_flags(void);
 BOOL dwr_ap_patch_seed(uint64_t *seed);
 int dwr_ap_patch_free_charlock(void);
+
+/* Marks the ROM signature: byte 10 is 1 when custom music went in, so the
+ * client can say so (music changes frame timing a little). */
+void dwr_ap_mark_music(dw_rom *rom);
 
 /* Applies the Archipelago ROM changes. Does nothing when AP mode is off. */
 void ap_changes(dw_rom *rom);

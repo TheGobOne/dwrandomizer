@@ -16,7 +16,7 @@
  *   $6850-$6860  mailbox text, the item name in DW tiles, ended by $FA
  *
  * The ROM signature at PRG $7FE0: "DWRAP", 3 version digits, then a little
- * endian pointer to the 16 byte slot name.
+ * endian pointer to the 32 byte slot name (UTF-8, zero padded).
  *
  * Based on Serpikmin's ap_changes() for the Dragon Warrior APWorld, rewritten
  * for DWR's chest and search code.
@@ -45,7 +45,7 @@
 #define SAVE_SLOT     0x6039
 
 #define AP_VERSION    "002"
-#define AP_NAME_LEN   16
+#define AP_NAME_LEN   32  /* UTF-8 bytes: 16 characters of up to 2 bytes; longer names are cut at a character */
 /* The unused Tablet: its index in the item name list, and its 6 letters. */
 #define TABLET_NAME   24
 #define TABLET_TEXT   0x7b56
@@ -61,13 +61,36 @@ static BOOL ap_have_seed = FALSE;
 static uint64_t ap_seed;
 static int ap_free_charlock = -1;
 static char ap_text[AP_TEXT_LOCS][AP_TEXT_LEN + 1];
+/* Where the found-message data starts in bank 3 for this build ($C000 when AP
+ * is off). Custom music reads it after ap_changes has run. */
+static uint16_t ap_bank3_start = 0xc000;
 
 void dwr_set_ap(BOOL enabled, const char *slot_name)
 {
     ap_enabled = enabled;
+    if (!enabled) {
+        /* Off clears everything a patch file set, so a later build in the same
+         * process (such as the site) starts clean. */
+        ap_slot_name[0] = '\0';
+        ap_have_text = FALSE;
+        ap_flags[0] = '\0';
+        ap_have_seed = FALSE;
+        ap_free_charlock = -1;
+        ap_bank3_start = 0xc000;
+        memset(ap_text, 0, sizeof(ap_text));
+    }
     if (slot_name) {
-        strncpy(ap_slot_name, slot_name, AP_NAME_LEN);
-        ap_slot_name[AP_NAME_LEN] = '\0';
+        size_t len = strlen(slot_name);
+
+        if (len > AP_NAME_LEN) {
+            /* Cut at a whole UTF-8 character. The APWorld rejects names this
+             * long, so this only guards a hand-made patch file. */
+            len = AP_NAME_LEN;
+            while (len > 0 && ((unsigned char)slot_name[len] & 0xc0) == 0x80)
+                len--;
+        }
+        memcpy(ap_slot_name, slot_name, len);
+        ap_slot_name[len] = '\0';
     }
 }
 
@@ -140,27 +163,37 @@ int dwr_ap_patch_free_charlock(void)
  * text that $A3/$A4 point to. Each chest and search spot gets its own text:
  * the item name from the .apdwr patch file, or "APItem" without one.
  *
- * Bank 1 has no room for the names, so they sit in expansion bank 3 in
- * 17-byte slots. The show routine maps bank 3, copies the name into work RAM
- * at AP_NAME_BUF, maps the old bank back and points $A3/$A4 at the copy.
+ * Bank 1 has no room for the names, so they sit at the top of expansion bank
+ * 3: a low and a high pointer table, then the names end to end, ending at
+ * $BFFF. The show routine maps bank 3, copies the name into work RAM at
+ * AP_NAME_BUF, maps the old bank back and points $A3/$A4 at the copy.
  */
 #define AP_NAME_BUF      0x6830  /* 17 bytes, below the music driver */
 #define AP_NAME_BANK     3
-#define AP_NAME_LO       AP_BANK3_NAMES                   /* CPU address in bank 3 */
-#define AP_NAME_HI       (AP_NAME_LO + AP_TEXT_LOCS)
-#define AP_NAME_SLOTS    (AP_NAME_HI + AP_TEXT_LOCS - 0x8000)  /* offset in bank 3 */
-_Static_assert(0x8000 + AP_NAME_SLOTS + AP_TEXT_LOCS * (AP_TEXT_LEN + 1) == 0xc000,
-        "AP found-message data must end at the top of bank 3");
 #define LOAD_PRG_BANK    0xff91  /* store_and_load_prg_bank: A = bank */
 #define FOUND_NAME_CODE  0xab70  /* the $F7 byte in message $D9 */
 #define F9_HANDLER       0x77e8  /* bank 1, $B7E8, 17 bytes */
+_Static_assert(AP_BANK3_NAMES == 0xc000 - AP_TEXT_LOCS * (AP_TEXT_LEN + 1 + 2),
+        "AP_BANK3_NAMES must be the room for the longest names");
+
+void dwr_ap_mark_music(dw_rom *rom)
+{
+    if (ap_enabled && !memcmp(&rom->content[0x7fe0], "DWRAP", 5))
+        rom->content[0x7fea] = 1;
+}
+
+uint16_t dwr_ap_bank3_start(void)
+{
+    return ap_enabled ? ap_bank3_start : 0xc000;
+}
 
 size_t ascii2dw(uint8_t *string);
 
-/* Writes name slot i in bank 3: the text in DW tiles, then $FA. */
-static void ap_put_name(dw_rom *rom, int i, const char *text)
+/* The text for location i, in DW tiles and ended by $FA. Returns its length
+ * with the $FA. */
+static size_t ap_name_tiles(int i, uint8_t *buf)
 {
-    uint8_t buf[AP_TEXT_LEN + 2];
+    const char *text = ap_have_text && ap_text[i][0] ? ap_text[i] : "APItem";
     size_t j, len = strlen(text);
 
     if (len > AP_TEXT_LEN)
@@ -173,15 +206,32 @@ static void ap_put_name(dw_rom *rom, int i, const char *text)
     buf[len] = 0;
     ascii2dw(buf);
     buf[len] = 0xfa;
-    memcpy(&rom->expansion[(AP_NAME_BANK - 3) * 0x4000 + AP_NAME_SLOTS
-            + i * (AP_TEXT_LEN + 1)], buf, len + 1);
+    return len + 1;
 }
 
 static void ap_chest_and_search(dw_rom *rom)
 {
-    uint16_t bits, chest, show, search, at;
+    uint16_t bits, chest, show, search, at, name_lo, name_hi;
     uint8_t *bank3 = &rom->expansion[(AP_NAME_BANK - 3) * 0x4000];
+    uint8_t names[AP_TEXT_LOCS][AP_TEXT_LEN + 2];
+    size_t lens[AP_TEXT_LOCS], total = 2 * AP_TEXT_LOCS;
     int i;
+
+    /* Names end to end, so short names leave more of bank 3 for music. */
+    for (i = 0; i < AP_TEXT_LOCS; i++)
+        total += lens[i] = ap_name_tiles(i, names[i]);
+    ap_bank3_start = (uint16_t)(0xc000 - total);
+    name_lo = ap_bank3_start;
+    name_hi = name_lo + AP_TEXT_LOCS;
+    at = name_hi + AP_TEXT_LOCS;
+    for (i = 0; i < AP_TEXT_LOCS; i++) {
+        if (bank3[at - 0x8000] != 0xff)
+            printf("AP: bank 3 at $%04X was not empty, the item names overwrite it\n", at);
+        memcpy(&bank3[at - 0x8000], names[i], lens[i]);
+        bank3[name_lo - 0x8000 + i] = LO(at);
+        bank3[name_hi - 0x8000 + i] = HI(at);
+        at = (uint16_t)(at + lens[i]);
+    }
 
     /* Four separate pieces: bit table (8), chest (33), show (61), search (19),
      * so they fit in small gaps. The name pointer tables sit in bank 3 with the
@@ -193,13 +243,6 @@ static void ap_chest_and_search(dw_rom *rom)
     chest = find_free_space(rom->content, FIXED_FREE_START, 33);
     memset(&rom->content[chest], 0, 33);
     search = find_free_space(rom->content, FIXED_FREE_START, 19);
-
-    for (i = 0; i < AP_TEXT_LOCS; i++) {
-        ap_put_name(rom, i, ap_have_text && ap_text[i][0] ? ap_text[i] : "APItem");
-        at = 0x8000 + AP_NAME_SLOTS + i * (AP_TEXT_LEN + 1);
-        bank3[AP_NAME_LO - 0x8000 + i] = LO(at);
-        bank3[AP_NAME_HI - 0x8000 + i] = HI(at);
-    }
 
     /* $D9 prints its name with $F9, and $F9 prints the text at ($A3). */
     vpatch(rom, FOUND_NAME_CODE, 1, 0xf9);
@@ -248,9 +291,9 @@ static void ap_chest_and_search(dw_rom *rom)
         0x48,                               /* pha                       */
         0xa9, AP_NAME_BANK,                 /* lda #3                    */
         0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank (keeps X) */
-        0xbd, LO(AP_NAME_LO), HI(AP_NAME_LO), /* lda lo,x (bank 3)       */
+        0xbd, LO(name_lo), HI(name_lo),     /* lda lo,x (bank 3)         */
         0x85, 0xa3,                         /* sta $a3                   */
-        0xbd, LO(AP_NAME_HI), HI(AP_NAME_HI), /* lda hi,x (bank 3)       */
+        0xbd, LO(name_hi), HI(name_hi),     /* lda hi,x (bank 3)         */
         0x85, 0xa4,                         /* sta $a4                   */
         0xa0, 0x00,                         /* ldy #0                    */
         0xb1, 0xa3,                         /* - lda ($a3),y             */

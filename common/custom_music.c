@@ -1166,7 +1166,7 @@ static BOOL apply_music(dw_rom *rom)
         return FALSE;
     /* In AP mode the top of bank 3 holds the found-message item names. The site's planner
      * (pick_like_site) and the placement below must both use the same room. */
-    music_bank_end[1] = dwr_ap_enabled() ? AP_BANK3_NAMES : 0xc000;
+    music_bank_end[1] = dwr_ap_bank3_start();
     pick_room[1] = music_bank_end[1] - FT_SONGS;
     if (choose_like_site)
         pick_like_site(rom);
@@ -1506,6 +1506,8 @@ void custom_music_apply(dw_rom *rom)
         }
         return;
     }
+    if (custom_music_has_pack())
+        dwr_ap_mark_music(rom);
     if (custom_music_has_pack() && !memcmp(start_at, start, sizeof(start)) && !memcmp(update_at, update, sizeof(update))) {
         memset(start_at, 0xea, sizeof(start));
         start_at[0] = 0xa9; start_at[1] = 0x00;                 /* lda #0 */

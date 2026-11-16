@@ -13,7 +13,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 295,
+            "x": 355,
             "y": 35
           }
         ]
@@ -29,7 +29,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 333,
+            "x": 393,
             "y": 35
           }
         ]
@@ -45,7 +45,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 371,
+            "x": 431,
             "y": 35
           }
         ]
@@ -61,7 +61,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 409,
+            "x": 469,
             "y": 35
           }
         ]
@@ -82,7 +82,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 295,
+            "x": 355,
             "y": 75
           }
         ]
@@ -98,7 +98,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 333,
+            "x": 393,
             "y": 75
           }
         ]
@@ -114,7 +114,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 371,
+            "x": 431,
             "y": 75
           }
         ]
@@ -135,7 +135,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 295,
+            "x": 355,
             "y": 115
           }
         ]
@@ -156,7 +156,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 295,
+            "x": 355,
             "y": 155
           }
         ]
@@ -172,7 +172,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 333,
+            "x": 393,
             "y": 155
           }
         ]
@@ -188,7 +188,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 371,
+            "x": 431,
             "y": 155
           }
         ]
@@ -209,7 +209,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 295,
+            "x": 355,
             "y": 195
           }
         ],
@@ -228,7 +228,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 333,
+            "x": 393,
             "y": 195
           }
         ],
@@ -247,7 +247,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 371,
+            "x": 431,
             "y": 195
           }
         ],
@@ -266,7 +266,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 409,
+            "x": 469,
             "y": 195
           }
         ],
@@ -285,7 +285,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 447,
+            "x": 507,
             "y": 195
           }
         ],
@@ -304,7 +304,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 485,
+            "x": 545,
             "y": 195
           }
         ],
@@ -328,7 +328,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 295,
+            "x": 355,
             "y": 235
           }
         ]
@@ -349,7 +349,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 295,
+            "x": 355,
             "y": 275
           }
         ],
@@ -373,7 +373,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 295,
+            "x": 355,
             "y": 315
           }
         ]
@@ -389,7 +389,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 333,
+            "x": 393,
             "y": 315
           }
         ]
@@ -405,7 +405,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 371,
+            "x": 431,
             "y": 315
           }
         ]
@@ -421,7 +421,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 409,
+            "x": 469,
             "y": 315
           }
         ]
@@ -437,7 +437,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 447,
+            "x": 507,
             "y": 315
           }
         ]
@@ -458,7 +458,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 295,
+            "x": 355,
             "y": 355
           }
         ],
@@ -482,7 +482,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 295,
+            "x": 355,
             "y": 395
           }
         ]
@@ -498,7 +498,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 333,
+            "x": 393,
             "y": 395
           }
         ]
@@ -514,7 +514,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 371,
+            "x": 431,
             "y": 395
           }
         ]
@@ -530,7 +530,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 409,
+            "x": 469,
             "y": 395
           }
         ]
@@ -546,7 +546,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 447,
+            "x": 507,
             "y": 395
           }
         ]
@@ -567,7 +567,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 295,
+            "x": 355,
             "y": 435
           }
         ]
@@ -588,7 +588,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 295,
+            "x": 355,
             "y": 475
           }
         ]
@@ -609,7 +609,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 295,
+            "x": 355,
             "y": 515
           }
         ]
@@ -630,7 +630,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 295,
+            "x": 355,
             "y": 555
           }
         ]
@@ -651,7 +651,7 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 295,
+            "x": 355,
             "y": 595
           }
         ]
