@@ -40,8 +40,10 @@ local CHEST_X, CHEST_Y, CHEST_BIT = 4, 4, 0x10   -- throne room chest index 4: $
 local in_throne, tries, side, sx, sy = 0, 0, 1, 0, 0
 local last_frame, last_pad = -1, {}
 
+local started = os.clock()
 local function finish()
-  log("done"); set_step("idle")
+  local secs = math.max(os.clock() - started, 0.01)
+  log(string.format("done, %.1f s, %.0f frames per second", secs, frame / secs)); set_step("idle")
   if emu.exit then emu.exit() else log("no emu.exit") end
 end
 
@@ -50,6 +52,9 @@ local function driver()
   if fc == last_frame then joypad.set(1, last_pad); return end
   last_frame = fc
   frame = frame + 1
+  -- Set turbo inside the frame loop: a call at script load, before the ROM runs, does not
+  -- stick. Turbo also mutes sound (muteTurbo in fceux.cfg).
+  if frame % 300 == 1 then emu.speedmode("turbo") end
   local map = rd(0x45)
 
   if MODE == "two" and step == "boot" then
@@ -102,5 +107,4 @@ local function driver()
   joypad.set(1, pad)
 end
 
-emu.speedmode("turbo")
 emu.registerbefore(driver)

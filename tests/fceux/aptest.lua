@@ -78,6 +78,9 @@ local function driver()
   if fc == last_frame then joypad.set(1, last_pad); return end
   last_frame = fc
   frame = frame + 1
+  -- Turbo, set inside the frame loop (a call at script load does not stick). Turbo also mutes
+  -- sound (muteTurbo in fceux.cfg).
+  if frame % 300 == 1 then emu.speedmode("turbo") end
   local map = rd(0x45)
   -- No fights: build the test ROM with the Permanent Repel flag (IVICEV2U...).
 
