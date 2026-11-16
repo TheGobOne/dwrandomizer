@@ -178,6 +178,12 @@ Nothing found blocks Phase 3.
 
 How the mailbox works: the client writes the item name in DW tiles to `$6850` and sets `$682E`. The ROM hooks the after-step code at `$CDBF`. After the hero's next step it shows the message and clears the flag. The client gives the next item only after the flag clears. The ROM is version `002`.
 
+## Phase 4 status (2026-11-16)
+
+- Flags the logic does not cover are rejected at generation (`archipelago/dwr/flags.py`): Random Chest Locations, Stair Shuffle, Cursed Princess, Three's Company, Radish Finish and Disguised Dragonlord. Free Charlock is read from the flag string.
+- Random Map: covered. The default flags turn it on, and a seed with it on was beaten in FCEUX turbo.
+- Open Charlock: generates and builds. Covered by the logic argument (the Rainbow Drop rules are stricter than needed). Not played through; the first real play of an Open Charlock seed is the test.
+
 ## Test notes
 
 Use the project test rules for every AP test ROM: reduce flashing on, default music, max stats and a permanent repel. AP play testing uses FCEUX with the user's FCEUX connector (`connector_fceux_generic.lua`) and the AP BizHawk client. Mesen `--testrunner` scripts are still fine for checking the ROM-side hooks.

@@ -7,11 +7,13 @@ The player builds the ROM from it with the DWR CLI:
 
     dwrandomizer --ap-patch <file.apdwr> <vanilla rom> <output dir>
 
-With the Free Charlock option on, Erdrick's Sword and Armor and the quest items
-stay out of the Charlock chests.
+With Free Charlock on in the flags, Erdrick's Sword and Armor and the quest
+items stay out of the Charlock chests.
 
-Logic assumes DWR flags with Random Chest Locations, Stair Shuffle and the
-quest item flags (Cursed Princess, Three's Company, Open Charlock) off.
+flags.py rejects the DWR flags the logic does not cover: Random Chest Locations
+(a chest can move into Charlock), Stair Shuffle, and the flags that change how
+you win. Random Map and Open Charlock are fine: the Charlock rule only asks for
+more than Open Charlock needs.
 Magic Keys can be bought, so key doors are not in logic.
 """
 import os
@@ -20,7 +22,10 @@ from typing import ClassVar
 from BaseClasses import Item, Location, Region
 from worlds.AutoWorld import World
 
+from Options import OptionError
+
 from .client import DWRClient  # noqa: F401  registers the BizHawk client
+from . import flags as dwr_flags
 from .host_settings import DWRSettings
 from .options import DWROptions
 from .patch import DWRPatch
@@ -46,6 +51,19 @@ class DWRWorld(World):
     topology_present = False
     item_name_to_id = ITEM_NAME_TO_ID
     location_name_to_id = LOCATION_NAME_TO_ID
+
+    free_charlock: bool = False
+
+    def generate_early(self) -> None:
+        text = self.options.dwr_flags.value.strip()
+        try:
+            bad = dwr_flags.unsupported(text)
+            self.free_charlock = dwr_flags.free_charlock(text)
+        except ValueError as error:
+            raise OptionError(f"{self.player_name}: DWR flags: {error}") from error
+        if bad:
+            raise OptionError(f"{self.player_name}: these DWR flags are not supported with Archipelago: "
+                              + "; ".join(bad))
 
     def create_item(self, name: str) -> Item:
         data = ITEMS[name]
@@ -77,7 +95,7 @@ class DWRWorld(World):
         for name in CHARLOCK_CHESTS:
             self.get_location(name).access_rule = rainbow_drop
         self.get_location(GOAL).access_rule = rainbow_drop
-        if self.options.free_charlock:
+        if self.free_charlock:
             # Free Charlock skips the castle, so nothing needed to win or to dress for the fight may be in it.
             blocked = {"Erdrick's Sword", "Erdrick's Armor", "Silver Harp", "Stones of Sunlight",
                        "Staff of Rain", "Erdrick's Token"}
@@ -101,7 +119,7 @@ class DWRWorld(World):
             f"slot {self.multiworld.player_name[player]}",
             f"flags {self.options.dwr_flags.value.strip()}",
             f"seed {self.random.getrandbits(63)}",
-            f"free_charlock {1 if self.options.free_charlock else 0}",
+            f"free_charlock {1 if self.free_charlock else 0}",
         ]
         for location in self.multiworld.get_locations(player):
             if location.address is None or location.item is None:
