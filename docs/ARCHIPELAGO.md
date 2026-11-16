@@ -187,7 +187,7 @@ How the mailbox works: the client writes the item name in DW tiles to `$6850` an
 ## Phase 5 status (2026-11-16)
 
 - Setup guide: `docs/ARCHIPELAGO_SETUP.md`, with Serpikmin credited. The Launcher menu names and BizHawk connection steps come from the code, not a recorded run.
-- PopTracker: no published DWR pack was found. `archipelago/poptracker/build_pack.py` builds one from the APWorld tables (15 items, 35 checks, AP autotracker). Its JSON passes PopTracker 0.36.0's schemas. Not yet loaded in the app; that needs a manual check.
+- PopTracker: no published DWR pack was found. `archipelago/poptracker/build_pack.py` builds one from the APWorld tables (15 items, 35 checks, AP autotracker). Its JSON passes PopTracker 0.36.0's schemas, and PopTracker 0.36.0 loads it with no errors, including the AP autotracking scripts. Live tracking against a server still needs a manual connect.
 - Linux and macOS builds: dropped from Phase 5 by the user (Windows only).
 - Public release: waiting on the user's approval.
 

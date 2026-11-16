@@ -8,7 +8,10 @@
   "versions_url": "",
   "variants": {
     "standard": {
-      "display_name": "Standard"
+      "display_name": "Standard",
+      "flags": [
+        "ap"
+      ]
     }
   }
 }

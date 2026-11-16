@@ -133,7 +133,7 @@ def main():
 
     manifest = {"name": "DWR Archipelago", "game_name": "DWR", "package_version": "0.1.0",
                 "package_uid": "dwr_archipelago", "author": "TheGobOne", "platform": "nes",
-                "versions_url": "", "variants": {"standard": {"display_name": "Standard"}}}
+                "versions_url": "", "variants": {"standard": {"display_name": "Standard", "flags": ["ap"]}}}
     json.dump(manifest, open(os.path.join(PACK, "manifest.json"), "w"), indent=2)
 
     # Autotracking: AP item and location IDs map to pack codes and section paths.
@@ -144,7 +144,7 @@ def main():
     lua += ["}"]
     open(os.path.join(PACK, "scripts", "mapping.lua"), "w").write("\n".join(lua) + "\n")
     open(os.path.join(PACK, "scripts", "autotracking.lua"), "w").write(AUTOTRACKING)
-    open(os.path.join(PACK, "init.lua"), "w").write(INIT)
+    open(os.path.join(PACK, "scripts", "init.lua"), "w").write(INIT)
 
     out = os.path.join(HERE, "dwr_ap.zip")
     with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
