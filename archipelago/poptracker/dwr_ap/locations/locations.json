@@ -13,8 +13,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 243,
-            "y": 33
+            "x": 295,
+            "y": 35
           }
         ]
       },
@@ -29,8 +29,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 277,
-            "y": 33
+            "x": 333,
+            "y": 35
           }
         ]
       },
@@ -45,8 +45,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 311,
-            "y": 33
+            "x": 371,
+            "y": 35
           }
         ]
       },
@@ -61,8 +61,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 345,
-            "y": 33
+            "x": 409,
+            "y": 35
           }
         ]
       }
@@ -82,8 +82,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 243,
-            "y": 67
+            "x": 295,
+            "y": 75
           }
         ]
       },
@@ -98,8 +98,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 277,
-            "y": 67
+            "x": 333,
+            "y": 75
           }
         ]
       },
@@ -114,8 +114,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 311,
-            "y": 67
+            "x": 371,
+            "y": 75
           }
         ]
       }
@@ -135,8 +135,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 243,
-            "y": 101
+            "x": 295,
+            "y": 115
           }
         ]
       }
@@ -156,8 +156,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 243,
-            "y": 135
+            "x": 295,
+            "y": 155
           }
         ]
       },
@@ -172,8 +172,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 277,
-            "y": 135
+            "x": 333,
+            "y": 155
           }
         ]
       },
@@ -188,8 +188,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 311,
-            "y": 135
+            "x": 371,
+            "y": 155
           }
         ]
       }
@@ -209,8 +209,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 243,
-            "y": 169
+            "x": 295,
+            "y": 195
           }
         ],
         "access_rules": [
@@ -228,8 +228,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 277,
-            "y": 169
+            "x": 333,
+            "y": 195
           }
         ],
         "access_rules": [
@@ -247,8 +247,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 311,
-            "y": 169
+            "x": 371,
+            "y": 195
           }
         ],
         "access_rules": [
@@ -266,8 +266,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 345,
-            "y": 169
+            "x": 409,
+            "y": 195
           }
         ],
         "access_rules": [
@@ -285,8 +285,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 379,
-            "y": 169
+            "x": 447,
+            "y": 195
           }
         ],
         "access_rules": [
@@ -304,8 +304,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 413,
-            "y": 169
+            "x": 485,
+            "y": 195
           }
         ],
         "access_rules": [
@@ -328,8 +328,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 243,
-            "y": 203
+            "x": 295,
+            "y": 235
           }
         ]
       }
@@ -349,8 +349,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 243,
-            "y": 237
+            "x": 295,
+            "y": 275
           }
         ],
         "access_rules": [
@@ -373,8 +373,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 243,
-            "y": 271
+            "x": 295,
+            "y": 315
           }
         ]
       },
@@ -389,8 +389,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 277,
-            "y": 271
+            "x": 333,
+            "y": 315
           }
         ]
       },
@@ -405,8 +405,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 311,
-            "y": 271
+            "x": 371,
+            "y": 315
           }
         ]
       },
@@ -421,8 +421,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 345,
-            "y": 271
+            "x": 409,
+            "y": 315
           }
         ]
       },
@@ -437,8 +437,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 379,
-            "y": 271
+            "x": 447,
+            "y": 315
           }
         ]
       }
@@ -458,8 +458,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 243,
-            "y": 305
+            "x": 295,
+            "y": 355
           }
         ],
         "access_rules": [
@@ -482,8 +482,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 243,
-            "y": 339
+            "x": 295,
+            "y": 395
           }
         ]
       },
@@ -498,8 +498,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 277,
-            "y": 339
+            "x": 333,
+            "y": 395
           }
         ]
       },
@@ -514,8 +514,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 311,
-            "y": 339
+            "x": 371,
+            "y": 395
           }
         ]
       },
@@ -530,8 +530,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 345,
-            "y": 339
+            "x": 409,
+            "y": 395
           }
         ]
       },
@@ -546,8 +546,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 379,
-            "y": 339
+            "x": 447,
+            "y": 395
           }
         ]
       }
@@ -567,8 +567,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 243,
-            "y": 373
+            "x": 295,
+            "y": 435
           }
         ]
       }
@@ -588,8 +588,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 243,
-            "y": 407
+            "x": 295,
+            "y": 475
           }
         ]
       }
@@ -609,8 +609,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 243,
-            "y": 441
+            "x": 295,
+            "y": 515
           }
         ]
       }
@@ -630,8 +630,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 243,
-            "y": 475
+            "x": 295,
+            "y": 555
           }
         ]
       }
@@ -651,8 +651,8 @@
         "map_locations": [
           {
             "map": "Checks",
-            "x": 243,
-            "y": 509
+            "x": 295,
+            "y": 595
           }
         ]
       }

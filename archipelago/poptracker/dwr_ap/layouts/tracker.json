@@ -4,6 +4,7 @@
     "background": "#181828",
     "content": {
       "type": "array",
+      "orientation": "horizontal",
       "content": [
         {
           "type": "group",

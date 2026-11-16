@@ -50,12 +50,16 @@ def font(size):
         return ImageFont.load_default()
 
 
-def item_image(path, label, color):
+def icon_text(label):
+    """Two letters for an item tile: initials without small words ("Staff of Rain" -> "SR")."""
+    words = [w for w in label.replace("'s", "").split() if w.lower() not in ("of", "the")]
+    return "".join(w[0] for w in words[:2]).upper() if len(words) > 1 else label[:2].upper()
+
+
+def item_image(path, text, color):
     img = Image.new("RGBA", (32, 32), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
     d.rounded_rectangle((1, 1, 30, 30), 6, fill=color, outline=(255, 255, 255, 255))
-    words = label.replace("'s", "").split()
-    text = "".join(w[0] for w in words[:2]).upper() if len(words) > 1 else label[:2].upper()
     d.text((16, 16), text, fill=(255, 255, 255, 255), font=font(13), anchor="mm")
     img.save(path)
 
@@ -70,10 +74,14 @@ def main():
     # Items
     colors = {"progression": (176, 112, 32, 255), "useful": (48, 96, 176, 255), "filler": (80, 128, 80, 255)}
     items, item_map = [], {}
+    texts = {name: icon_text(name) for name in data["ITEMS"]}
+    clash = {t for t in texts.values() if list(texts.values()).count(t) > 1}
+    if clash:
+        raise SystemExit(f"Item tiles share letters: {sorted(clash)}")
     for name, item in data["ITEMS"].items():
         code = code_of(name)
         img = f"images/items/{code}.png"
-        item_image(os.path.join(PACK, img), name, colors[item.classification])
+        item_image(os.path.join(PACK, img), texts[name], colors[item.classification])
         entry = {"name": name, "codes": code, "img": img}
         if item.count > 1:
             entry.update(type="consumable", max_quantity=item.count * 2)
@@ -91,7 +99,7 @@ def main():
         area, section = area_of(name)
         areas.setdefault(area, []).append((name, section, loc_id))
 
-    row_h, left, top, dot = 34, 230, 20, 26
+    row_h, left, top, dot = 40, 280, 20, 30
     width = left + 8 * (dot + 8) + 20
     height = top + len(areas) * row_h + 10
     board = Image.new("RGBA", (width, height), (24, 24, 40, 255))
@@ -99,7 +107,7 @@ def main():
     locations, loc_map = [], {}
     for row, (area, entries) in enumerate(areas.items()):
         y = top + row * row_h
-        d.text((10, y + dot // 2), area, fill=(230, 230, 230, 255), font=font(15), anchor="lm")
+        d.text((10, y + dot // 2), area, fill=(230, 230, 230, 255), font=font(20), anchor="lm")
         children = []
         for col, (name, section, loc_id) in enumerate(entries):
             x = left + col * (dot + 8) + dot // 2
@@ -125,7 +133,7 @@ def main():
     codes = [code_of(n) for n in data["ITEMS"]]
     rows = [codes[i:i + 5] for i in range(0, len(codes), 5)]
     layout = {"tracker_default": {"type": "container", "background": "#181828", "content": {
-        "type": "array", "content": [
+        "type": "array", "orientation": "horizontal", "content": [
             {"type": "group", "header": "Items", "content": {
                 "type": "itemgrid", "item_size": 32, "rows": rows}},
             {"type": "map", "maps": ["Checks"]}]}}}
