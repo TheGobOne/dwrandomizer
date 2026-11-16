@@ -76,8 +76,11 @@ local function driver()
       -- so the power-on scan runs first: the bug case. Continue is the default menu item, so Begin
       -- a New Quest is one step down.
       wr(0x6822, 0x10); wr(0x6826, 0x02); log("planted stale bits, block " .. block())
-    elseif MODE == "four" and frame == 600 then press.down = 4
-    elseif MODE == "four" and frame == 640 then press.A = 4
+    elseif MODE == "four" and frame >= 300 and frame <= 900 and frame % 40 == 0 and gui.savescreenshotas then
+      gui.savescreenshotas(OUT .. "menu_" .. frame .. ".png")
+    -- The menu is Continue, Change Message Speed, Begin a New Quest: Begin is two steps down.
+    elseif MODE == "four" and (frame == 620 or frame == 650) then press.down = 4
+    elseif MODE == "four" and frame == 690 then press.A = 4
     elseif MODE == "four" and frame > 300 and frame < 600 and frame % 120 < 4 then press.start = 2
     elseif MODE == "four" and frame < 600 then
       if frame > 200 and frame % 120 < 4 then press.start = 2 end

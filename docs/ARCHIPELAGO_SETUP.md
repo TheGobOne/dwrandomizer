@@ -41,7 +41,7 @@ Put your YAML in Archipelago's `Players` folder and generate. The output is a `.
 ## 5. Build your ROM
 
 1. Open the `.apdwr` file with the Archipelago Launcher or the BizHawk Client.
-2. Archipelago runs the DWR randomizer on your vanilla ROM and writes a `DWR.<seed>.<flags>.nes` file next to the patch.
+2. Archipelago runs the DWR randomizer on your vanilla ROM and writes a `.nes` file next to the patch, named after the patch file.
 
 ## 6. Play
 
@@ -56,7 +56,7 @@ DWR's Archipelago support builds on Serpikmin's Dragon Warrior APWorld ([Serpikm
 
 ## Troubleshooting
 
-- **The server loads an old save:** delete the `.apsave` file next to the zip to start a fresh game.
-- **"Could not read the AP patch file":** update to the latest `dwr.apworld`.
+- **The server loads an old save:** the Archipelago server keeps progress in an `.apsave` file next to the zip. Delete it to start a fresh game.
+- **"Could not read the AP patch file":** this comes from `dwrandomizer.exe`. Update both `dwr.apworld` and `dwrandomizer.exe` to the latest versions.
 - **"DWR could not build the ROM":** check the paths in `host.yaml`.
-- **"Invalid or missing manifest":** update to the latest `dwr.apworld`.
+- **"Invalid or missing manifest" in the Archipelago log:** older `dwr.apworld` files lack the version fields Archipelago 0.7.0 needs. Update to the latest `dwr.apworld`.
