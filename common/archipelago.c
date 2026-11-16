@@ -50,9 +50,6 @@
 #define TABLET_NAME   24
 #define TABLET_TEXT   0x7b56
 
-/* Locations with a found message: 31 chests, then the 3 search spots. */
-#define AP_TEXT_LOCS  (CHEST_COUNT + 3)
-#define AP_TEXT_LEN   16
 #define AP_LOC_BASE   0xd0000
 #define AP_LOC_SEARCH 0x40
 
@@ -149,7 +146,11 @@ int dwr_ap_patch_free_charlock(void)
  */
 #define AP_NAME_BUF      0x6830  /* 17 bytes, below the music driver */
 #define AP_NAME_BANK     3
-#define AP_NAME_SLOTS    0x3000  /* offset in bank 3, CPU $B000 */
+#define AP_NAME_LO       AP_BANK3_NAMES                   /* CPU address in bank 3 */
+#define AP_NAME_HI       (AP_NAME_LO + AP_TEXT_LOCS)
+#define AP_NAME_SLOTS    (AP_NAME_HI + AP_TEXT_LOCS - 0x8000)  /* offset in bank 3 */
+_Static_assert(0x8000 + AP_NAME_SLOTS + AP_TEXT_LOCS * (AP_TEXT_LEN + 1) == 0xc000,
+        "AP found-message data must end at the top of bank 3");
 #define LOAD_PRG_BANK    0xff91  /* store_and_load_prg_bank: A = bank */
 #define FOUND_NAME_CODE  0xab70  /* the $F7 byte in message $D9 */
 #define F9_HANDLER       0x77e8  /* bank 1, $B7E8, 17 bytes */
@@ -178,26 +179,26 @@ static void ap_put_name(dw_rom *rom, int i, const char *text)
 
 static void ap_chest_and_search(dw_rom *rom)
 {
-    uint16_t bits, lo, hi, chest, show, search, at;
+    uint16_t bits, chest, show, search, at;
+    uint8_t *bank3 = &rom->expansion[(AP_NAME_BANK - 3) * 0x4000];
     int i;
 
-    /* Layout: bit table (8), pointer tables (2 x 34), chest (30), show (61),
-     * search (19). */
-    bits = find_free_space(rom->content, FIXED_FREE_START,
-            8 + 2 * AP_TEXT_LOCS + 30 + 61 + 19);
-    lo = bits + 8;
-    hi = lo + AP_TEXT_LOCS;
-    chest = hi + AP_TEXT_LOCS;
-    show = chest + 30;
-    search = show + 61;
-
+    /* Four separate pieces: bit table (8), chest (33), show (61), search (19),
+     * so they fit in small gaps. The name pointer tables sit in bank 3 with the
+     * names, which saves fixed bank room. */
+    bits = find_free_space(rom->content, FIXED_FREE_START, 8);
     vpatch(rom, bits, 8, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80);
+    show = find_free_space(rom->content, FIXED_FREE_START, 61);
+    memset(&rom->content[show], 0, 61);   /* held while the others are placed */
+    chest = find_free_space(rom->content, FIXED_FREE_START, 33);
+    memset(&rom->content[chest], 0, 33);
+    search = find_free_space(rom->content, FIXED_FREE_START, 19);
 
     for (i = 0; i < AP_TEXT_LOCS; i++) {
         ap_put_name(rom, i, ap_have_text && ap_text[i][0] ? ap_text[i] : "APItem");
         at = 0x8000 + AP_NAME_SLOTS + i * (AP_TEXT_LEN + 1);
-        rom->content[lo + i] = LO(at);
-        rom->content[hi + i] = HI(at);
+        bank3[AP_NAME_LO - 0x8000 + i] = LO(at);
+        bank3[AP_NAME_HI - 0x8000 + i] = HI(at);
     }
 
     /* $D9 prints its name with $F9, and $F9 prints the text at ($A3). */
@@ -213,9 +214,9 @@ static void ap_chest_and_search(dw_rom *rom)
         0x4c, 0x67, 0xb6                    /* jmp $b667                 */
     );
 
-    /* Hooked at $E221, where the chest at Y/4 was found. Falls into show
-     * with X = chest index. */
-    vpatch(rom, chest, 30,
+    /* Hooked at $E221, where the chest at Y/4 was found. Goes to show with
+     * X = chest index. */
+    vpatch(rom, chest, 33,
         0x98,                               /* tya                       */
         0x4a, 0x4a,                         /* lsr, lsr: chest index     */
         0x48,                               /* pha                       */
@@ -230,7 +231,8 @@ static void ap_chest_and_search(dw_rom *rom)
         0x1d, LO(AP_CHESTS), HI(AP_CHESTS), /* ora AP_CHESTS,x           */
         0x9d, LO(AP_CHESTS), HI(AP_CHESTS), /* sta AP_CHESTS,x           */
         0x68, 0xaa,                         /* pla, tax: chest index     */
-        0xa9, 0x00                          /* lda #0: a chest           */
+        0xa9, 0x00,                         /* lda #0: a chest           */
+        0x4c, LO(show), HI(show)            /* jmp show                  */
     );
 
     /* A = 0 for a chest, $ff for a search, X = name index. $E355 marks the
@@ -242,14 +244,14 @@ static void ap_chest_and_search(dw_rom *rom)
         0x8a, 0x48,                         /* txa, pha                  */
         0x20, 0x55, 0xe3,                   /* jsr $e355                 */
         0x68, 0xaa,                         /* pla, tax                  */
-        0xbd, LO(lo), HI(lo),               /* lda lo,x                  */
-        0x85, 0xa3,                         /* sta $a3                   */
-        0xbd, LO(hi), HI(hi),               /* lda hi,x                  */
-        0x85, 0xa4,                         /* sta $a4                   */
         0xad, 0x04, 0x60,                   /* lda $6004: current bank   */
         0x48,                               /* pha                       */
         0xa9, AP_NAME_BANK,                 /* lda #3                    */
-        0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank     */
+        0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank (keeps X) */
+        0xbd, LO(AP_NAME_LO), HI(AP_NAME_LO), /* lda lo,x (bank 3)       */
+        0x85, 0xa3,                         /* sta $a3                   */
+        0xbd, LO(AP_NAME_HI), HI(AP_NAME_HI), /* lda hi,x (bank 3)       */
+        0x85, 0xa4,                         /* sta $a4                   */
         0xa0, 0x00,                         /* ldy #0                    */
         0xb1, 0xa3,                         /* - lda ($a3),y             */
         0x99, LO(AP_NAME_BUF), HI(AP_NAME_BUF), /* sta buf,y             */
@@ -454,8 +456,15 @@ void ap_changes(dw_rom *rom)
      * Rainbow Drop came from the multiworld first. */
     vpatch(rom, 0xd2fc, 3, 0x4c, 0x16, 0xd3);
 
-    ap_chest_and_search(rom);
-    ap_save_and_load(rom);
-    ap_mailbox(rom);
-    ap_signature(rom);
+    /* Best fit: the AP pieces go in the small gaps, so the large ones stay free
+     * for the custom music code, which needs about 150 bytes in one piece. */
+    {
+        BOOL old = dwr_set_packing(TRUE);
+
+        ap_chest_and_search(rom);
+        ap_save_and_load(rom);
+        ap_mailbox(rom);
+        ap_signature(rom);
+        dwr_set_packing(old);
+    }
 }

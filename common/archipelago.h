@@ -4,6 +4,16 @@
 
 #include "dwr.h"
 
+/* Locations with a found message: 31 chests, then the 3 search spots. Each name
+ * is up to AP_TEXT_LEN letters plus an end byte. */
+#define AP_TEXT_LOCS  (CHEST_COUNT + 3)
+#define AP_TEXT_LEN   16
+
+/* In AP mode the top of expansion bank 3 holds the found-message data: a low
+ * and a high pointer table (one byte per location each), then the names in
+ * fixed slots, ending at $BFFF. Custom music stops its bank 3 songs below it. */
+#define AP_BANK3_NAMES (0xc000 - AP_TEXT_LOCS * (AP_TEXT_LEN + 1 + 2))
+
 /* Turns Archipelago mode on for the next build. slot_name may be NULL. */
 void dwr_set_ap(BOOL enabled, const char *slot_name);
 BOOL dwr_ap_enabled(void);

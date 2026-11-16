@@ -11,5 +11,9 @@ class DWRSettings(settings.Group):
         """Path to dwrandomizer.exe, the DWR command line randomizer."""
         description = "DWR randomizer (dwrandomizer.exe)"
 
+    class MusicPack(str):
+        """Optional: path to a DWR custom music pack (.json5). Empty keeps the game's own music."""
+
     rom_file: RomFile = RomFile("Dragon_warrior.nes")
     randomizer: Randomizer = Randomizer("dwrandomizer.exe")
+    music_pack: MusicPack = MusicPack("")

@@ -3,12 +3,15 @@
 Opening it from the Archipelago Launcher (or the BizHawk Client) runs the DWR
 CLI on the player's vanilla ROM:
 
-    dwrandomizer --ap-patch dwr.txt <vanilla rom> <output dir>
+    dwrandomizer [--music <pack.json5>] --ap-patch dwr.txt <vanilla rom> <output dir>
 
 dwr.txt inside the container is the plain text file the CLI reads, so a
-player without the launcher can unzip it and run the CLI by hand.
+player without the launcher can unzip it and run the CLI by hand. --music
+comes from host.yaml's dwr_options.music_pack on the machine that builds the
+ROM; the song list is written next to the ROM as <rom name>.music.txt.
 """
 import glob
+import logging
 import os
 import shutil
 import subprocess
@@ -20,6 +23,7 @@ from worlds.Files import APAutoPatchInterface
 from .data import GAME
 
 PATCH_TEXT = "dwr.txt"
+logger = logging.getLogger("DWR")
 
 
 class DWRPatch(APAutoPatchInterface):
@@ -53,9 +57,67 @@ class DWRPatch(APAutoPatchInterface):
             text_path = os.path.join(work, PATCH_TEXT)
             with open(text_path, "w", encoding="utf-8") as f:
                 f.write(self.text)
-            result = subprocess.run([exe, "--ap-patch", text_path, rom, work],
-                                    capture_output=True, text=True)
+            music = music_args(str(getattr(options, "music_pack", "") or ""))
+            tail = ["--ap-patch", text_path, rom, work]
+            result = subprocess.run([exe] + music + tail, capture_output=True, text=True)
             built = glob.glob(os.path.join(work, "DWR.*.nes"))
+            if music and (result.returncode != 0 or not built):
+                # A pack that DWR cannot read should not cost the player their ROM.
+                why = (result.stdout.strip().splitlines() or [result.stderr.strip()])[-1]
+                logger.warning("DWR could not use the music pack, building with the game's music: %s", why)
+                result = subprocess.run([exe] + tail, capture_output=True, text=True)
+                built = glob.glob(os.path.join(work, "DWR.*.nes"))
+                music = []
             if result.returncode != 0 or not built:
                 raise RuntimeError(f"DWR could not build the ROM:\n{result.stdout}\n{result.stderr}")
             shutil.move(built[0], target)
+            if music:
+                report_music(result.stdout, os.path.splitext(target)[0] + ".music.txt")
+
+
+# Lines the DWR CLI prints when some or all of the pack is left out.
+MUSIC_PROBLEMS = ("keeping the original music", "no room", "leaving it out")
+
+
+def music_args(raw: str) -> list:
+    """--music and the pack path, or nothing when no pack is set or the file is missing."""
+    if not raw:
+        return []
+    path = os.path.expanduser(raw)
+    if not os.path.isabs(path):
+        try:
+            import Utils
+            path = Utils.user_path(path)
+        except ImportError:
+            pass
+    if not os.path.isfile(path):
+        logger.warning("DWR music pack not found, keeping the game's music: %s", path)
+        return []
+    return ["--music", path]
+
+
+def music_lines(stdout: str) -> list:
+    """The CLI's song report: every line from "Adding custom music" until the next step."""
+    lines, on = [], False
+    for line in stdout.splitlines():
+        if line.startswith("Adding custom music"):
+            on = True
+        elif on and not (line.startswith("  ") or line.startswith("Music ") or line.startswith("No ")):
+            break
+        if on:
+            lines.append(line)
+    return lines
+
+
+def report_music(stdout: str, list_path: str) -> None:
+    """Logs songs that were left out and writes the song list next to the ROM."""
+    lines = music_lines(stdout)
+    for line in lines:
+        if any(p in line.lower() for p in MUSIC_PROBLEMS):
+            logger.warning("DWR music: %s", line.strip())
+    if lines:
+        try:
+            with open(list_path, "w", encoding="utf-8") as f:
+                f.write("\n".join(lines) + "\n")
+        except OSError:
+            pass

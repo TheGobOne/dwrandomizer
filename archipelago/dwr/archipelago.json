@@ -1,5 +1,7 @@
 {
   "game": "DWR",
+  "version": 6,
+  "compatible_version": 5,
   "world_version": "0.1.0",
   "minimum_ap_version": "0.6.8",
   "authors": ["TheGobOne"]

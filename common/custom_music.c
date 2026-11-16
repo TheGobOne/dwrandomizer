@@ -12,6 +12,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "archipelago.h"
 #include "credit_music.h"
 #include "custom_music.h"
 #include "dwr.h"
@@ -724,8 +725,10 @@ static const event_t events[EVENT_COUNT] = {
  * site/index.html: change the two together. */
 /* Room in each song area, in apply_music's order: banks 6, 3 and 5 (which ends below the reset vectors),
  * then bank 4 below and above the credits code. */
-static const size_t pick_room[MUSIC_BANKS] = {0xc000 - FT_SONGS, 0xc000 - FT_SONGS, 0xbffa - FT_SONGS,
+/* Bank 3 is set again for each build: in AP mode its top holds the found-message item names. */
+static size_t pick_room[MUSIC_BANKS] = {0xc000 - FT_SONGS, 0xc000 - FT_SONGS, 0xbffa - FT_SONGS,
     0xa000 - FT_SONGS, 0xc000 - BANK4_HIGH};
+_Static_assert(AP_BANK3_NAMES > FT_SONGS, "AP item names overlap the bank 3 song area");
 #define PICK_ROOM_ALL (pick_room[0] + pick_room[1] + pick_room[2] + pick_room[3] + pick_room[4])
 
 static BOOL choose_like_site = FALSE;
@@ -1161,6 +1164,10 @@ static BOOL apply_music(dw_rom *rom)
 
     if (!song_count && !pack_count)
         return FALSE;
+    /* In AP mode the top of bank 3 holds the found-message item names. The site's planner
+     * (pick_like_site) and the placement below must both use the same room. */
+    music_bank_end[1] = dwr_ap_enabled() ? AP_BANK3_NAMES : 0xc000;
+    pick_room[1] = music_bank_end[1] - FT_SONGS;
     if (choose_like_site)
         pick_like_site(rom);
     for (i = 0; i < song_count; i++)
@@ -1288,7 +1295,7 @@ static BOOL apply_music(dw_rom *rom)
 
     memset(map, 0xff, sizeof(map));
     for (id = 1; id < FIRST_JINGLE; id++)
-        map[id] = (uint8_t)chosen[scene_for_request(id)]; /* -1 becomes $ff: silence */
+        map[id] = (uint8_t)chosen[scene_for_request(id)]; /* -1 becomes $ff: the game's own song */
     map[REQUEST_BATTLE_RESUME] = map[0x0e];
     map[REQUEST_HAUKSNESS] = map[0x09];
     map[REQUEST_CAVE] = (uint8_t)chosen[SC_CAVE]; /* -1: the game's own floor music */

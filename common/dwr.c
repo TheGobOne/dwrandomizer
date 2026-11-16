@@ -5558,3 +5558,13 @@ BOOL dwr_packing(void)
     return fit_best;
 }
 
+/* Sets best fit packing and returns the old setting, for code that places its pieces
+ * best fit on its own (Archipelago mode, which has no older builds to keep the same). */
+BOOL dwr_set_packing(BOOL best)
+{
+    BOOL old = fit_best;
+
+    fit_best = best;
+    return old;
+}
+

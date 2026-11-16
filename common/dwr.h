@@ -203,6 +203,7 @@ void dwr_no_room(void);
 int dwr_try_free_space(uint8_t *content, uint16_t start, uint8_t n);
 void dwr_give_up(const char *why);
 BOOL dwr_packing(void);
+BOOL dwr_set_packing(BOOL best);
 
 #ifdef __cplusplus
 }

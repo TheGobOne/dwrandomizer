@@ -17,9 +17,17 @@ Open `host.yaml` in the Archipelago install folder and add this section. Use you
 dwr_options:
   rom_file: "C:/path/to/Dragon_warrior.nes"
   randomizer: "C:/path/to/dwrandomizer.exe"
+  music_pack: "C:/path/to/pack.json5"
 ```
 
-`rom_file` is the vanilla ROM. `randomizer` is the DWR executable. Archipelago uses both to build your game ROM.
+`rom_file` is the vanilla ROM. `randomizer` is the DWR executable. Archipelago uses both to build your game ROM. `music_pack` is optional: a DWR custom music pack (`.json5`), the same as `--music` on the command line. Leave it out or empty to keep the game's own music. Notes:
+
+- Use a full path with forward slashes, as above. Backslashes inside double quotes break the YAML.
+- It comes from the `host.yaml` on the machine that builds the ROM, so each player picks their own pack, and the songs differ per slot.
+- If the file is missing or DWR cannot read it, the ROM is built with the game's music and the log says why.
+- The song for each scene is written next to the ROM as `<rom name>.music.txt`. A scene with no song that fits keeps the game's own song.
+- An Archipelago ROM has about 650 bytes less room for songs than a normal DWR ROM, so a pack near the limit can lose a song. See [Custom music and lag](../README.md#custom-music-and-lag) for making packs.
+- Keep the ROM you built. Rebuilding after you edit the pack changes the songs.
 
 ## 3. Set up your player file
 
