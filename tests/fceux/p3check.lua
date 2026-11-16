@@ -90,8 +90,11 @@ local function driver()
       finish()
     end
   elseif step == "intro" then
-    if age() < 300 and age() % 30 == 0 then press.B = 2 end
-    if age() == 320 then set_step("take") end
+    if age() < 400 and age() % 30 == 0 then press.B = 2 end
+    if age() == 420 then
+      if MODE == "five" then sx, sy = warp(5, 4); side = 1; set_step("stairs")
+      else set_step("take") end
+    end
   elseif step == "take" then
     if age() == 1 then go(CHEST_X, CHEST_Y); keys({ {1, "B"} }) end
     if age() == 30 then keys({ {20, "A"}, {45, "right"}, {45, "down"}, {45, "down"}, {45, "down"}, {45, "A"} }) end
@@ -109,13 +112,31 @@ local function driver()
   elseif step == "stairs" then
     if map == 4 and age() > 30 then
       log("in Tantegel (map 4), block " .. block())
-      if AND(rd(0x6822), CHEST_BIT) ~= 0 then log("PASS chest bit kept across map change")
-      else log("FAIL chest bit lost on map change") end
-      set_step("save")
+      if MODE == "five" then set_step("tgt")
+      else
+        if AND(rd(0x6822), CHEST_BIT) ~= 0 then log("PASS chest bit kept across map change")
+        else log("FAIL chest bit lost on map change") end
+        set_step("save")
+      end
     elseif age() % 120 == 1 then
       if side > 4 then log("stairs failed"); finish(); return end
       local s = SIDES[side]
       go(sx + s[1], sy + s[2]); press[s[3]] = 20; side = side + 1
+    end
+  elseif step == "tgt" then
+    -- Run "five": Random Chest Locations moved chest 0 (Tantegel Treasury Chest 1) to 24,21.
+    if age() == 1 then go(24, 21); keys({ {1, "B"} }) end
+    if age() == 30 then keys({ {20, "A"}, {45, "right"}, {45, "down"}, {45, "down"}, {45, "down"}, {45, "A"} }) end
+    if age() == 25 then log(string.format("at %d,%d on map %d", rd(0x3a), rd(0x3b), map)) end
+    if age() == 380 and gui.savescreenshotas then gui.savescreenshotas(OUT .. "five_" .. tries .. ".png") end
+    if age() == 420 then keys({ {5, "A"}, {30, "A"}, {30, "B"}, {30, "B"}, {30, "B"} }) end
+    if age() == 600 then
+      if AND(rd(0x6822), 0x01) ~= 0 then log("PASS moved chest 0 opened in Tantegel, block " .. block()); finish()
+      else
+        tries = tries + 1
+        if tries < 4 then log("chest 0 bit not set, retry " .. tries); set_step("tgt")
+        else log("FAIL moved chest 0 bit not set, block " .. block()); finish() end
+      end
     end
   elseif step == "save" then
     if age() == 60 then log("exiting so the .sav is written"); finish() end
