@@ -149,6 +149,24 @@ Known limits of the proof of concept:
 - Key doors are not in logic (keys can be bought).
 - No patch file: the player builds the ROM with the DWR CLI and their slot name.
 
+Phase 2 removed the first and last of these limits: the found message shows the real item name, and generation writes a `.apdwr` patch that the BizHawk Client turns into a ROM (`archipelago/dwr/patch.py`).
+
+## Phase 3 readiness (2026-11-15)
+
+FCEUX checks, run in turbo (sound muted) on the client-built ROM with Permanent Repel:
+
+| Check | Script | Result |
+|---|---|---|
+| All 3 search spots, Gwaelin and the goal reach the server before the goal | `tests/fceux/aptest.lua` with the AP server and client | Pass (server log: Kol, Hauksness, overworld, Gwaelin, then the goal) |
+| A chest opened with TAKE keeps its bit after taking the stairs to another map | `tests/fceux/p3check.lua`, run "one" | Pass (`$6822 = $10` in Tantegel) |
+| The bits survive a soft reset | reset test | Pass |
+| The bits survive closing and reopening the emulator | `tests/fceux/p3check.lua`, run "two" | Pass (`$6822 = $10` at power on) |
+| A fresh save starts with no bits set | reset test with the `.sav` deleted | Pass |
+
+The AP block sits in battery RAM, so it is kept in the `.sav` even when the player never saves in game. Found while testing: starting a new game on an old `.sav` keeps the old chest and search bits. That is harmless for the same seed (AP already has those checks), and a new seed gets a new ROM file name and so a new `.sav`. Clearing the bits on a new game is a Phase 3 item.
+
+Nothing found blocks Phase 3.
+
 ## Test notes
 
 Use the project test rules for every AP test ROM: reduce flashing on, default music, max stats and a permanent repel. AP play testing uses FCEUX with the user's FCEUX connector (`connector_fceux_generic.lua`) and the AP BizHawk client. Mesen `--testrunner` scripts are still fine for checking the ROM-side hooks.
