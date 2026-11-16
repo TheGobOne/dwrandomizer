@@ -184,6 +184,13 @@ How the mailbox works: the client writes the item name in DW tiles to `$6850` an
 - Random Map: covered. The default flags turn it on, and a seed with it on was beaten in FCEUX turbo.
 - Open Charlock: generates and builds. Covered by the logic argument (the Rainbow Drop rules are stricter than needed). Not played through; the first real play of an Open Charlock seed is the test.
 
+## Phase 5 status (2026-11-16)
+
+- Setup guide: `docs/ARCHIPELAGO_SETUP.md`, with Serpikmin credited. The Launcher menu names and BizHawk connection steps come from the code, not a recorded run.
+- PopTracker: no Dragon Warrior or DWR pack with Archipelago autotracking was found. A pack is new work (items, locations by AP ID, maps).
+- Linux and macOS builds: not possible on this machine (no WSL, no Mac). CI only builds the site (`.github/workflows/pages.yml`).
+- Public release: waiting on the user's approval.
+
 ## Test notes
 
 Use the project test rules for every AP test ROM: reduce flashing on, default music, max stats and a permanent repel. AP play testing uses FCEUX with the user's FCEUX connector (`connector_fceux_generic.lua`) and the AP BizHawk client. Mesen `--testrunner` scripts are still fine for checking the ROM-side hooks.
