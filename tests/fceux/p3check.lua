@@ -72,18 +72,20 @@ local function driver()
     if map == 5 then in_throne = in_throne + 1 else in_throne = 0 end
     if in_throne >= 60 then set_step("intro"); log("in game, block " .. block())
     elseif MODE == "four" and frame == 10 then
-      -- Stale bits in battery RAM, then a new game. Run four starts with the .sav from run one,
-      -- so the power-on scan runs first: the bug case. Continue is the default menu item, so Begin
-      -- a New Quest is one step down.
+      -- Stale bits in battery RAM, then a new game with a .sav present (the bug case).
       wr(0x6822, 0x10); wr(0x6826, 0x02); log("planted stale bits, block " .. block())
-    elseif MODE == "four" and frame >= 300 and frame <= 900 and frame % 40 == 0 and gui.savescreenshotas then
-      gui.savescreenshotas(OUT .. "menu_" .. frame .. ".png")
-    -- The menu is Continue, Change Message Speed, Begin a New Quest: Begin is two steps down.
-    elseif MODE == "four" and (frame == 620 or frame == 650) then press.down = 4
-    elseif MODE == "four" and frame == 690 then press.A = 4
-    elseif MODE == "four" and frame > 300 and frame < 600 and frame % 120 < 4 then press.start = 2
-    elseif MODE == "four" and frame < 600 then
-      if frame > 200 and frame % 120 < 4 then press.start = 2 end
+    elseif MODE == "four" then
+      -- Title: start opens the menu (Continue, Change Message Speed, Begin a New Quest, ...).
+      -- Begin is two steps down. Presses are 10 frames so the menu registers them.
+      if frame <= 480 and frame > 200 and frame % 120 < 4 then press.start = 2 end
+      if frame == 620 or frame == 660 then press.down = 10 end
+      if frame == 700 then press.A = 10 end
+      -- Then a slot (Adventure Log 2), name entry and the rest, as for a fresh game.
+      if frame > 860 and frame % 120 < 4 then press.start = 2 end
+      if frame > 860 and frame % 60 == 30 then press.A = 2 end
+      if frame >= 600 and frame <= 900 and frame % 40 == 0 and gui.savescreenshotas then
+        gui.savescreenshotas(OUT .. "menu_" .. frame .. ".png")
+      end
     elseif frame > 200 and frame % 120 < 4 then press.start = 2
     elseif frame > 260 and frame % 60 == 30 then press.A = 2 end
   elseif step == "intro" and (MODE == "three" or MODE == "four") then
