@@ -73,8 +73,16 @@ static char ap_text[AP_TEXT_LOCS][AP_TEXT_LEN + 1];
 /* Where the found-message data starts in bank 3 for this build ($C000 when AP
  * is off). Custom music reads it after ap_changes has run. */
 static uint16_t ap_bank3_start = 0xc000;
-/* Size of the game-start routine, which may sit in bank 3 at ap_bank3_start (see ap_save_and_load). */
+/* AP code in bank 3, from ap_bank3_start up, below the item names: the game-start routine (see
+ * ap_save_and_load), the bit table and found-item routine (ap_chest_and_search), and the Copy Quest
+ * routine. Each runs through a small fixed-bank stub that maps bank 3 and maps the old bank back. */
 #define AP_START_SIZE 85
+#define AP_B3_BITS    (AP_START_SIZE)
+#define AP_B3_FOUND   (AP_B3_BITS + 8)
+#define AP_FOUND_SIZE 64
+#define AP_B3_COPY    (AP_B3_FOUND + AP_FOUND_SIZE)
+#define AP_COPY_SIZE  36
+#define AP_B3_CODE    (AP_B3_COPY + AP_COPY_SIZE)
 /* Where the found-message routine sets $A3 from A, so the mailbox can share its tail. */
 static uint16_t ap_show_tail = 0;
 
@@ -224,7 +232,7 @@ static size_t ap_name_tiles(int i, uint8_t *buf)
 
 static void ap_chest_and_search(dw_rom *rom)
 {
-    uint16_t bits, chest, show, search, at, name_lo, name_hi;
+    uint16_t bits, chest, show, search, found, tail, at, name_lo, name_hi;
     uint8_t *bank3 = &rom->expansion[(AP_NAME_BANK - 3) * 0x4000];
     uint8_t names[AP_TEXT_LOCS][AP_TEXT_LEN + 2];
     size_t lens[AP_TEXT_LOCS], total = 2 * AP_TEXT_LOCS;
@@ -233,10 +241,9 @@ static void ap_chest_and_search(dw_rom *rom)
     /* Names end to end, so short names leave more of bank 3 for music. */
     for (i = 0; i < AP_TEXT_LOCS; i++)
         total += lens[i] = ap_name_tiles(i, names[i]);
-    /* The game-start routine (85 bytes) sits just below the names when the stub fits, so the names start
-     * above it. */
-    ap_bank3_start = (uint16_t)(0xc000 - total - AP_START_SIZE);
-    name_lo = ap_bank3_start + AP_START_SIZE;
+    /* The AP code in bank 3 (AP_B3_CODE bytes) sits just below the names. */
+    ap_bank3_start = (uint16_t)(0xc000 - total - AP_B3_CODE);
+    name_lo = ap_bank3_start + AP_B3_CODE;
     name_hi = name_lo + AP_TEXT_LOCS;
     at = name_hi + AP_TEXT_LOCS;
     for (i = 0; i < AP_TEXT_LOCS; i++) {
@@ -248,16 +255,55 @@ static void ap_chest_and_search(dw_rom *rom)
         at = (uint16_t)(at + lens[i]);
     }
 
-    /* Four separate pieces: bit table (8), chest (31), show (61), search (19),
-     * so they fit in small gaps. The name pointer tables sit in bank 3 with the
-     * names, which saves fixed bank room. */
-    bits = find_free_space(rom->content, FIXED_FREE_START, 8);
-    vpatch(rom, bits, 8, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80);
-    show = find_free_space(rom->content, FIXED_FREE_START, 61);
-    memset(&rom->content[show], 0, 61);   /* held while the others are placed */
-    chest = find_free_space(rom->content, FIXED_FREE_START, 31);
-    memset(&rom->content[chest], 0, 31);
-    search = find_free_space(rom->content, FIXED_FREE_START, 19);
+    /* The found-item code. In the fixed bank: a chest entry ($E221, Y = chest * 4), a search entry
+     * ($E12D, X = search entry), the common part and the tail the mailbox shares. In bank 3: the bit
+     * table and the routine that sets the location bit and copies the name to AP_NAME_BUF. $E355 marks
+     * the chest open and plays its sound, so it runs from the fixed bank with the game's bank mapped. */
+    bits = ap_bank3_start + AP_B3_BITS;
+    found = ap_bank3_start + AP_B3_FOUND;
+    {
+        static const uint8_t bit_table[8] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
+        const uint8_t found_code[AP_FOUND_SIZE] = {
+            0xe0, CHEST_COUNT,                  /* 0:  cpx #31: a search?    */
+            0xb0, 0x17,                         /* 2:  bcs srch (27)         */
+            0x8a, 0x29, 0x07, 0xa8,             /* 4:  txa, and #7, tay      */
+            0xb9, LO(bits), HI(bits),           /* 8:  lda bits,y            */
+            0x48,                               /* 11: pha                   */
+            0x8a, 0x4a, 0x4a, 0x4a, 0xa8,       /* 12: txa, lsr x3, tay      */
+            0x68,                               /* 17: pla                   */
+            0x19, LO(AP_CHESTS), HI(AP_CHESTS), /* 18: ora AP_CHESTS,y       */
+            0x99, LO(AP_CHESTS), HI(AP_CHESTS), /* 21: sta AP_CHESTS,y       */
+            0x4c, LO(found + 41), HI(found + 41), /* 24: jmp name (41)       */
+            0x8a, 0x38, 0xe9, CHEST_COUNT, 0xa8, /* 27: srch: txa, sec, sbc #31, tay */
+            0xb9, LO(bits), HI(bits),           /* 32: lda bits,y            */
+            0x0d, LO(AP_SEARCH), HI(AP_SEARCH), /* 35: ora AP_SEARCH         */
+            0x8d, LO(AP_SEARCH), HI(AP_SEARCH), /* 38: sta AP_SEARCH         */
+            0xbd, LO(name_lo), HI(name_lo),     /* 41: name: lda lo,x        */
+            0x85, 0xa3,                         /* 44: sta $a3               */
+            0xbd, LO(name_hi), HI(name_hi),     /* 46: lda hi,x              */
+            0x85, 0xa4,                         /* 49: sta $a4               */
+            0xa0, 0x00,                         /* 51: ldy #0                */
+            0xb1, 0xa3,                         /* 53: - lda ($a3),y         */
+            0x99, LO(AP_NAME_BUF), HI(AP_NAME_BUF), /* 55: sta buf,y         */
+            0xc8,                               /* 58:   iny                 */
+            0xc9, 0xfa,                         /* 59:   cmp #$fa            */
+            0xd0, 0xf6,                         /* 61:   bne - (53)          */
+            0x60                                /* 63: rts                   */
+        };
+        memcpy(&bank3[bits - 0x8000], bit_table, sizeof(bit_table));
+        memcpy(&bank3[found - 0x8000], found_code, sizeof(found_code));
+    }
+
+    /* The tail sets $A3 from A and shows message $D9. The mailbox jumps here too. */
+    tail = find_free_space(rom->content, FIXED_FREE_START, 11);
+    vpatch(rom, tail, 11,
+        0x85, 0xa3,                         /* sta $a3                   */
+        0xa9, HI(AP_NAME_BUF),              /* lda #>buf                 */
+        0x85, 0xa4,                         /* sta $a4                   */
+        0xa9, 0xd9,                         /* lda #$d9: found message   */
+        0x4c, 0x42, 0xd2                    /* jmp $d242                 */
+    );
+    ap_show_tail = tail;
 
     /* $D9 prints its name with $F9, and $F9 prints the text at ($A3). */
     vpatch(rom, FOUND_NAME_CODE, 1, 0xf9);
@@ -272,31 +318,9 @@ static void ap_chest_and_search(dw_rom *rom)
         0x4c, 0x67, 0xb6                    /* jmp $b667                 */
     );
 
-    /* Hooked at $E221, where the chest at Y/4 was found. Goes to show with
-     * X = chest index. */
-    vpatch(rom, chest, 31,
-        0x98,                               /* tya                       */
-        0x4a, 0x4a,                         /* lsr, lsr: chest index     */
-        0x48,                               /* pha                       */
-        0x29, 0x07,                         /* and #7                    */
-        0xaa,                               /* tax                       */
-        0xbd, LO(bits), HI(bits),           /* lda bits,x                */
-        0x85, 0xde,                         /* sta $de (scratch)         */
-        0x68, 0x48,                         /* pla, pha                  */
-        0x4a, 0x4a, 0x4a,                   /* lsr x3: byte index        */
-        0xaa,                               /* tax                       */
-        0xa5, 0xde,                         /* lda $de                   */
-        0x1d, LO(AP_CHESTS), HI(AP_CHESTS), /* ora AP_CHESTS,x           */
-        0x9d, LO(AP_CHESTS), HI(AP_CHESTS), /* sta AP_CHESTS,x           */
-        0x68, 0xaa,                         /* pla, tax: chest index; A = the
-                                               index too, never $FF, so show
-                                               takes it as a chest       */
-        0x4c, LO(show), HI(show)            /* jmp show                  */
-    );
-
-    /* A < $FF for a chest, $FF for a search, X = name index. $E355 marks the
-     * chest open and plays the sound for a chest, and overwrites $A3. */
-    vpatch(rom, show, 61,
+    /* A < $FF for a chest, $FF for a search, X = name index. */
+    show = find_free_space(rom->content, FIXED_FREE_START, 34);
+    vpatch(rom, show, 34,
         0x85, 0x0e,                         /* sta $0e                   */
         0xa9, 0x10,                         /* lda #$10: any real item   */
         0x85, 0xde,                         /* sta $de                   */
@@ -307,35 +331,23 @@ static void ap_chest_and_search(dw_rom *rom)
         0x48,                               /* pha                       */
         0xa9, AP_NAME_BANK,                 /* lda #3                    */
         0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank (keeps X) */
-        0xbd, LO(name_lo), HI(name_lo),     /* lda lo,x (bank 3)         */
-        0x85, 0xa3,                         /* sta $a3                   */
-        0xbd, LO(name_hi), HI(name_hi),     /* lda hi,x (bank 3)         */
-        0x85, 0xa4,                         /* sta $a4                   */
-        0xa0, 0x00,                         /* ldy #0                    */
-        0xb1, 0xa3,                         /* - lda ($a3),y             */
-        0x99, LO(AP_NAME_BUF), HI(AP_NAME_BUF), /* sta buf,y             */
-        0xc8,                               /*   iny                     */
-        0xc9, 0xfa,                         /*   cmp #$fa                */
-        0xd0, 0xf6,                         /*   bne -                   */
+        0x20, LO(found), HI(found),         /* jsr found (bank 3)        */
         0x68,                               /* pla: old bank             */
         0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank     */
         0xa9, LO(AP_NAME_BUF),              /* lda #<buf                 */
-        0x85, 0xa3,                         /* sta $a3                   */
-        0xa9, HI(AP_NAME_BUF),              /* lda #>buf                 */
-        0x85, 0xa4,                         /* sta $a4                   */
-        0xa9, 0xd9,                         /* lda #$d9: found message   */
-        0x4c, 0x42, 0xd2                    /* jmp $d242                 */
+        0x4c, LO(tail), HI(tail)            /* jmp tail                  */
     );
-    /* The mailbox jumps to the sta $a3 above with its own low byte in A. */
-    ap_show_tail = show + 50;
-    if (rom->content[ap_show_tail] != 0x85 || rom->content[ap_show_tail + 1] != 0xa3)
-        ap_show_tail = 0;
 
-    /* Hooked at $E12D, where search entry X matched. */
-    vpatch(rom, search, 19,
-        0xbd, LO(bits), HI(bits),           /* lda bits,x                */
-        0x0d, LO(AP_SEARCH), HI(AP_SEARCH), /* ora AP_SEARCH             */
-        0x8d, LO(AP_SEARCH), HI(AP_SEARCH), /* sta AP_SEARCH             */
+    /* Hooked at $E221, where the chest at Y/4 was found. A = X = chest index. */
+    chest = find_free_space(rom->content, FIXED_FREE_START, 7);
+    vpatch(rom, chest, 7,
+        0x98, 0x4a, 0x4a, 0xaa,             /* tya, lsr, lsr, tax        */
+        0x4c, LO(show), HI(show)            /* jmp show                  */
+    );
+
+    /* Hooked at $E12D, where search entry X matched. Search names follow the chests. */
+    search = find_free_space(rom->content, FIXED_FREE_START, 10);
+    vpatch(rom, search, 10,
         0x8a, 0x18,                         /* txa, clc                  */
         0x69, CHEST_COUNT,                  /* adc #31: search names     */
         0xaa,                               /* tax                       */
@@ -423,8 +435,8 @@ static void ap_save_and_load(dw_rom *rom)
      * replaces lda $6031 at $F6EA, before sta $6039 makes the copy current. */
     if (rom->content[0xf6ea] == 0xad && rom->content[0xf6eb] == 0x31
             && rom->content[0xf6ec] == 0x60 && rom->content[0xf6ed] == 0x8d) {
-        copy = find_free_space(rom->content, FIXED_FREE_START, 38);
-        vpatch(rom, copy, 38,
+        const uint16_t copy3 = ap_bank3_start + AP_B3_COPY;
+        const uint8_t copy_code[AP_COPY_SIZE] = {
             0xad, 0x39, 0x60, 0x0a, 0xa8,             /* source slot * 2 in Y */
             0xad, 0x31, 0x60, 0x0a, 0xaa,             /* copy slot * 2 in X   */
             0xb9, LO(AP_SLOT_RECV), HI(AP_SLOT_RECV), /* counter          */
@@ -435,6 +447,18 @@ static void ap_save_and_load(dw_rom *rom)
             0x9d, LO(AP_SLOT_TAG), HI(AP_SLOT_TAG),
             0xb9, LO(AP_SLOT_TAG + 1), HI(AP_SLOT_TAG + 1),
             0x9d, LO(AP_SLOT_TAG + 1), HI(AP_SLOT_TAG + 1),
+            0x60                                      /* rts              */
+        };
+        memcpy(&rom->expansion[(AP_NAME_BANK - 3) * 0x4000 + (copy3 - 0x8000)], copy_code, AP_COPY_SIZE);
+        copy = find_free_space(rom->content, FIXED_FREE_START, 20);
+        vpatch(rom, copy, 20,
+            0xad, 0x04, 0x60,                         /* lda $6004: current bank */
+            0x48,                                     /* pha              */
+            0xa9, AP_NAME_BANK,                       /* lda #3           */
+            0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank  */
+            0x20, LO(copy3), HI(copy3),               /* jsr copy (bank 3) */
+            0x68,                                     /* pla: old bank    */
+            0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank  */
             0xad, 0x31, 0x60,                         /* lda $6031 (moved) */
             0x60                                      /* rts              */
         );

@@ -1,7 +1,12 @@
 -- Phase 3 readiness checks for DWR AP, run in turbo (FCEUX mutes sound in turbo).
--- Run "one": open a throne room chest with TAKE, take the stairs to Tantegel, check the
---   chest bit is still set, then exit FCEUX cleanly so the .sav is written.
--- Run "two" (same .sav): read the AP block right after power on.
+-- Run "one": clear the throne room chest bit, open the chest with TAKE, take the stairs to Tantegel,
+--   check the bit is still set and the printed name is the chest's AP name, then exit FCEUX cleanly.
+-- Run "three" (same .sav): Continue keeps the bits and clears AP_LOADED.
+-- Run "four": a new game clears the AP block.
+-- Run "five": open the first Tantegel chest that Random Chest Locations moved, read from the ROM's
+--   chest table. Needs a ROM built with RCL (CLI, not the APWorld). Logs FAIL otherwise.
+-- Run "six": put "Herb" in the mailbox and check the printed name and that play goes on.
+-- Runs "one", "five" and "six" wait 780 frames after the intro; "three" and "four" wait less.
 -- The run name is read from dwr-ap-testbed/fx/p3mode.txt.
 local OUT = "C:/Users/Ryan/code/dwr-ap-testbed/fx/"
 local rd, wr = memory.readbyte, memory.writebyte
@@ -22,6 +27,16 @@ local function go(x, y)
   wr(0x3a, x); wr(0x3b, y); wr(0x8e, x); wr(0x8f, y)
   wr(0x90, (x * 16) % 256); wr(0x91, math.floor(x / 16))
   wr(0x92, (y * 16) % 256); wr(0x93, math.floor(y / 16))
+end
+-- Clears a chest bit before TAKE, so a PASS means this try opened the chest.
+local function clear_bit(addr, bit) wr(addr, rd(addr) - AND(rd(addr), bit)) end
+-- Checks the name the found-message code printed: $652C holds the text it copied from $6830, up to $FA.
+local function printed_name_ok()
+  for i = 0, 16 do
+    if rd(0x652C + i) ~= rd(0x6830 + i) then return false end
+    if rd(0x6830 + i) == 0xfa then return true end
+  end
+  return false
 end
 local function keys(list)
   local at = frame
@@ -115,18 +130,22 @@ local function driver()
       finish()
     end
   elseif step == "intro" then
-    if age() < 400 and age() % 30 == 0 then press.B = 2 end
-    if age() == 420 then
+    -- The king's speech can still be open at 400 frames (it ran past that after a run that left a
+    -- save), and a TAKE then goes to the speech. Close it for longer.
+    if age() < 760 and age() % 30 == 0 then press.B = 2 end
+    if age() == 780 then
       if MODE == "five" or MODE == "six" then sx, sy = warp(5, 4); side = 1; set_step("stairs")
       else set_step("take") end
     end
   elseif step == "take" then
-    if age() == 1 then go(CHEST_X, CHEST_Y); keys({ {1, "B"} }) end
+    if age() == 1 then clear_bit(0x6822, CHEST_BIT); go(CHEST_X, CHEST_Y); keys({ {1, "B"} }) end
+    if age() == 25 then log(string.format("at %d,%d on map %d", rd(0x3a), rd(0x3b), map)) end
+    if (age() == 60 or age() == 380) and gui.savescreenshotas then gui.savescreenshotas(OUT .. "one_" .. tries .. "_" .. age() .. ".png") end
     if age() == 30 then keys({ {20, "A"}, {45, "right"}, {45, "down"}, {45, "down"}, {45, "down"}, {45, "A"} }) end
     if age() == 420 then keys({ {5, "A"}, {30, "A"}, {30, "B"}, {30, "B"}, {30, "B"} }) end
     if age() == 600 then
-      if AND(rd(0x6822), CHEST_BIT) ~= 0 then
-        log("chest bit set, block " .. block())
+      if AND(rd(0x6822), CHEST_BIT) ~= 0 and printed_name_ok() then
+        log("chest bit set and name printed, block " .. block())
         sx, sy = warp(5, 4); side = 1; set_step("stairs")
       else
         tries = tries + 1
@@ -152,14 +171,14 @@ local function driver()
   elseif step == "tgt" then
     -- Run "five": open the moved Tantegel chest found by moved_tantegel_chest.
     if age() == 1 and not TGT_I then log("FAIL no moved Tantegel chest: this ROM needs Random Chest Locations"); finish(); return end
-    if age() == 1 then go(TGT_X, TGT_Y); keys({ {1, "B"} }) end
+    if age() == 1 then clear_bit(0x6822 + math.floor(TGT_I / 8), 2 ^ (TGT_I % 8)); go(TGT_X, TGT_Y); keys({ {1, "B"} }) end
     if age() == 30 then keys({ {20, "A"}, {45, "right"}, {45, "down"}, {45, "down"}, {45, "down"}, {45, "A"} }) end
     if age() == 25 then log(string.format("at %d,%d on map %d", rd(0x3a), rd(0x3b), map)) end
     if age() == 380 and gui.savescreenshotas then gui.savescreenshotas(OUT .. "five_" .. tries .. ".png") end
     if age() == 420 then keys({ {5, "A"}, {30, "A"}, {30, "B"}, {30, "B"}, {30, "B"} }) end
     if age() == 600 then
       local byte, bit = 0x6822 + math.floor(TGT_I / 8), 2 ^ (TGT_I % 8)
-      if AND(rd(byte), bit) ~= 0 then log(string.format("PASS moved chest %d opened in Tantegel at %d,%d, block %s", TGT_I, TGT_X, TGT_Y, block())); finish()
+      if AND(rd(byte), bit) ~= 0 and printed_name_ok() then log(string.format("PASS moved chest %d opened in Tantegel at %d,%d, block %s", TGT_I, TGT_X, TGT_Y, block())); finish()
       else
         tries = tries + 1
         if tries < 4 then log(string.format("chest %d bit not set, retry %d", TGT_I, tries)); set_step("tgt")
@@ -181,6 +200,12 @@ local function driver()
       mail_seen = frame; log(string.format("flag cleared after a step, at %d,%d", rd(0x3a), rd(0x3b)))
     end
     if mail_seen and frame == mail_seen + 90 and gui.savescreenshotas then gui.savescreenshotas(OUT .. "mail.png") end
+    if mail_seen and frame == mail_seen + 30 then
+      local want = { 0x2B, 0x0E, 0x1B, 0x0B, 0xFA }   -- "Herb"
+      local ok = true
+      for i, v in ipairs(want) do if rd(0x652C + i - 1) ~= v then ok = false end end
+      log(ok and "PASS mailbox printed Herb" or "FAIL mailbox printed the wrong name")
+    end
     if mail_seen and frame == mail_seen + 120 then keys({ {1, "A"}, {20, "B"}, {20, "B"} }) end
     if mail_seen and frame >= mail_seen + 200 and frame < mail_seen + 560 and (frame - mail_seen) % 90 == 20 then
       press[DIRS[mail_dir]] = 18; mail_dir = mail_dir % 4 + 1
