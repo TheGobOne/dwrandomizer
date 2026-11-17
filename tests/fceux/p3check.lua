@@ -38,6 +38,17 @@ end
 local SIDES = { {-1, 0, "right"}, {1, 0, "left"}, {0, -1, "down"}, {0, 1, "up"} }
 local CHEST_X, CHEST_Y, CHEST_BIT = 4, 4, 0x10   -- throne room chest index 4: $6822 bit 4
 local in_throne, tries, side, sx, sy = 0, 0, 1, 0, 0
+-- Run "five": the first Tantegel (map 4) chest that Random Chest Locations moved off the original
+-- Tantegel chest spots. Read from the chest table (file offset $10 + $5DCD, 4 bytes: map, x, y, item).
+local VANILLA_TGT = { ["1,13"] = true, ["1,15"] = true, ["2,14"] = true, ["3,15"] = true }
+local function moved_tantegel_chest()
+  for i = 0, 30 do
+    local a = 0x10 + 0x5dcd + i * 4
+    local m, x, y = rom.readbyte(a), rom.readbyte(a + 1), rom.readbyte(a + 2)
+    if m == 4 and not VANILLA_TGT[x .. "," .. y] then return i, x, y end
+  end
+end
+local TGT_I, TGT_X, TGT_Y = moved_tantegel_chest()
 local last_frame, last_pad = -1, {}
 local last_block = ""
 local DIRS = { "down", "left", "right", "up" }
@@ -139,18 +150,20 @@ local function driver()
       go(sx + s[1], sy + s[2]); press[s[3]] = 20; side = side + 1
     end
   elseif step == "tgt" then
-    -- Run "five": Random Chest Locations moved chest 0 (Tantegel Treasury Chest 1) to 24,21.
-    if age() == 1 then go(24, 21); keys({ {1, "B"} }) end
+    -- Run "five": open the moved Tantegel chest found by moved_tantegel_chest.
+    if age() == 1 and not TGT_I then log("FAIL no moved Tantegel chest: this ROM needs Random Chest Locations"); finish(); return end
+    if age() == 1 then go(TGT_X, TGT_Y); keys({ {1, "B"} }) end
     if age() == 30 then keys({ {20, "A"}, {45, "right"}, {45, "down"}, {45, "down"}, {45, "down"}, {45, "A"} }) end
     if age() == 25 then log(string.format("at %d,%d on map %d", rd(0x3a), rd(0x3b), map)) end
     if age() == 380 and gui.savescreenshotas then gui.savescreenshotas(OUT .. "five_" .. tries .. ".png") end
     if age() == 420 then keys({ {5, "A"}, {30, "A"}, {30, "B"}, {30, "B"}, {30, "B"} }) end
     if age() == 600 then
-      if AND(rd(0x6822), 0x01) ~= 0 then log("PASS moved chest 0 opened in Tantegel, block " .. block()); finish()
+      local byte, bit = 0x6822 + math.floor(TGT_I / 8), 2 ^ (TGT_I % 8)
+      if AND(rd(byte), bit) ~= 0 then log(string.format("PASS moved chest %d opened in Tantegel at %d,%d, block %s", TGT_I, TGT_X, TGT_Y, block())); finish()
       else
         tries = tries + 1
-        if tries < 4 then log("chest 0 bit not set, retry " .. tries); set_step("tgt")
-        else log("FAIL moved chest 0 bit not set, block " .. block()); finish() end
+        if tries < 4 then log(string.format("chest %d bit not set, retry %d", TGT_I, tries)); set_step("tgt")
+        else log(string.format("FAIL moved chest %d bit not set, block %s", TGT_I, block())); finish() end
       end
     end
   elseif step == "mail" then
