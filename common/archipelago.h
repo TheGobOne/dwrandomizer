@@ -9,7 +9,7 @@
 #define AP_TEXT_LOCS  (CHEST_COUNT + 3)
 #define AP_TEXT_LEN   16
 
-/* In AP mode the top of expansion bank 3 holds the AP code (up to 193 bytes), then the
+/* In AP mode the top of expansion bank 3 holds the AP code (up to 235 bytes), then the
  * found-message data: a low and a high pointer table (one byte per location each), then
  * the names end to end, ending at $BFFF. Custom music stops its bank 3 songs below the
  * AP code. AP_BANK3_NAMES is only the worst case for the names. */
@@ -22,6 +22,9 @@ uint16_t dwr_ap_bank3_start(void);
 /* Turns Archipelago mode on for the next build. slot_name may be NULL. */
 void dwr_set_ap(BOOL enabled, const char *slot_name);
 BOOL dwr_ap_enabled(void);
+/* Game-start code that an Archipelago build runs from bank 3 (see archipelago.c). */
+void dwr_ap_start_init_reset(void);
+BOOL dwr_ap_start_init(const uint8_t *code, int n);
 
 /* Reads a .apdwr file from the APWorld: turns AP mode on, sets the slot name
  * and the item text for each chest and search spot. FALSE if it can't. */

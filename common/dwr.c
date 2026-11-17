@@ -2712,7 +2712,16 @@ static void winter_theme(dw_rom *rom)
 static void begin_quest_checksum(dw_rom *rom, uint64_t crc)
 {
     char crc_text[] = " CRC: XXXXXX";
-    const uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 39);
+    uint16_t newcode;
+
+    /* The window is one 39-byte block. An Archipelago build fills the fixed bank with many small pieces and
+     * can leave no gap that long. Its seed is checked by the AP client, so it goes without the checksum
+     * instead of stopping the build. */
+    if (dwr_ap_enabled() && dwr_try_free_space(rom->content, FIXED_FREE_START, 39) < 0) {
+        printf("No room for the checksum on the title menu, leaving it out.\n");
+        return;
+    }
+    newcode = find_free_space(rom->content, FIXED_FREE_START, 39);
 
     // This grabs the checksum
     snprintf(crc_text+6, 7, "%016"PRIX64, crc);
@@ -2765,16 +2774,45 @@ static void vertical_bridges(dw_rom *rom)
 {
     const uint16_t flag = 0x6816;
     const uint8_t tile_left = 0x55, tile_right = 0x56;
-    uint16_t base, clear, lookup, draw, entry, shore;
+    uint16_t clear, lookup, draw, entry, shore;
 
     if (!rom->map.vertical_bridges)
         return;
-    base = find_free_space(rom->content, FIXED_FREE_START, 80);
-    clear = base;
-    lookup = base + 10;
-    draw = base + 23;
-    entry = base + 68;
-    shore = base + 73;
+    {
+        /* One 80-byte block when there is one, as every earlier build did. A full fixed bank (Archipelago
+         * builds) may only have small gaps left: the 5 pieces are reached by jsr, jmp or address, never by
+         * falling through, so each can go in a gap of its own. Largest first, each held while the next is
+         * looked up. */
+        static const uint8_t sizes[5] = {45, 13, 10, 7, 5};
+        int whole = dwr_try_free_space(rom->content, FIXED_FREE_START, 80);
+        int at[5], k;
+
+        if (whole >= 0) {
+            clear = (uint16_t)whole;
+            lookup = clear + 10;
+            draw = clear + 23;
+            entry = clear + 68;
+            shore = clear + 73;
+        } else {
+            for (k = 0; k < 5; k++) {
+                at[k] = dwr_try_free_space(rom->content, FIXED_FREE_START, sizes[k]);
+                if (at[k] < 0)
+                    break;
+                memset(&rom->content[at[k]], 0x00, sizes[k]);
+            }
+            if (k < 5) {
+                while (--k >= 0)
+                    memset(&rom->content[at[k]], 0xff, sizes[k]);
+                find_free_space(rom->content, FIXED_FREE_START, 80); /* no room: stops this try of the build */
+                return;
+            }
+            draw = (uint16_t)at[0];
+            lookup = (uint16_t)at[1];
+            clear = (uint16_t)at[2];
+            shore = (uint16_t)at[3];
+            entry = (uint16_t)at[4];
+        }
+    }
 
     vpatch(rom, clear, 10,
         0xa9, 0x00, 0x8d, LO(flag), HI(flag),     /* lda #0 : sta flag */
@@ -4695,35 +4733,71 @@ static void danger_meter(dw_rom *rom)
     /* New and continued games start halfway to a fight. */
     start_target = (low[rate] + high[rate]) / 2;
     {
-        uint16_t chain = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
-        init = find_free_space(rom->content, FIXED_FREE_START, 13);
-        vpatch(rom, init, 13,
+        const uint8_t init_code[10] = {
             0xa9, 0x00, 0x8d, LO(meter), HI(meter),
-            0xa9, (uint8_t)start_target, 0x8d, LO(target), HI(target),
-            0x4c, LO(chain), HI(chain));
-        vpatch(rom, 0xca1a, 3, 0x20, LO(init), HI(init));
+            0xa9, (uint8_t)start_target, 0x8d, LO(target), HI(target)};
+
+        /* An Archipelago build runs this from bank 3, to keep the fixed bank's room. */
+        if (!dwr_ap_start_init(init_code, sizeof(init_code))) {
+            uint16_t chain = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
+
+            init = find_free_space(rom->content, FIXED_FREE_START, 13);
+            patch(rom, init, 10, init_code);
+            vpatch(rom, init + 10, 3, 0x4c, LO(chain), HI(chain));
+            vpatch(rom, 0xca1a, 3, 0x20, LO(init), HI(init));
+        }
     }
+}
+
+/* The run bank's game-start code: $CA1A runs for new and continued games, so only clear on 0 XP,
+ * a new game. It falls through at its end. */
+#define RUN_BANK_INIT_SIZE 17
+static void run_bank_init_code(uint8_t *code)
+{
+    const uint16_t ram = 0x6806;
+    const uint16_t last = 0x6807;
+    const uint16_t points = 0x6808;
+    const uint8_t c[RUN_BANK_INIT_SIZE] = {0xa5, 0xba, 0x05, 0xbb, 0xd0, 0x0b,
+        0xa9, 0x00, 0x8d, LO(ram), HI(ram), 0x8d, LO(last), HI(last),
+        0x8d, LO(points), HI(points)};
+
+    memcpy(code, c, sizeof(c));
+}
+
+/* Whether this build's Archipelago game-start routine runs the run bank's game-start code. */
+static BOOL run_bank_init_in_ap = FALSE;
+
+/* run_bank_win_hook runs after the Archipelago code is placed, so an Archipelago build hands its
+ * game-start code over here, before that. */
+static void run_bank_start_init(dw_rom *rom)
+{
+    uint8_t code[RUN_BANK_INIT_SIZE];
+
+    run_bank_init_in_ap = FALSE;
+    if (!RUN_BANK(rom) && !QUICK_SPELL(rom))
+        return;
+    run_bank_init_code(code);
+    run_bank_init_in_ap = dwr_ap_start_init(code, sizeof(code));
 }
 
 /* Runs after new_flags_ram_init, which also hooks $CA1A, so this chains to its code. */
 static void run_bank_win_hook(dw_rom *rom)
 {
-    const uint16_t ram = 0x6806;
-    const uint16_t last = 0x6807;
-    const uint16_t points = 0x6808;
     uint16_t c = run_bank_win_code;
     uint16_t init_target, init;
     if (!RUN_BANK(rom) && !QUICK_SPELL(rom))
         return;
 
-    /* $CA1A runs for new and continued games, so only clear on 0 XP: a new game. */
-    init_target = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
-    init = find_free_space(rom->content, FIXED_FREE_START, 20);
-    vpatch(rom, init, 20, 0xa5, 0xba, 0x05, 0xbb, 0xd0, 0x0b,
-        0xa9, 0x00, 0x8d, LO(ram), HI(ram), 0x8d, LO(last), HI(last),
-        0x8d, LO(points), HI(points),
-        0x4c, LO(init_target), HI(init_target));
-    vpatch(rom, 0xca1a, 3, 0x20, LO(init), HI(init));
+    if (!run_bank_init_in_ap) {
+        uint8_t code[RUN_BANK_INIT_SIZE];
+
+        run_bank_init_code(code);
+        init_target = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
+        init = find_free_space(rom->content, FIXED_FREE_START, RUN_BANK_INIT_SIZE + 3);
+        patch(rom, init, RUN_BANK_INIT_SIZE, code);
+        vpatch(rom, init + RUN_BANK_INIT_SIZE, 3, 0x4c, LO(init_target), HI(init_target));
+        vpatch(rom, 0xca1a, 3, 0x20, LO(init), HI(init));
+    }
 
     if (RUN_BANK(rom))
         vpatch(rom, 0xe98c, 3, 0x20, LO(c), HI(c));
@@ -5058,6 +5132,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     memset(&rom->content[0xc6c9], 0xff, 0xc6f0 - 0xc6c9);
     memset(&rom->content[0xc7ec], 0xff, 0xc9b5 - 0xc7ec);
     memset(&rom->content[0xf232], 0xff, 0xf35b - 0xf232);
+    dwr_ap_start_init_reset();
     /* The expansion's fixed-bank routines go in first, so new code is placed around them. */
     bank_3_patch(rom);
     free_unused_patch_routines(rom);
@@ -5152,6 +5227,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     auto_return(rom);
     responsive_controls(rom);
     fast_hills(rom);
+    run_bank_start_init(rom);
     /* Last, so its hooks chain onto everything above. */
     ap_changes(rom);
 }

@@ -100,6 +100,8 @@ local function driver()
     elseif MODE == "four" and frame == 10 then
       -- Stale bits in battery RAM, then a new game with a .sav present (the bug case).
       wr(0x6822, 0x10); wr(0x6826, 0x02); log("planted stale bits, block " .. block())
+      -- Stale values where the run bank ($6806-$6808) and the danger meter ($6809, $680A) start a game.
+      for a = 0x6806, 0x680a do wr(a, 0x55) end
     elseif MODE == "four" then
       -- Title: start opens the menu (Continue, Change Message Speed, Begin a New Quest, ...).
       -- Begin is two steps down. Presses are 10 frames so the menu registers them.
@@ -126,6 +128,12 @@ local function driver()
       else
         if b == "00 00 00 00 00 00 00 00" then log("PASS new game cleared the AP block")
         else log("FAIL new game kept AP bits") end
+        -- The game-start code of the run bank and the danger meter (bank 3 in an AP build). A ROM without
+        -- those flags leaves the planted $55 in place, which is not a failure.
+        local s, stale = {}, 0
+        for a = 0x6806, 0x680a do s[#s + 1] = string.format("%02x", rd(a)); if rd(a) == 0x55 then stale = stale + 1 end end
+        log((stale == 0 and "PASS game-start code ran, " or "NOTE " .. stale .. " of 5 start bytes untouched, ")
+          .. "$6806-$680A = " .. table.concat(s, " "))
       end
       finish()
     end

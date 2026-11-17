@@ -82,9 +82,33 @@ static uint16_t ap_bank3_start = 0xc000;
 #define AP_FOUND_SIZE 64
 #define AP_B3_COPY    (AP_B3_FOUND + AP_FOUND_SIZE)
 #define AP_COPY_SIZE  35
-#define AP_B3_CODE    (AP_B3_COPY + AP_COPY_SIZE)
+/* Game-start code other features hand over (dwr_ap_start_init), then a jmp to the game-start routine. */
+#define AP_B3_INIT    (AP_B3_COPY + AP_COPY_SIZE)
+#define AP_INIT_MAX   40
+#define AP_B3_CODE    (AP_B3_INIT + AP_INIT_MAX + 3)
+static uint8_t ap_init_code[AP_INIT_MAX];
+static int ap_init_len = 0;
 /* Where the found-message routine sets $A3 from A, so the mailbox can share its tail. */
 static uint16_t ap_show_tail = 0;
+
+/* Forgets the game-start code of the last build. Each build calls it before its features run. */
+void dwr_ap_start_init_reset(void)
+{
+    ap_init_len = 0;
+}
+
+/* Takes code that must run once at game start ($CA1A) and runs it from bank 3, ahead of the AP
+ * game-start routine, so it needs no room in the fixed bank. The code must work at any address, use
+ * only RAM, and end by falling through (no rts, no jmp). A, X and Y are free. FALSE when this is not
+ * an Archipelago build or the list is full: the caller then places its own hook. */
+BOOL dwr_ap_start_init(const uint8_t *code, int n)
+{
+    if (!ap_enabled || ap_init_len + n > AP_INIT_MAX)
+        return FALSE;
+    memcpy(ap_init_code + ap_init_len, code, (size_t)n);
+    ap_init_len += n;
+    return TRUE;
+}
 
 void dwr_set_ap(BOOL enabled, const char *slot_name)
 {
@@ -402,7 +426,7 @@ static uint32_t ap_seed_hash(dw_rom *rom)
 
 static void ap_save_and_load(dw_rom *rom)
 {
-    uint16_t save, restore, start, chain, cont, copy;
+    uint16_t save, restore, start, entry, chain, cont, copy;
     int stub, in3;
     uint32_t hash = ap_seed_hash(rom);
     uint8_t tag[2];
@@ -531,6 +555,23 @@ static void ap_save_and_load(dw_rom *rom)
     stub = dwr_try_free_space(rom->content, FIXED_FREE_START, 19);
     in3 = stub >= 0;
     start = in3 ? ap_bank3_start : (uint16_t)find_free_space(rom->content, FIXED_FREE_START, AP_START_SIZE);
+    /* The handed-over game-start code runs first and then jumps to the routine. */
+    entry = start;
+    if (ap_init_len) {
+        const uint8_t go[3] = {0x4c, LO(start), HI(start)};
+
+        if (in3) {
+            uint8_t *b3 = &rom->expansion[(AP_NAME_BANK - 3) * 0x4000];
+
+            entry = ap_bank3_start + AP_B3_INIT;
+            memcpy(&b3[entry - 0x8000], ap_init_code, (size_t)ap_init_len);
+            memcpy(&b3[entry - 0x8000 + ap_init_len], go, 3);
+        } else {
+            entry = find_free_space(rom->content, FIXED_FREE_START, (uint8_t)(ap_init_len + 3));
+            patch(rom, entry, (size_t)ap_init_len, ap_init_code);
+            patch(rom, entry + ap_init_len, 3, go);
+        }
+    }
     uint8_t code[] = {
         0xad, LO(SAVE_SLOT), HI(SAVE_SLOT),           /* 0:  lda slot        */
         0x0a, 0xaa,                                   /* 3:  asl, tax        */
@@ -577,7 +618,7 @@ static void ap_save_and_load(dw_rom *rom)
             0x48,                                     /* pha                          */
             0xa9, AP_NAME_BANK,                       /* lda #3                       */
             0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank              */
-            0x20, LO(start), HI(start),               /* jsr the routine in bank 3    */
+            0x20, LO(entry), HI(entry),               /* jsr the routine in bank 3    */
             0x68,                                     /* pla: the old bank            */
             0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank              */
             0x4c, LO(chain), HI(chain)                /* jmp the game's code          */
@@ -588,7 +629,7 @@ static void ap_save_and_load(dw_rom *rom)
         vpatch(rom, 0xca1a, 3, 0x20, LO(stub), HI(stub));
     } else {
         patch(rom, start, AP_START_SIZE, code);
-        vpatch(rom, 0xca1a, 3, 0x20, LO(start), HI(start));
+        vpatch(rom, 0xca1a, 3, 0x20, LO(entry), HI(entry));
     }
 }
 
