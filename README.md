@@ -80,7 +80,7 @@ To make a pack, use the [NES Custom Music Tool](https://github.com/TheGobOne/NES
 
 Custom music runs its driver every frame, and that work takes time the game needs for walking and text. The remix budgets for it, so walking should not stutter.
 
-- **Walking:** a beat can be dropped during a walking step, never two in a row, so the music stays at least half speed. In a test walk through Garinham, 93% of steps took the normal 16 frames. With no custom music it was 89%.
+- **Walking:** with the wait loop in place, a beat can be dropped during a walking step, never two in a row, so the music stays at least half speed. In a test walk through Garinham, 93% of steps took the normal 16 frames. With no custom music it was 89%. If the build log says "No room for the music wait loop", the music runs from the frame only and busy frames can slow. That case has not been measured.
 - **Battles and text:** every beat plays, even while you hold A through a fight or a message.
 - **Stepping off a standstill in towns:** the first step can take 10 to 25 frames, because the game waits for its NPCs. The music is not the cause.
 

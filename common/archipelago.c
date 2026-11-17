@@ -70,8 +70,8 @@ static BOOL ap_have_seed = FALSE;
 static uint64_t ap_seed;
 static int ap_free_charlock = -1;
 static char ap_text[AP_TEXT_LOCS][AP_TEXT_LEN + 1];
-/* Where the found-message data starts in bank 3 for this build ($C000 when AP
- * is off). Custom music reads it after ap_changes has run. */
+/* Where the AP code starts in bank 3 for this build ($C000 when AP is off); the
+ * found-message names follow it. Custom music reads it after ap_changes has run. */
 static uint16_t ap_bank3_start = 0xc000;
 /* AP code in bank 3, from ap_bank3_start up, below the item names: the game-start routine (see
  * ap_save_and_load), the bit table and found-item routine (ap_chest_and_search), and the Copy Quest
@@ -81,7 +81,7 @@ static uint16_t ap_bank3_start = 0xc000;
 #define AP_B3_FOUND   (AP_B3_BITS + 8)
 #define AP_FOUND_SIZE 64
 #define AP_B3_COPY    (AP_B3_FOUND + AP_FOUND_SIZE)
-#define AP_COPY_SIZE  36
+#define AP_COPY_SIZE  35
 #define AP_B3_CODE    (AP_B3_COPY + AP_COPY_SIZE)
 /* Where the found-message routine sets $A3 from A, so the mailbox can share its tail. */
 static uint16_t ap_show_tail = 0;
@@ -186,8 +186,9 @@ int dwr_ap_patch_free_charlock(void)
  *
  * Bank 1 has no room for the names, so they sit at the top of expansion bank
  * 3: a low and a high pointer table, then the names end to end, ending at
- * $BFFF. The show routine maps bank 3, copies the name into work RAM at
- * AP_NAME_BUF, maps the old bank back and points $A3/$A4 at the copy.
+ * $BFFF. The show routine maps bank 3 and calls the found routine there, which
+ * sets the location bit and copies the name into work RAM at AP_NAME_BUF. It then
+ * maps the old bank back and points $A3/$A4 at the copy.
  */
 #define AP_NAME_BUF      0x6830  /* 17 bytes, below the music driver */
 #define AP_NAME_BANK     3
@@ -197,10 +198,11 @@ int dwr_ap_patch_free_charlock(void)
 _Static_assert(AP_BANK3_NAMES == 0xc000 - AP_TEXT_LOCS * (AP_TEXT_LEN + 1 + 2),
         "AP_BANK3_NAMES must be the room for the longest names");
 
-void dwr_ap_mark_music(dw_rom *rom)
+/* $7FEA: 1 when the pack's music has its wait loop, 2 when it runs from the frame only. */
+void dwr_ap_mark_music(dw_rom *rom, int state)
 {
     if (ap_enabled && !memcmp(&rom->content[0x7fe0], "DWRAP", 5))
-        rom->content[0x7fea] = 1;
+        rom->content[0x7fea] = (uint8_t)state;
 }
 
 uint16_t dwr_ap_bank3_start(void)
@@ -246,6 +248,13 @@ static void ap_chest_and_search(dw_rom *rom)
     name_lo = ap_bank3_start + AP_B3_CODE;
     name_hi = name_lo + AP_TEXT_LOCS;
     at = name_hi + AP_TEXT_LOCS;
+    /* Everything from the AP code up to $BFFF must be free before anything is written there. */
+    for (i = ap_bank3_start - 0x8000; i < 0x4000; i++) {
+        if (bank3[i] != 0xff) {
+            printf("AP: bank 3 at $%04X was not empty, the AP code overwrites it\n", i + 0x8000);
+            break;
+        }
+    }
     for (i = 0; i < AP_TEXT_LOCS; i++) {
         if (bank3[at - 0x8000] != 0xff)
             printf("AP: bank 3 at $%04X was not empty, the item names overwrite it\n", at);
@@ -263,7 +272,7 @@ static void ap_chest_and_search(dw_rom *rom)
     found = ap_bank3_start + AP_B3_FOUND;
     {
         static const uint8_t bit_table[8] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80};
-        const uint8_t found_code[AP_FOUND_SIZE] = {
+        const uint8_t found_code[] = {
             0xe0, CHEST_COUNT,                  /* 0:  cpx #31: a search?    */
             0xb0, 0x17,                         /* 2:  bcs srch (27)         */
             0x8a, 0x29, 0x07, 0xa8,             /* 4:  txa, and #7, tay      */
@@ -291,6 +300,7 @@ static void ap_chest_and_search(dw_rom *rom)
             0x60                                /* 63: rts                   */
         };
         memcpy(&bank3[bits - 0x8000], bit_table, sizeof(bit_table));
+        _Static_assert(sizeof found_code == AP_FOUND_SIZE, "found code size");
         memcpy(&bank3[found - 0x8000], found_code, sizeof(found_code));
     }
 
@@ -436,7 +446,7 @@ static void ap_save_and_load(dw_rom *rom)
     if (rom->content[0xf6ea] == 0xad && rom->content[0xf6eb] == 0x31
             && rom->content[0xf6ec] == 0x60 && rom->content[0xf6ed] == 0x8d) {
         const uint16_t copy3 = ap_bank3_start + AP_B3_COPY;
-        const uint8_t copy_code[AP_COPY_SIZE] = {
+        const uint8_t copy_code[] = {
             0xad, 0x39, 0x60, 0x0a, 0xa8,             /* source slot * 2 in Y */
             0xad, 0x31, 0x60, 0x0a, 0xaa,             /* copy slot * 2 in X   */
             0xb9, LO(AP_SLOT_RECV), HI(AP_SLOT_RECV), /* counter          */
@@ -449,6 +459,7 @@ static void ap_save_and_load(dw_rom *rom)
             0x9d, LO(AP_SLOT_TAG + 1), HI(AP_SLOT_TAG + 1),
             0x60                                      /* rts              */
         };
+        _Static_assert(sizeof copy_code == AP_COPY_SIZE, "copy code size");
         memcpy(&rom->expansion[(AP_NAME_BANK - 3) * 0x4000 + (copy3 - 0x8000)], copy_code, AP_COPY_SIZE);
         copy = find_free_space(rom->content, FIXED_FREE_START, 20);
         vpatch(rom, copy, 20,
@@ -520,7 +531,7 @@ static void ap_save_and_load(dw_rom *rom)
     stub = dwr_try_free_space(rom->content, FIXED_FREE_START, 19);
     in3 = stub >= 0;
     start = in3 ? ap_bank3_start : (uint16_t)find_free_space(rom->content, FIXED_FREE_START, AP_START_SIZE);
-    uint8_t code[AP_START_SIZE] = {
+    uint8_t code[] = {
         0xad, LO(SAVE_SLOT), HI(SAVE_SLOT),           /* 0:  lda slot        */
         0x0a, 0xaa,                                   /* 3:  asl, tax        */
         0xa9, 0x00,                                   /* 5:  lda #0          */
@@ -558,9 +569,10 @@ static void ap_save_and_load(dw_rom *rom)
         0x30, 0xe0,                                   /* 79: bmi go (49)     */
         hash & 0xff, (hash >> 8) & 0xff, (hash >> 16) & 0xff, hash >> 24  /* 81: hash */
     };
+    _Static_assert(sizeof code == AP_START_SIZE, "start routine size");
     if (in3) {
         uint8_t *bank3 = &rom->expansion[0];
-        uint8_t stub_code[19] = {
+        uint8_t stub_code[] = {
             0xad, 0x04, 0x60,                         /* lda $6004: the current bank  */
             0x48,                                     /* pha                          */
             0xa9, AP_NAME_BANK,                       /* lda #3                       */
@@ -570,6 +582,7 @@ static void ap_save_and_load(dw_rom *rom)
             0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank              */
             0x4c, LO(chain), HI(chain)                /* jmp the game's code          */
         };
+        _Static_assert(sizeof stub_code == 19, "start stub size");
         memcpy(&bank3[start - 0x8000], code, AP_START_SIZE);
         patch(rom, (uint16_t)stub, sizeof(stub_code), stub_code);
         vpatch(rom, 0xca1a, 3, 0x20, LO(stub), HI(stub));
@@ -665,7 +678,7 @@ void ap_changes(dw_rom *rom)
     vpatch(rom, 0xd2fc, 3, 0x4c, 0x16, 0xd3);
 
     /* Best fit: the AP pieces go in the small gaps, so the large ones stay free
-     * for the custom music code, which needs about 150 bytes in one piece. */
+     * for the custom music code, whose largest piece is the 107-byte wait loop. */
     {
         BOOL old = dwr_set_packing(TRUE);
 

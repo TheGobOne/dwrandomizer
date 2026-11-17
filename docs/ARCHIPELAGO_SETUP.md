@@ -29,7 +29,8 @@ dwr_options:
 - It comes from the `host.yaml` on the machine that builds the ROM, so each player picks their own pack, and the songs differ per slot.
 - If the file is missing or DWR cannot read it, the ROM is built with the game's music and the log says why.
 - The song for each scene is written next to the ROM as `<rom name>.music.txt`. A scene with no song that fits keeps the game's own song, and the log names it.
-- An Archipelago ROM keeps up to 646 bytes at the top of music bank 3 for the found-message item names, so a pack near the limit can lose a song that fits in a normal DWR ROM. See [Custom music and lag](../README.md#custom-music-and-lag) for making packs.
+- An Archipelago ROM keeps up to 839 bytes at the top of music bank 3: up to 646 for the found-message item names and 193 for AP code. A pack near the limit can lose a song that fits in a normal DWR ROM. See [Custom music and lag](../README.md#custom-music-and-lag) for making packs.
+- The build log can print one of two music warnings. "No room for the music hooks, keeping the original music." means the pack's music was dropped and the game's music stays. "No room for the music wait loop, the music runs from the frame only." means the music plays but can slow on busy frames. A different seed or flag string usually fits.
 - When the BizHawk Client connects to a ROM with a pack, it logs "This ROM has custom music, which changes frame timing a little." That is expected.
 - Keep the ROM you built. Rebuilding after you edit the pack changes the songs.
 

@@ -173,7 +173,7 @@ Nothing found blocks Phase 3.
 |---|---|
 | New game clears the AP block | Pass (`p3check.lua`, run four, with stale bits planted) |
 | Continue keeps the bits | Pass (run three) |
-| Random Chest Locations: a moved chest sets its index's bit | Pass (run five, chest 0 at 24,21 in Tantegel) |
+| Random Chest Locations: a moved chest sets its index's bit | Pass (run five, which opens the first Tantegel chest that RCL moved; it needs a ROM built with RCL through the CLI, because the APWorld rejects RCL) |
 | Mailbox: received items show "Thou hast found the <name>." | Pass (run six: message on screen; full AP run: each item cleared the mailbox before the next) |
 
 How the mailbox works: the client writes the item name in DW tiles to `$6850` and sets `$682E`. The ROM hooks the after-step code at `$CDBF`. After the hero's next step it shows the message and clears the flag. The client gives the next item only after the flag clears. The ROM was version `002` then (`004` now).
@@ -198,11 +198,11 @@ How the mailbox works: the client writes the item name in DW tiles to `$6850` an
 - Copy Quest copies the slot's item count and tag with the save.
 - Herb and Magic Key caps come from the ROM signature, so Random Herb Carry and Random Key Carry work. An item at the cap is dropped with a log line instead of holding up the items behind it.
 - Items that are not given (dropped, already held) and items from your own opened chests and search spots get no mailbox message. Items from `!collect` or a release get one.
-- Found-message names are stored end to end at the top of bank 3, and another player's item names the player, cut to fit 16 characters ("Bartholo.'s Herb"), with accents folded for the DW font.
+- Found-message names are stored end to end at the top of bank 3. The AP code (game start, found item with its bit table, Copy Quest) sits just below them, and another player's item names the player, cut to fit 16 characters ("Bartholo.'s Herb"), with accents folded for the DW font.
 - Slot names are 32 bytes of UTF-8 (Archipelago itself cuts them to 16 characters).
 - Round 2: a New Game also tags its slot. A slot this ROM saved takes the seed hash back after another seed started a game in another slot, and clears the shared chest and search bits. An unknown ROM version is refused. The client warns when the save has more items than the server sent. Drop and swap log lines appear only once the write lands.
 - Round 3: the ROM itself takes the seed hash back at Continue when it tagged the slot, clearing the other seed's location bits. Only New Game tags a slot, so a slot keeps the seed that started it (Change Message Speed on the title menu also saves, and must not retag). New Quest zeroes the counter before it saves the new hero. The Dragon's Scale and Fighter's Ring wait for room like quest items. The client sends nothing on the poll that takes the hash back.
-- Round 4: slot tags are 2 bytes (seed hash bytes 0 and 1), ROM version `004`. A Herb or Magic Key at the carry cap becomes 100 Gold. An owner name with no DW font characters shows as P and the player number. The music code is placed best fit in AP ROMs.
+- Round 4: slot tags are 2 bytes (seed hash bytes 0 and 1), ROM version `004`. A Herb or Magic Key at the carry cap becomes 100 Gold. An owner name with no DW font characters shows as P and the player number. In AP ROMs the music hooks go in the fixed-bank gaps, cut into pieces joined by jmp when they do not fit whole.
 - PopTracker: gray items you do not have, area labels with counts, a legend, and hint highlights by hint status.
 - The DWR site names any flag Archipelago rejects under the flag string.
 

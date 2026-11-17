@@ -2,7 +2,7 @@
 
 ROM side (common/archipelago.c in DWR, which has the full map):
   PRG $7FE0   "DWRAP", 3 version digits, pointer to the 32 byte UTF-8 slot name, custom music
-              flag, 4 byte seed hash, herb cap << 4 | key cap
+              flag (1: with the wait loop, 2: frame music only), 4 byte seed hash, herb cap << 4 | key cap
   $6820-21    items received so far (the client raises it after each item)
   $6822-25    chest bits, bit n = chest n
   $6826       search spot bits
@@ -140,9 +140,12 @@ class DWRClient(BizHawkClient):
         if sig[5:8] not in ROM_VERSIONS:
             return False  # another layout: reading it would send wrong checks
         self.slot_name = name.split(b"\x00")[0].decode("utf-8", errors="replace")
-        if sig[10] == 1 and not self.music_noted:
+        if sig[10] and not self.music_noted:
             self.music_noted = True
-            logger.info("This ROM has custom music, which changes frame timing a little.")
+            if sig[10] == 2:
+                logger.info("This ROM runs its custom music from the frame only, so busy frames can be slower.")
+            else:
+                logger.info("This ROM has custom music, which changes frame timing a little.")
         self.seed_hash = sig[11:15] if any(sig[11:15]) else b""
         self.slot_tag = slot_tag(self.seed_hash, 1 if sig[5:8] == b"003" else 2)
         caps = sig[15] if sig[5:8] != b"002" else 0
