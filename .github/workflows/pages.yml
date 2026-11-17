@@ -1,9 +1,8 @@
 name: Deploy site to GitHub Pages
 
+# Manual only: the site deploys when someone starts this workflow on GitHub (Actions > Run workflow).
+# It no longer runs on every push that changes site/.
 on:
-  push:
-    branches: [All-the-new-things-and-more]
-    paths: [site/**, .github/workflows/pages.yml]
   workflow_dispatch:
 
 permissions:
