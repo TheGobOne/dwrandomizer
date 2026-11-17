@@ -209,7 +209,7 @@ end
 -- Log the PRG bank in use ($6004) the first few times each AP hook site runs, so a hook can
 -- move out of the fixed bank only where one bank is always in use.
 local bank_hits = {}
-for _, site in ipairs({ 0xCA1A, 0xCDBF, 0xE221, 0xE12D, 0xF6EA, 0xF8BE, 0xF8CE, 0xFA18, 0xFB6B }) do
+for _, site in ipairs({ 0xCA1A, 0xCDBF, 0xE221, 0xE12D, 0xF8BE, 0xF8CE, 0xFA18, 0xFB6B }) do
   memory.registerexecute(site, function()
     bank_hits[site] = (bank_hits[site] or 0) + 1
     if bank_hits[site] <= 3 then log(string.format("bank at $%04X: %d", site, rd(0x6004))) end

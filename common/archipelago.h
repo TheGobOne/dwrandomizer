@@ -9,7 +9,7 @@
 #define AP_TEXT_LOCS  (CHEST_COUNT + 3)
 #define AP_TEXT_LEN   16
 
-/* In AP mode the top of expansion bank 3 holds the AP code (up to 235 bytes), then the
+/* In AP mode the top of expansion bank 3 holds the AP code (up to 200 bytes), then the
  * found-message data: a low and a high pointer table (one byte per location each), then
  * the names end to end, ending at $BFFF. Custom music stops its bank 3 songs below the
  * AP code. AP_BANK3_NAMES is only the worst case for the names. */

@@ -1068,85 +1068,17 @@ static void build_extras(dw_rom *rom, uint16_t new_window_data)
     set_text(rom, 0x7224, " CHG BUILD IF EXP 0  ");
     set_text(rom, 0x7262, " CHG BUILD IF EXP 0  ");
 
-    newcode_stats_calc = find_free_space(rom->content, FIXED_FREE_START, 127);
-
-    //head over to our new stats calcuations for all builds
-    vpatch(rom, 0xf09e, 3,
-    0x4c, newcode_stats_calc & 0xff, (newcode_stats_calc >> 8) & 0xff); // jmp
-
-    //New logic for determing stats with vanilla and all build options.
-    vpatch(rom, newcode_stats_calc, 127,
-    //19
-    0xa6, 0xe5,        //ldx 0xe5
-    0xf0, 0x0f,        //beq hp-mp, 15
-    0xca,              //dex
-    0xf0, 0x1d,        //beq str-hp, 29
-    0xca,              //dex
-    0xf0, 0x2d,        //beq agi-mp, 45
-    0xca,              //dex
-    0xf0, 0x3b,        //beq str-agi, 59
-    0xca,              //dex
-    0xf0, 0x4b,        //beq str-mp, 75
-    0xca,              //dex
-    0xf0, 0x59,        //beq agi-hp, 89
-
-    //hp-mp, 17
-    0xa5, 0xc8,        //LDA str
-    0x20, 0x0c, 0xf1,  //JSR F10C  //JSR ReduceStat
-    0x85, 0xc8,        //STA str
-    0xa5, 0xc9,        //LDA agi
-    0x20, 0x0c, 0xf1,  //JSR F10C  //JSR ReduceStat
-    0x85, 0xc9,        //STA agi
-    0x4c, 0xcd, 0xf0,  //jmp 0xf0cd
-
-    //str-hp, 19
-    0xa5, 0xc9,        //LDA agi
-    0x20, 0x0c, 0xf1,  //JSR F10C  //JSR ReduceStat
-    0x85, 0xc9,        //STA agi
-    0xa5, 0xcb,        //LDA mp
-    0xf0, 0x05,        //beq skip if mp is 0
-    0x20, 0x0c, 0xf1,  //JSR F10C  //JSR ReduceStat
-    0x85, 0xcb,        //STA mp
-    0x4c, 0xcd, 0xf0,  //jmp 0xf0cd
-
-    //agi-mp, 17
-    0xa5, 0xc8,        //LDA str
-    0x20, 0x0c, 0xf1,  //JSR F10C  //JSR ReduceStat
-    0x85, 0xc8,        //STA str
-    0xa5, 0xca,        //LDA hp
-    0x20, 0x0c, 0xf1,  //JSR F10C  //JSR ReduceStat
-    0x85, 0xca,        //STA hp
-    0x4c, 0xcd, 0xf0,  //jmp 0xf0cd
-
-    //str-agi, 19
-    0xa5, 0xca,        //LDA hp
-    0x20, 0x0c, 0xf1,  //JSR F10C  //JSR ReduceStat
-    0x85, 0xca,        //STA hp
-    0xa5, 0xcb,        //LDA mp
-    0xf0, 0x05,        //beq skip if mp is 0
-    0x20, 0x0c, 0xf1,  //JSR F10C  //JSR ReduceStat
-    0x85, 0xcb,        //STA mp
-    0x4c, 0xcd, 0xf0,  //jmp 0xf0cd
-
-    //str-mp, 17
-    0xa5, 0xc9,        //LDA agi
-    0x20, 0x0c, 0xf1,  //JSR F10C  //JSR ReduceStat
-    0x85, 0xc9,        //STA agi
-    0xa5, 0xca,        //LDA hp
-    0x20, 0x0c, 0xf1,  //JSR F10C  //JSR ReduceStat
-    0x85, 0xca,        //STA hp
-    0x4c, 0xcd, 0xf0,  //jmp 0xf0cd
-
-    //agi-hp, 19
-    0xa5, 0xc8,        //LDA str
-    0x20, 0x0c, 0xf1,  //JSR F10C  //JSR ReduceStat
-    0x85, 0xc8,        //STA str
-    0xa5, 0xcb,        //LDA mp
-    0xf0, 0x05,        //beq skip if mp is 0
-    0x20, 0x0c, 0xf1,  //JSR F10C  //JSR ReduceStat
-    0x85, 0xcb,        //STA mp
-    0x4c, 0xcd, 0xf0   //jmp 0xf0cd
-    );
+    (void)newcode_stats_calc;
+    /* In place over the dead vanilla stat penalty code $F09E-$F0CC (47 bytes), falls into $F0CD. */
+    vpatch(rom, 0xf09e, 47,
+        0xa4, 0xe5, 0xbe, 0xbb, 0xf0, 0x20, 0xad, 0xf0,   /* ldy $e5 : ldx tA,y : jsr red */
+        0xa4, 0xe5, 0xbe, 0xc1, 0xf0, 0xd0, 0x1d,         /* ldy $e5 : ldx tB,y : bne last */
+        0xb5, 0x00, 0xd0, 0x04, 0xe0, 0xcb, 0xf0, 0x05,   /* red: lda 0,x : bne go : cpx #$cb : beq skip */
+        0x20, 0x0c, 0xf1, 0x95, 0x00, 0x60,               /* go: jsr $f10c : sta 0,x : skip: rts */
+        0xc8, 0xc9, 0xc8, 0xca, 0xc9, 0xc8,               /* tA */
+        0xc9, 0xcb, 0xca, 0xcb, 0xca, 0xcb,               /* tB */
+        0xea, 0xea, 0xea,
+        0x20, 0xad, 0xf0);                                /* last: jsr red, falls into $F0CD */
 
     text_scroller_extras(rom);
 }
@@ -5132,6 +5064,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     memset(&rom->content[0xc6c9], 0xff, 0xc6f0 - 0xc6c9);
     memset(&rom->content[0xc7ec], 0xff, 0xc9b5 - 0xc7ec);
     memset(&rom->content[0xf232], 0xff, 0xf35b - 0xf232);
+    memset(&rom->content[0xffe0], 0xff, 0xfffa - 0xffe0);
     dwr_ap_start_init_reset();
     /* The expansion's fixed-bank routines go in first, so new code is placed around them. */
     bank_3_patch(rom);

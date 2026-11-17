@@ -1,3 +1,9 @@
+# Unreleased - TheGobOne Remix #
+* Archipelago: Copy Quest no longer carries the Archipelago item count and seed tag with the copy. Copies are not a supported way to play an Archipelago seed
+* Archipelago builds no longer stop with "Not enough space". A full fixed bank now gets its pieces placed in smaller gaps, and the game-start code of the run bank and danger meter runs from bank 3. When the title menu has no room for its checksum, the build leaves it out and says so
+* Archipelago: the music wait loop and the custom music hooks fit on more seeds. Seeds that still have no room run the music from the frame only, or keep the game's own music
+* Archipelago: the Responsive Controls stat code and the Nintendo header area are no longer used, which frees fixed bank space. Race checksums change for every build made from this version, so everyone in a race needs this build
+
 # 1.2.1 - TheGobOne Remix #
 * Random maps: Wasteland and Riverlands grow their land out of open water the way Continent does, with irregular coasts, lakes and islands. Both keep their own terrain mix
 * Random maps: Wasteland and Riverlands fill the whole map at Normal size, as Continent does

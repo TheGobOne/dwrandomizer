@@ -45,3 +45,13 @@ FF7D  | FF8E |  17  | 3    | Fighter's Ring fix
 FF54  | FF57 |   3  | 3    | Fighter's Ring fix
 FF54  | FF73 |  31  | 3    | Death Necklace changes
 
+Archipelago builds (current)
+-------------------------------------------------------------------------------
+The fixed bank is $C000-$FFFF. These uses replace the old ones in AP builds:
+- Stat build code: $F09E-$F0CC (47 bytes) holds the new code in place of the vanilla penalty code.
+- Nintendo header $FFE0-$FFF9 (26 bytes): cleared to $FF. $FFDF stays $80 for the reset code.
+- Vertical bridge routine: 80 bytes, or five pieces (45, 13, 10, 7, 5) when no 80-byte gap exists.
+- Run bank and danger meter game-start code: bank 3 when the AP code is there.
+- Checksum window (39 bytes): left out, with a build message, when no gap is left.
+Each of these is checked with find_free_space or dwr_try_free_space. Measured on Gob Standard seeds 2, 7, 10 and 17: music hooks need 112 bytes in pieces of 17 or less.
+

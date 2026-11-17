@@ -74,16 +74,14 @@ static char ap_text[AP_TEXT_LOCS][AP_TEXT_LEN + 1];
  * found-message names follow it. Custom music reads it after ap_changes has run. */
 static uint16_t ap_bank3_start = 0xc000;
 /* AP code in bank 3, from ap_bank3_start up, below the item names: the game-start routine (see
- * ap_save_and_load), the bit table and found-item routine (ap_chest_and_search), and the Copy Quest
- * routine. Each runs through a small fixed-bank stub that maps bank 3 and maps the old bank back. */
+ * ap_save_and_load), the bit table and found-item routine (ap_chest_and_search). Each runs through a
+ * small fixed-bank stub that maps bank 3 and maps the old bank back. */
 #define AP_START_SIZE 85
 #define AP_B3_BITS    (AP_START_SIZE)
 #define AP_B3_FOUND   (AP_B3_BITS + 8)
 #define AP_FOUND_SIZE 64
-#define AP_B3_COPY    (AP_B3_FOUND + AP_FOUND_SIZE)
-#define AP_COPY_SIZE  35
 /* Game-start code other features hand over (dwr_ap_start_init), then a jmp to the game-start routine. */
-#define AP_B3_INIT    (AP_B3_COPY + AP_COPY_SIZE)
+#define AP_B3_INIT    (AP_B3_FOUND + AP_FOUND_SIZE)
 #define AP_INIT_MAX   40
 #define AP_B3_CODE    (AP_B3_INIT + AP_INIT_MAX + 3)
 static uint8_t ap_init_code[AP_INIT_MAX];
@@ -463,44 +461,6 @@ static void ap_save_and_load(dw_rom *rom)
     );
     /* LoadSavedData at $FB6B was ldy #0, lda ($22),y. */
     vpatch(rom, 0xfb6b, 4, 0x20, LO(restore), HI(restore), 0xea);
-
-    /* Copy Quest copies a slot's save block from slot $6039 to slot $6031 with
-     * no save or load, so the AP counter and tag are copied here. The hook
-     * replaces lda $6031 at $F6EA, before sta $6039 makes the copy current. */
-    if (rom->content[0xf6ea] == 0xad && rom->content[0xf6eb] == 0x31
-            && rom->content[0xf6ec] == 0x60 && rom->content[0xf6ed] == 0x8d) {
-        const uint16_t copy3 = ap_bank3_start + AP_B3_COPY;
-        const uint8_t copy_code[] = {
-            0xad, 0x39, 0x60, 0x0a, 0xa8,             /* source slot * 2 in Y */
-            0xad, 0x31, 0x60, 0x0a, 0xaa,             /* copy slot * 2 in X   */
-            0xb9, LO(AP_SLOT_RECV), HI(AP_SLOT_RECV), /* counter          */
-            0x9d, LO(AP_SLOT_RECV), HI(AP_SLOT_RECV),
-            0xb9, LO(AP_SLOT_RECV + 1), HI(AP_SLOT_RECV + 1),
-            0x9d, LO(AP_SLOT_RECV + 1), HI(AP_SLOT_RECV + 1),
-            0xb9, LO(AP_SLOT_TAG), HI(AP_SLOT_TAG),   /* tag              */
-            0x9d, LO(AP_SLOT_TAG), HI(AP_SLOT_TAG),
-            0xb9, LO(AP_SLOT_TAG + 1), HI(AP_SLOT_TAG + 1),
-            0x9d, LO(AP_SLOT_TAG + 1), HI(AP_SLOT_TAG + 1),
-            0x60                                      /* rts              */
-        };
-        _Static_assert(sizeof copy_code == AP_COPY_SIZE, "copy code size");
-        memcpy(&rom->expansion[(AP_NAME_BANK - 3) * 0x4000 + (copy3 - 0x8000)], copy_code, AP_COPY_SIZE);
-        copy = find_free_space(rom->content, FIXED_FREE_START, 20);
-        vpatch(rom, copy, 20,
-            0xad, 0x04, 0x60,                         /* lda $6004: current bank */
-            0x48,                                     /* pha              */
-            0xa9, AP_NAME_BANK,                       /* lda #3           */
-            0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank  */
-            0x20, LO(copy3), HI(copy3),               /* jsr copy (bank 3) */
-            0x68,                                     /* pla: old bank    */
-            0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank  */
-            0xad, 0x31, 0x60,                         /* lda $6031 (moved) */
-            0x60                                      /* rts              */
-        );
-        vpatch(rom, 0xf6ea, 3, 0x20, LO(copy), HI(copy));
-    } else {
-        printf("AP: unexpected code at $F6EA, Copy Quest will not copy the item counter\n");
-    }
 
     /* The Continue menu loads the chosen slot with jsr $FAC1 at $F8BE, then rts. */
     if (rom->content[0xf8be] == 0x20 && rom->content[0xf8bf] == 0xc1
