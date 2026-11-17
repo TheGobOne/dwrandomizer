@@ -4172,6 +4172,52 @@ static uint16_t rc_space(dw_rom *rom, uint8_t n)
 }
 #define RC_CPU(x) ((uint16_t)((x) < 0x4000 ? (x) + 0x8000 : (x)))
 
+/* Far calls into bank 6, through the game's own BRK handler at $FD3A. The 3 bytes `brk, index, bank << 4` map the
+ * bank, call the routine whose address is at $8000 + 2 * index, and map the old bank back when it ends with rts.
+ * A, X, Y and the flags pass through both ways. It uses zero page $30-$34 and $37-$39 and 4 more stack bytes than a
+ * jsr, so only code that runs in the main loop, never in the NMI, may be called this way, and the call site must
+ * not keep anything in those bytes. Bank 6 holds the music driver from $8100; $8000-$8033 is the music's own code in
+ * music builds. $8034-$80FF is free in every build: the first FAR_SLOTS words are the call table (index 26 on), the
+ * routines follow. */
+#define FAR_BANK 6
+#define FAR_TABLE 0x8034
+#define FAR_INDEX 26 /* (FAR_TABLE - $8000) / 2 */
+#define FAR_SLOTS 4
+#define FAR_END 0x8100
+static int far_used;
+static uint16_t far_next;
+
+static void far_reset(void)
+{
+    far_used = 0;
+    far_next = FAR_TABLE + 2 * FAR_SLOTS;
+}
+
+/* Puts a routine in bank 6 and gives the 3 bytes that call it. FALSE when there is no room. */
+static BOOL far_place(dw_rom *rom, const uint8_t *code, int n, uint8_t call[3])
+{
+    uint8_t *b6 = &rom->expansion[(FAR_BANK - 3) * 0x4000];
+    uint16_t entry = (uint16_t)(FAR_TABLE + 2 * far_used);
+    int i;
+
+    if (far_used >= FAR_SLOTS || far_next + n > FAR_END)
+        return FALSE;
+    for (i = far_next - 0x8000; i < far_next - 0x8000 + n; i++)
+        if (b6[i] != 0xff)
+            return FALSE;
+    if (b6[entry - 0x8000] != 0xff || b6[entry - 0x8000 + 1] != 0xff)
+        return FALSE;
+    b6[entry - 0x8000] = LO(far_next);
+    b6[entry - 0x8000 + 1] = HI(far_next);
+    memcpy(&b6[far_next - 0x8000], code, (size_t)n);
+    call[0] = 0x00;
+    call[1] = (uint8_t)(FAR_INDEX + far_used);
+    call[2] = (uint8_t)(FAR_BANK << 4);
+    far_next = (uint16_t)(far_next + n);
+    far_used++;
+    return TRUE;
+}
+
 static void responsive_controls(dw_rom *rom)
 {
     const uint16_t stamp = 0x680b, state = 0x680c, buf = 0x680d, prev = 0x680e, pend = 0x680f;
@@ -4183,8 +4229,8 @@ static void responsive_controls(dw_rom *rom)
     if (!RESPONSIVE_CONTROLS(rom))
         return;
     printf("Making the controls responsive...\n");
-    read_hook = rc_space(rom, 109);
-    vpatch(rom, read_hook, 109,
+    static const uint8_t NO_FAR[3] = {0, 0, 0};
+    const uint8_t read_code[] = {
         0xad, LO(prev), HI(prev), 0x49, 0xff, 0x25, 0x47, 0x29, 0xf9, 0x85, 0x46, /* new presses, not B or Select */
         0xa5, 0x47, 0x8d, LO(prev), HI(prev),
         0xad, LO(state), HI(state), 0xc9, DONE, 0xd0, 0x09,   /* a finished step: add what it saved */
@@ -4201,7 +4247,21 @@ static void responsive_controls(dw_rom *rom)
         0xa5, 0x47, 0x29, 0xf0, 0xf0, 0x0a,                   /* only a direction starts a step */
         0xa9, 0x00, 0x8d, LO(buf), HI(buf),
         0xa9, READING, 0x8d, LO(state), HI(state),
-        0xa5, 0x47, 0x29, 0x08, 0x60);                        /* the code this replaced */
+        0xa5, 0x47, 0x29, 0x08, 0x60};
+    uint8_t read_call[3];
+    int read_in_map;
+    _Static_assert(sizeof read_code == 109, "read hook size");
+    /* The spare end of the map in bank 0 first. When it is too small, an Archipelago build puts the read hook
+     * in bank 6 behind a far call and keeps the fixed bank's room; other builds use the fixed bank as always. */
+    read_in_map = search_free_space(rom->content, 0x1d5d, 0x2653, sizeof read_code);
+    memcpy(read_call, NO_FAR, 3);
+    if (read_in_map < 0 && dwr_ap_enabled() && far_place(rom, read_code, sizeof read_code, read_call)) {
+        printf("The read hook runs from bank 6.\n");
+        read_hook = 0;
+    } else {
+        read_hook = read_in_map >= 0 ? (uint16_t)read_in_map : find_free_space(rom->content, FIXED_FREE_START, sizeof read_code);
+        patch(rom, read_hook, sizeof read_code, read_code);
+    }
     frame_hook = rc_space(rom, 59);
     vpatch(rom, frame_hook, 59,
         0x08, /* callers count on the carry surviving a frame wait */
@@ -4243,7 +4303,10 @@ static void responsive_controls(dw_rom *rom)
         0x48, 0xa9, 0x00, 0x8d, LO(state), HI(state), 0x68,  /* pha : lda #0 : sta state : pla */
         0x60);
     vpatch(rom, 0xe4df, 4, 0x20, LO(battle_start), HI(battle_start), 0xea);
-    vpatch(rom, 0xcaa2, 4, 0x20, LO(RC_CPU(read_hook)), HI(RC_CPU(read_hook)), 0xea);
+    if (read_call[0] == 0x00 && read_call[2])
+        vpatch(rom, 0xcaa2, 4, read_call[0], read_call[1], read_call[2], 0xea);
+    else
+        vpatch(rom, 0xcaa2, 4, 0x20, LO(RC_CPU(read_hook)), HI(RC_CPU(read_hook)), 0xea);
     /* The frame waits in the four step routines, so nothing else pays for reading the buttons, as it would
      * while booting and in menus if $FF74 itself were hooked. */
     for (i = 0x3252; i < 0x36da; i++) {
@@ -5066,6 +5129,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     memset(&rom->content[0xf232], 0xff, 0xf35b - 0xf232);
     memset(&rom->content[0xffe0], 0xff, 0xfffa - 0xffe0);
     dwr_ap_start_init_reset();
+    far_reset();
     /* The expansion's fixed-bank routines go in first, so new code is placed around them. */
     bank_3_patch(rom);
     free_unused_patch_routines(rom);
