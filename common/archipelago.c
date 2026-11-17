@@ -73,6 +73,8 @@ static char ap_text[AP_TEXT_LOCS][AP_TEXT_LEN + 1];
 /* Where the found-message data starts in bank 3 for this build ($C000 when AP
  * is off). Custom music reads it after ap_changes has run. */
 static uint16_t ap_bank3_start = 0xc000;
+/* Size of the game-start routine, which may sit in bank 3 at ap_bank3_start (see ap_save_and_load). */
+#define AP_START_SIZE 85
 /* Where the found-message routine sets $A3 from A, so the mailbox can share its tail. */
 static uint16_t ap_show_tail = 0;
 
@@ -231,8 +233,10 @@ static void ap_chest_and_search(dw_rom *rom)
     /* Names end to end, so short names leave more of bank 3 for music. */
     for (i = 0; i < AP_TEXT_LOCS; i++)
         total += lens[i] = ap_name_tiles(i, names[i]);
-    ap_bank3_start = (uint16_t)(0xc000 - total);
-    name_lo = ap_bank3_start;
+    /* The game-start routine (85 bytes) sits just below the names when the stub fits, so the names start
+     * above it. */
+    ap_bank3_start = (uint16_t)(0xc000 - total - AP_START_SIZE);
+    name_lo = ap_bank3_start + AP_START_SIZE;
     name_hi = name_lo + AP_TEXT_LOCS;
     at = name_hi + AP_TEXT_LOCS;
     for (i = 0; i < AP_TEXT_LOCS; i++) {
@@ -377,6 +381,7 @@ static uint32_t ap_seed_hash(dw_rom *rom)
 static void ap_save_and_load(dw_rom *rom)
 {
     uint16_t save, restore, start, chain, cont, copy;
+    int stub, in3;
     uint32_t hash = ap_seed_hash(rom);
     uint8_t tag[2];
 
@@ -485,8 +490,13 @@ static void ap_save_and_load(dw_rom *rom)
      * them and write this ROM's hash. Only New Game tags a slot, so a slot
      * keeps the seed it was started with. */
     chain = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
-    start = find_free_space(rom->content, FIXED_FREE_START, 85);
-    vpatch(rom, start, 85,
+    /* Bank 3 holds the routine when a 19-byte stub fits in the fixed bank: the stub switches to bank 3,
+     * runs the routine, switches back and jumps to the game's code. Otherwise the routine stays in the
+     * fixed bank, as before. */
+    stub = dwr_try_free_space(rom->content, FIXED_FREE_START, 19);
+    in3 = stub >= 0;
+    start = in3 ? ap_bank3_start : (uint16_t)find_free_space(rom->content, FIXED_FREE_START, AP_START_SIZE);
+    uint8_t code[AP_START_SIZE] = {
         0xad, LO(SAVE_SLOT), HI(SAVE_SLOT),           /* 0:  lda slot        */
         0x0a, 0xaa,                                   /* 3:  asl, tax        */
         0xa9, 0x00,                                   /* 5:  lda #0          */
@@ -508,7 +518,7 @@ static void ap_save_and_load(dw_rom *rom)
         0x9d, LO(AP_SEED_HASH), HI(AP_SEED_HASH),     /* 43:   sta seed_hash,x */
         0xca,                                         /* 46:   dex           */
         0x10, 0xf7,                                   /* 47:   bpl - (40)    */
-        0x4c, LO(chain), HI(chain),                   /* 49: go: jmp chain   */
+        in3 ? 0x60 : 0x4c, in3 ? 0xea : LO(chain), in3 ? 0xea : HI(chain),  /* 49: go: rts, or jmp chain */
         0xbd, LO(AP_SLOT_TAG), HI(AP_SLOT_TAG),       /* 52: cont: lda slot_tag,x */
         0xc9, tag[0],                                 /* 55: cmp #tag        */
         0xd0, 0xf6,                                   /* 57: bne go (49)     */
@@ -523,8 +533,26 @@ static void ap_save_and_load(dw_rom *rom)
         0x10, 0xf5,                                   /* 77:   bpl - (68)    */
         0x30, 0xe0,                                   /* 79: bmi go (49)     */
         hash & 0xff, (hash >> 8) & 0xff, (hash >> 16) & 0xff, hash >> 24  /* 81: hash */
-    );
-    vpatch(rom, 0xca1a, 3, 0x20, LO(start), HI(start));
+    };
+    if (in3) {
+        uint8_t *bank3 = &rom->expansion[0];
+        uint8_t stub_code[19] = {
+            0xad, 0x04, 0x60,                         /* lda $6004: the current bank  */
+            0x48,                                     /* pha                          */
+            0xa9, AP_NAME_BANK,                       /* lda #3                       */
+            0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank              */
+            0x20, LO(start), HI(start),               /* jsr the routine in bank 3    */
+            0x68,                                     /* pla: the old bank            */
+            0x20, LO(LOAD_PRG_BANK), HI(LOAD_PRG_BANK), /* jsr load bank              */
+            0x4c, LO(chain), HI(chain)                /* jmp the game's code          */
+        };
+        memcpy(&bank3[start - 0x8000], code, AP_START_SIZE);
+        patch(rom, (uint16_t)stub, sizeof(stub_code), stub_code);
+        vpatch(rom, 0xca1a, 3, 0x20, LO(stub), HI(stub));
+    } else {
+        patch(rom, start, AP_START_SIZE, code);
+        vpatch(rom, 0xca1a, 3, 0x20, LO(start), HI(start));
+    }
 }
 
 /* "DWRAP", version, pointer to the slot name. */

@@ -1042,7 +1042,7 @@ static void pick_like_site(dw_rom *rom)
 #define MW_DROPPED 0x6bff /* the last mid-step wait dropped its ticks: the next one plays */
 #define MW_TH 3
 #define MW_BANKSEL RAM_BANKSEL
-static void music_wait_loop(dw_rom *rom, uint16_t frame)
+static void music_wait_loop(dw_rom *rom, uint16_t tail)
 {
     static const uint8_t wait_in[9] = {0xa9, 0x01, 0x85, 0x02, 0xa5, 0x02, 0xd0, 0xfc, 0x60};
     static const uint8_t overrun_in[3] = {0x20, 0x2d, 0xff};
@@ -1066,7 +1066,7 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
     /* The hook's tail starts with the 3-byte lda of the bank selector, which the jump to here replaces:
      * do that load here, then carry on at the rest of the tail. This saves copying the tail. */
     c[n++] = 0xad; c[n++] = LO8(RAM_BANKSEL); c[n++] = HI8(RAM_BANKSEL);
-    c[n++] = 0x4c; c[n++] = LO8(frame + 11); c[n++] = HI8(frame + 11);
+    c[n++] = 0x4c; c[n++] = LO8(tail + 3); c[n++] = HI8(tail + 3);
     n1 = n;
 
     /* 2. Overrun path of the NMI: while the game waits for a frame, take the full path. Otherwise the game
@@ -1139,12 +1139,62 @@ static void music_wait_loop(dw_rom *rom, uint16_t frame)
         return;
     }
     patch(rom, (uint16_t)h2, n1, c);
-    patch(rom, frame + 8, 3, (uint8_t[]){0x4c, LO8(h2), HI8(h2)});
+    patch(rom, tail, 3, (uint8_t[]){0x4c, LO8(h2), HI8(h2)});
     patch(rom, (uint16_t)chk, n2, c2);
     patch(rom, 0xfe55, 3, (uint8_t[]){0x4c, LO8(chk), HI8(chk)});
     patch(rom, (uint16_t)w, n, code);
     patch(rom, 0xff74, 3, (uint8_t[]){0x4c, LO8(w), HI8(w)});
 }
+
+/* The chained hook layout: the request hook in five pieces, the frame hook in two, and the $402x hook,
+ * joined by jmp, for a fixed bank that only has small gaps (AP builds). No branch crosses a cut. Looked up
+ * largest first, so the big pieces get first pick of the gaps. */
+enum { CH_FQ, CH_FS, CH_FR2, CH_F1, CH_FM1, CH_FM2, CH_FR1, CH_YS, CHAIN_PIECES };
+static const uint8_t chain_sizes[CHAIN_PIECES] = {17, 16, 16, 15, 14, 13, 11, HOOK_YS_SIZE};
+static int chain_at[CHAIN_PIECES];
+
+#define CH(p) LO8(chain_at[p]), HI8(chain_at[p])
+/* The request hook of apply_music in pieces. Same code, plus the jumps. */
+static void write_chained_request(dw_rom *rom)
+{
+    vpatch(rom, (uint16_t)chain_at[CH_F1], 15,
+            0xa2, 0xff, 0x8e, 0x05, 0x60,         /* ldx #$ff, stx $6005 (replaced code) */
+            0xc9, 0x80, 0x90, 0x03,               /* cmp #$80, bcc music */
+            0x4c, CH(CH_FS),                      /* a sound effect */
+            0x4c, CH(CH_FM1));                    /* music */
+    vpatch(rom, (uint16_t)chain_at[CH_FS], 16,
+            0xc9, 0x82, 0xd0, 0x08,               /* cmp #$82, bne: not the town footstep */
+            0xa9, 0x00, 0x8d, 0x05, 0x60,         /* lda #0, sta $6005 */
+            0x68, 0x68, 0x60,                     /* pla pla rts */
+            0x8d, LO8(RAM_SFX), HI8(RAM_SFX), 0x60);
+    vpatch(rom, (uint16_t)chain_at[CH_FM1], 14,
+            0x8d, LO8(RAM_WANT), HI8(RAM_WANT),
+            0x8d, LO8(RAM_RAW), HI8(RAM_RAW),
+            0xa2, 0x00, 0x8e, LO8(RAM_DELAY), HI8(RAM_DELAY),
+            0x4c, CH(CH_FM2));
+    vpatch(rom, (uint16_t)chain_at[CH_FM2], 13,
+            0xe8, 0x8e, LO8(RAM_JINGLE), HI8(RAM_JINGLE),   /* inx: X was 0 */
+            0xae, 0xfb, 0x6b, 0x30, 0x03,         /* ldx SONG ($6BFB), bmi: no pack song playing */
+            0x4c, CH(CH_FQ),
+            0x60);
+    vpatch(rom, (uint16_t)chain_at[CH_FQ], 17,
+            0xa2, 0x30, 0x8e, 0x00, 0x40, 0x8e, 0x04, 0x40, 0x8e, 0x0c, 0x40,
+            0xa2, 0x80, 0x8e, 0x08, 0x40,
+            0x60);
+}
+
+/* The frame hook in pieces. FR2 starts with the lda of the bank selector, as the wait loop expects. */
+static void write_chained_frame(dw_rom *rom)
+{
+    vpatch(rom, (uint16_t)chain_at[CH_FR1], 11,
+            0xa9, 0x01, 0x20, 0x96, 0xff, 0x20, 0x28, 0x80,   /* lda #1, jsr $ff96, jsr $8028 */
+            0x4c, CH(CH_FR2));
+    vpatch(rom, (uint16_t)chain_at[CH_FR2], 16,
+            0xad, LO8(RAM_BANKSEL), HI8(RAM_BANKSEL), BANK_SELECT,
+            0x20, 0x96, 0xff,
+            0x4c, LO8(FT_WRAP), HI8(FT_WRAP));
+}
+#undef CH
 
 static BOOL apply_music(dw_rom *rom)
 {
@@ -1159,7 +1209,8 @@ static BOOL apply_music(dw_rom *rom)
     int event_song[EVENT_COUNT];
     int chosen[SCENE_COUNT];
     int i, b, id;
-    uint16_t ys, rq, frame;
+    uint16_t ys, rq, frame, frame_tail;
+    BOOL chained = FALSE;
     uint8_t map[32], lo[MAX_PLACED], hi[MAX_PLACED];
 
     if (!song_count && !pack_count)
@@ -1320,7 +1371,8 @@ static BOOL apply_music(dw_rom *rom)
             }
         }
     }
-    /* If the three hooks do not all fit, the original music stays. Better than a build that fails. */
+    /* If the three hooks do not all fit, the chained layout is tried (chain_sizes). If that does not fit
+     * either, the original music stays. Better than a build that fails. */
     {
         static const uint8_t sizes[3] = {HOOK_YS_SIZE, HOOK_RQ_SIZE, HOOK_FRAME_SIZE};
         int at[3], k, ok = TRUE;
@@ -1336,8 +1388,19 @@ static BOOL apply_music(dw_rom *rom)
         while (--k >= 0)
             memset(&rom->content[at[k]], 0xff, sizes[k]);
         if (!ok) {
-            printf("No room for the music hooks, keeping the original music.\n");
-            return FALSE;
+            for (k = 0; k < CHAIN_PIECES; k++) {
+                chain_at[k] = dwr_try_free_space(rom->content, FIXED_FREE_START, chain_sizes[k]);
+                if (chain_at[k] < 0)
+                    break;
+                memset(&rom->content[chain_at[k]], 0x00, chain_sizes[k]);
+            }
+            if (k < CHAIN_PIECES) {
+                while (--k >= 0)
+                    memset(&rom->content[chain_at[k]], 0xff, chain_sizes[k]);
+                printf("No room for the music hooks, keeping the original music.\n");
+                return FALSE;
+            }
+            chained = TRUE; /* the pieces stay held until they are written below */
         }
     }
 
@@ -1355,7 +1418,7 @@ static BOOL apply_music(dw_rom *rom)
     }
 
     /* Game music tracks write to unmapped $402x unless a jingle is playing. */
-    ys = find_free_space(rom->content, FIXED_FREE_START, HOOK_YS_SIZE);
+    ys = chained ? (uint16_t)chain_at[CH_YS] : find_free_space(rom->content, FIXED_FREE_START, HOOK_YS_SIZE);
     vpatch(rom, ys, HOOK_YS_SIZE, 0xad, LO8(RAM_JINGLE), HI8(RAM_JINGLE), 0xd0, 0x02, 0xa0, 0x20,
             0x4c, 0xcb, 0x80);
     vpatch(rom, 0x4071, 2, LO8(ys), HI8(ys));
@@ -1364,8 +1427,11 @@ static BOOL apply_music(dw_rom *rom)
 
     /* Music requests: remember the id and quiet the channels for the new song. */
     /* The battle sting is part of the game's battle music, so let it play first. */
-    rq = find_free_space(rom->content, FIXED_FREE_START, HOOK_RQ_SIZE);
-    {
+    if (chained) {
+        rq = (uint16_t)chain_at[CH_F1];
+        write_chained_request(rom);
+    } else {
+        rq = find_free_space(rom->content, FIXED_FREE_START, HOOK_RQ_SIZE);
         static const uint8_t rq_code[] = {
             0xa2, 0xff, 0x8e, 0x05, 0x60,         /* ldx #$ff, stx $6005 (replaced code) */
             /* cmp #$80, bcc music. A sound effect: keep its number for the driver, which mutes only the
@@ -1396,12 +1462,19 @@ static BOOL apply_music(dw_rom *rom)
     vpatch(rom, 0x41a0, 5, 0x20, LO8(rq), HI8(rq), 0xea, 0xea);
 
     /* Each frame: the game's sound code, then the driver in its current bank. */
-    frame = find_free_space(rom->content, FIXED_FREE_START, HOOK_FRAME_SIZE);
-    vpatch(rom, frame, HOOK_FRAME_SIZE,
-            0xa9, 0x01, 0x20, 0x96, 0xff, 0x20, 0x28, 0x80,
-            0xad, LO8(RAM_BANKSEL), HI8(RAM_BANKSEL), BANK_SELECT,
-            0x20, 0x96, 0xff,
-            0x4c, LO8(FT_WRAP), HI8(FT_WRAP));
+    if (chained) {
+        frame = (uint16_t)chain_at[CH_FR1];
+        frame_tail = (uint16_t)chain_at[CH_FR2];
+        write_chained_frame(rom);
+    } else {
+        frame = find_free_space(rom->content, FIXED_FREE_START, HOOK_FRAME_SIZE);
+        vpatch(rom, frame, HOOK_FRAME_SIZE,
+                0xa9, 0x01, 0x20, 0x96, 0xff, 0x20, 0x28, 0x80,
+                0xad, LO8(RAM_BANKSEL), HI8(RAM_BANKSEL), BANK_SELECT,
+                0x20, 0x96, 0xff,
+                0x4c, LO8(FT_WRAP), HI8(FT_WRAP));
+        frame_tail = frame + 8;
+    }
     /* The NMI's first bank switch is here. The music's ticks switch banks in the main code too (the wait loop
      * below runs them just before an NMI can land), so an NMI can cut a switch after 1 to 4 of its 5 serial
      * writes and its own switch would then load a mix of both. Reset the MMC1 shift register first (bit 7;
@@ -1410,7 +1483,7 @@ static BOOL apply_music(dw_rom *rom)
      * asked for. The reset uses the 5 bytes the frame hook freed: was lda $6005 : bne $FEF0 : jsr frame : nop x5. */
     vpatch(rom, 0xfee3, 13, 0xa9, 0x80, 0x8d, 0x00, 0x80, 0xad, 0x05, 0x60, 0xd0, 0x03,
             0x20, LO8(frame), HI8(frame));
-    music_wait_loop(rom, frame);
+    music_wait_loop(rom, frame_tail);
 
     /* Credits: ask for the tagged song and update the driver from their NMI. */
     if (event_song[0] >= 0) {
