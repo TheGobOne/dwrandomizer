@@ -100,7 +100,8 @@ Run Mechanics (Battle tab) and Run Bank are separate things. Run Mechanics chang
 
 ## Known issues
 
-- Some random flag sets fail to build with "Not enough space" (about 1 in 18 random sets). Turn off one of `Build Options`, `Hurtmore Doors` or `Warp Whistle`.
+- Some random flag sets fail to build with "Not enough space" (about 1 in 18 random sets). Turn off one of `Build Options`, `Hurtmore Doors` or `Warp Whistle`. Archipelago builds no longer stop for space: with a full main program bank they place the vertical bridge code in pieces, run some game-start code from bank 3, and may leave the checksum off the title menu (the build log says so).
+- In Archipelago builds with a music pack, many seeds run the music from the frame only ("No room for the music wait loop"), and some keep the game's own music ("No room for the music hooks"). Gob Standard with Archipelago and the pack: about 1 seed in 4 keeps the original music, and most of the rest run from the frame only.
 - The first step off a standstill in towns can take up to 25 frames.
 - Custom music timing was measured in FCEUX. Earlier releases were also run in Mesen, and the newest flags were spot-checked there. Nothing has been tested on hardware.
 
