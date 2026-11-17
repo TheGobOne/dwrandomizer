@@ -125,7 +125,7 @@ Built on branch `feature/archipelago`, with its own hooks on DWR's code:
 | Chests | hook at `$E221` (chest found, Y = index * 4) | Sets bit n of `$6822-$6825`, marks the chest open, shows "Thou hast found the <item name>." (APItem without a patch file). No item or gold is given. |
 | Search spots | hook at `$E12D` (search entry X matched) | Sets bit X of `$6826`, same message |
 | Items received counter | `$6820-$6821`, saved per slot at `$6828 + slot * 2` | Save hook at `$FA18`, restored by LoadSavedData at `$FB6B`. A new game (a start with no Continue load) clears it. |
-| ROM signature | PRG `$7FE0` | `DWRAP` and the version (`003` now), a pointer to the 32-byte UTF-8 slot name, a custom music flag, the 4-byte seed hash, and the herb and key carry caps |
+| ROM signature | PRG `$7FE0` | `DWRAP` and the version (`004` now), a pointer to the 32-byte UTF-8 slot name, a custom music flag, the 4-byte seed hash, and the herb and key carry caps |
 | Throne room | tile (4,7) | Door removed, since the key chest is an AP check |
 | Staff shrine | `$D2FC` | The old man lets you in with the harp even if you already have the staff |
 | APWorld | `archipelago/dwr/` (game "DWR") | 31 chests, 3 search spots, Gwaelin rescue, Dragonlord goal. Logic: harp for the shrine chest; Stones, Staff and Token for Charlock. |
@@ -176,7 +176,7 @@ Nothing found blocks Phase 3.
 | Random Chest Locations: a moved chest sets its index's bit | Pass (run five, chest 0 at 24,21 in Tantegel) |
 | Mailbox: received items show "Thou hast found the <name>." | Pass (run six: message on screen; full AP run: each item cleared the mailbox before the next) |
 
-How the mailbox works: the client writes the item name in DW tiles to `$6850` and sets `$682E`. The ROM hooks the after-step code at `$CDBF`. After the hero's next step it shows the message and clears the flag. The client gives the next item only after the flag clears. The ROM was version `002` then (`003` now).
+How the mailbox works: the client writes the item name in DW tiles to `$6850` and sets `$682E`. The ROM hooks the after-step code at `$CDBF`. After the hero's next step it shows the message and clears the flag. The client gives the next item only after the flag clears. The ROM was version `002` then (`004` now).
 
 ## Phase 4 status (2026-11-16)
 
@@ -193,7 +193,7 @@ How the mailbox works: the client writes the item name in DW tiles to `$6850` an
 
 ## Review fixes (2026-11-16)
 
-- Seed check: the ROM writes its 4-byte seed hash to `$6842` at a new game and tags each save slot at `$6846` (stride 2) when it saves. The client compares both with the ROM signature and sends nothing for a save from another seed. A save from before the hash (0 or `$FF` there) takes this ROM's hash. ROM version is `003`.
+- Seed check: the ROM writes its 4-byte seed hash to `$6842` at a new game and tags each save slot at `$6846` (stride 2). The client compares both with the ROM signature and sends nothing for a save from another seed. A save from before the hash (0 or `$FF` there) takes this ROM's hash. ROM version is `003`.
 - Game start: the AP work now runs before the throne room loads, so nothing sees the old state, and the mailbox flag is cleared there.
 - Copy Quest copies the slot's item count and tag with the save.
 - Herb and Magic Key caps come from the ROM signature, so Random Herb Carry and Random Key Carry work. An item at the cap is dropped with a log line instead of holding up the items behind it.
@@ -201,7 +201,8 @@ How the mailbox works: the client writes the item name in DW tiles to `$6850` an
 - Found-message names are stored end to end at the top of bank 3, and another player's item names the player, cut to fit 16 characters ("Bartholo.'s Herb"), with accents folded for the DW font.
 - Slot names are 32 bytes of UTF-8 (Archipelago itself cuts them to 16 characters).
 - Round 2: a New Game also tags its slot. A slot this ROM saved takes the seed hash back after another seed started a game in another slot, and clears the shared chest and search bits. An unknown ROM version is refused. The client warns when the save has more items than the server sent. Drop and swap log lines appear only once the write lands.
-- Round 3: the ROM itself takes the seed hash back at Continue when it tagged the slot, clearing the other seed's location bits. Only the king's save tags a slot (Change Message Speed on the title menu also saves). New Quest zeroes the counter before it saves the new hero. The Dragon's Scale and Fighter's Ring wait for room like quest items. The client sends nothing on the poll that takes the hash back.
+- Round 3: the ROM itself takes the seed hash back at Continue when it tagged the slot, clearing the other seed's location bits. Only New Game tags a slot, so a slot keeps the seed that started it (Change Message Speed on the title menu also saves, and must not retag). New Quest zeroes the counter before it saves the new hero. The Dragon's Scale and Fighter's Ring wait for room like quest items. The client sends nothing on the poll that takes the hash back.
+- Round 4: slot tags are 2 bytes (seed hash bytes 0 and 1), ROM version `004`. A Herb or Magic Key at the carry cap becomes 100 Gold. An owner name with no DW font characters shows as P and the player number. The music code is placed best fit in AP ROMs.
 - PopTracker: gray items you do not have, area labels with counts, a legend, and hint highlights by hint status.
 - The DWR site names any flag Archipelago rejects under the flag string.
 

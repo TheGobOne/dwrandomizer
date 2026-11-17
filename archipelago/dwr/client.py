@@ -8,7 +8,8 @@ ROM side (common/archipelago.c in DWR, which has the full map):
   $6826       search spot bits
   $682E       mailbox flag: 1 while a received item's message waits for the next step
   $6842-45    seed hash of the ROM that started this game (written by the ROM at a new game)
-  $6846-4B    slot tags (stride 2): low byte of the seed hash of the ROM that last saved each slot
+  $6846-4B    slot tags, 2 bytes each: seed hash bytes 0 and 1 of the ROM that last saved the slot
+              (ROM version 003: byte 0 only)
   $6850       mailbox text: the item name in DW tiles, ended by $FA
 """
 import logging
@@ -30,13 +31,13 @@ logger = logging.getLogger("Client")
 SIGNATURE = 0x7FE0
 MAGIC = b"DWRAP"
 SLOT_NAME_LEN = 32  # bytes of UTF-8 the ROM keeps for the slot name
-ROM_VERSIONS = (b"002", b"003")  # 002: no seed hash or carry caps
+ROM_VERSIONS = (b"002", b"003", b"004")  # 002: no seed hash or carry caps; 003: 1-byte slot tags
 
 AP_RECV = 0x6820
 AP_BLOCK_SIZE = 7  # $6820-$6826
 MAIL_FLAG = 0x682E  # 1 while a received item's message is waiting to be shown
 SEED_HASH = 0x6842  # 4 bytes: the seed hash of the ROM this game was started with
-SLOT_TAGS = 0x6846  # 6 bytes: the tag of each save slot, stride 2
+SLOT_TAGS = 0x6846  # 6 bytes: the tag of each save slot, 2 bytes each
 SAVE_SLOT = 0x6039  # the save slot in use (0-2)
 MAIL_TEXT = 0x6850  # the item name in DW tiles, ended by $FA
 
@@ -45,11 +46,17 @@ DW_FONT = ("0123456789abcdefghijklmnopqrstuvwxyz"
            "ABCDEFGHIJKLMNOPQRSTUVWXYZ[]'*>_:=_.,-_?!;)(``/'___________ \n")
 
 
-def slot_tag(seed_hash: bytes) -> int:
+def slot_tag(seed_hash: bytes, size: int = 2) -> bytes:
     """The tag the ROM writes into a slot when it saves it (archipelago.c ap_slot_tag)."""
     if not seed_hash:
-        return 0
-    return 0x5A if seed_hash[0] in (0, 0xFF) else seed_hash[0]
+        return b""
+    first = 0x5A if seed_hash[0] in (0, 0xFF) else seed_hash[0]
+    return bytes([first, seed_hash[1]])[:size]
+
+
+def untagged(tag: bytes) -> bool:
+    """A slot no tagging ROM has saved: its first tag byte is 0 or $FF."""
+    return not tag or tag[0] in (0, 0xFF)
 
 
 def dw_text(name: str) -> bytes:
@@ -100,7 +107,7 @@ class DWRClient(BizHawkClient):
         self.slot_name = ""
         self.sig = b""            # the ROM signature last validated
         self.seed_hash = b""      # from the ROM signature; empty for ROMs made before it existed
-        self.slot_tag = 0
+        self.slot_tag = b""
         self.herb_cap = 6
         self.key_cap = 6
         self.music_noted = False
@@ -137,7 +144,7 @@ class DWRClient(BizHawkClient):
             self.music_noted = True
             logger.info("This ROM has custom music, which changes frame timing a little.")
         self.seed_hash = sig[11:15] if any(sig[11:15]) else b""
-        self.slot_tag = slot_tag(self.seed_hash)
+        self.slot_tag = slot_tag(self.seed_hash, 1 if sig[5:8] == b"003" else 2)
         caps = sig[15] if sig[5:8] != b"002" else 0
         self.herb_cap, self.key_cap = (caps >> 4, caps & 0x0F) if caps else (6, 6)
         ctx.game = self.game
@@ -165,14 +172,21 @@ class DWRClient(BizHawkClient):
             return
         if ram[MAP] == 0:
             return  # title screen or menus: nothing in RAM is the game yet
-        tag = tags[slot[0] * 2] if slot[0] < 3 else 0
+        tag = bytes(tags[slot[0] * 2:slot[0] * 2 + len(self.slot_tag)]) if slot[0] < 3 else b""
         if not await self._check_seed(ctx, bytes(saved_hash), tag):
             return
 
         await self._send_checks(ctx, ram, block)
         await self._give_item(ctx, ram, block, mail[0])
 
-    async def _check_seed(self, ctx, saved: bytes, tag: int) -> bool:
+    def tag_is_ours(self, tag: bytes) -> bool:
+        """The slot was saved by this seed. A save from ROM version 003 has one tag byte, and
+        its second byte is 0: that matches when the first byte does."""
+        if tag == self.slot_tag:
+            return True
+        return len(self.slot_tag) == 2 and tag[:1] == self.slot_tag[:1] and tag[1:2] == b"\x00"
+
+    async def _check_seed(self, ctx, saved: bytes, tag: bytes) -> bool:
         """False when this game belongs to another seed: its chest bits would send wrong checks.
 
         The ROM writes its seed hash at a new game and tags a save slot each time it saves it.
@@ -192,7 +206,7 @@ class DWRClient(BizHawkClient):
                 [(SEED_HASH, self.seed_hash, "System Bus"), (AP_RECV + 2, bytes(5), "System Bus")],
                 [(SEED_HASH, saved, "System Bus")])
             return False
-        if saved != self.seed_hash or tag not in (0, 0xFF, self.slot_tag):
+        if saved != self.seed_hash or not (untagged(tag) or self.tag_is_ours(tag)):
             if not self.stale_noted:
                 self.stale_noted = True
                 logger.warning("This save was made with a different DWR seed. No checks or items are "
@@ -233,6 +247,7 @@ class DWRClient(BizHawkClient):
         item = ctx.items_received[received]
         name = ctx.item_names.lookup_in_game(item.item)
         self.notes = []
+        self.shown = name   # what the game gives, when it is not the item itself
         writes = self._effect(name, ram)
         if writes is None:
             if self.waiting_noted != received:
@@ -242,10 +257,11 @@ class DWRClient(BizHawkClient):
         nxt = received + 1
         given = bool(writes)
         writes.append((AP_RECV, bytes([nxt & 0xFF, nxt >> 8]), "System Bus"))
-        # The game already said "Thou hast found" for your own opened chests and search spots, and
-        # an item that was not given gets no message at all.
-        if given and not (item.player == ctx.slot and opened_in_game(item.location, block)):
-            writes.append((MAIL_TEXT, dw_text(name), "System Bus"))
+        # The game already said "Thou hast found" for your own opened chests and search spots
+        # (unless it gives something else), and an item that was not given gets no message at all.
+        found_here = item.player == ctx.slot and opened_in_game(item.location, block)
+        if given and (not found_here or self.shown != name):
+            writes.append((MAIL_TEXT, dw_text(self.shown), "System Bus"))
             writes.append((MAIL_FLAG, b"\x01", "System Bus"))
         # Only write if nothing changed since the snapshot: the counter (a save loaded, a reset),
         # and every game byte the effect rewrites (a shop purchase or herb use in between).
@@ -259,17 +275,19 @@ class DWRClient(BizHawkClient):
                 logger.warning(note)
         if ok and given:
             sender = ctx.player_names.get(item.player, "?")
-            logger.info("Received %s from %s.", name, sender)
+            logger.info("Received %s from %s.", name if self.shown == name else
+                        f"{self.shown} (for {name})", sender)
 
     def _effect(self, name: str, ram: bytes):
         """RAM writes that give the item: [] when it is not given (dropped or already held),
         None when it has to wait for room (quest items, Dragon's Scale, Fighter's Ring)."""
         if name in ("Herb", "Magic Key"):
             addr, cap = (HERBS, self.herb_cap) if name == "Herb" else (KEYS, self.key_cap)
-            if ram[addr] >= cap:
-                self.notes.append(f"Dropped {name}: you already hold {cap}, the most this seed allows.")
-                return []
-            return [(addr, bytes([ram[addr] + 1]), "RAM")]
+            if ram[addr] < cap:
+                return [(addr, bytes([ram[addr] + 1]), "RAM")]
+            self.notes.append(f"You already hold {cap} of {name}, the most this seed allows: "
+                              "100 Gold instead.")
+            self.shown = name = "100 Gold"
         if name == "100 Gold":
             gold = min(ram[GOLD] | ram[GOLD + 1] << 8, 0xFFFF - 100) + 100
             return [(GOLD, gold.to_bytes(2, "little"), "RAM")]

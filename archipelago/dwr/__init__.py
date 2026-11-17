@@ -132,7 +132,7 @@ class DWRWorld(World):
                 continue
             item = location.item
             owner = self.multiworld.player_name[item.player] if item.player != player else ""
-            lines.append(f"loc {location.address:x} {found_text(item.name, owner)}")
+            lines.append(f"loc {location.address:x} {found_text(item.name, owner, item.player)}")
         name = self.multiworld.get_out_file_name_base(player) + DWRPatch.patch_file_ending
         DWRPatch(os.path.join(output_directory, name), player=player,
                  player_name=self.multiworld.player_name[player],

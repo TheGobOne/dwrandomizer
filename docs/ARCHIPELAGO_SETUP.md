@@ -66,8 +66,8 @@ Put your YAML in Archipelago's `Players` folder and click Generate in the Launch
 1. Open the built ROM in BizHawk with the NesHawk core, and load Archipelago's connector script (`data/lua/connector_bizhawk_generic.lua`) in BizHawk's Lua Console if it is not already running.
 2. In the BizHawk Client, connect to the server with your room address (and the room password, if it has one). The client reads your slot name from the ROM.
 3. Chests, search spots and picking up Gwaelin send checks. Defeating the Dragonlord sends your goal.
-4. Items you receive are added to your game. The game says "Thou hast found the <item>." after your next step on the overworld or in a room. A step onto a town, cave or stair tile shows it one step later. On the step that shows a message, swamp and barrier damage and random battles are skipped. Items you find in your own chests and search spots get no second message, since the chest already said so. A Herb or Magic Key found in your own chest while you hold the most allowed is dropped, even though the chest said "Thou hast found".
-5. A chest or search spot holding another player's item says whose it is, for example "Alex's Herb". A long player name is cut and ends in a period ("Bartholo.'s Herb"). An item name of 13 or more characters shows alone. Accents are removed and characters the game's font lacks are left out; a player name with none of the font's characters shows as "?".
+4. Items you receive are added to your game. The game says "Thou hast found the <item>." after your next step on the overworld or in a room. A step onto a town, cave or stair tile shows it one step later. On the step that shows a message, swamp and barrier damage and random battles are skipped. Items you find in your own chests and search spots get no second message, since the chest already said so. A Herb or Magic Key that arrives while you hold the most the seed allows (6, or the Random Herb Carry and Random Key Carry amount) becomes 100 Gold, and the message says "100 Gold", even for your own chest.
+5. A chest or search spot holding another player's item says whose it is, for example "Alex's Herb". A long player name is cut and ends in a period ("Bartholo.'s Herb"). An item name of 13 or more characters shows alone. Accents are removed and characters the game's font lacks are left out; a player name with none of the font's characters shows as P and the player number, for example "P3's Herb".
 
 After the first session, always start with Continue. Any New Game clears the received-item count and the checks stored in the ROM, so Archipelago sends your items again.
 
@@ -83,7 +83,7 @@ DWR's Archipelago support builds on Serpikmin's Dragon Warrior APWorld ([Serpikm
 
 ## Troubleshooting
 
-- **"This save was made with a different DWR seed":** the save in this ROM's save file belongs to another seed, so the client sends no checks or items for it. Start a New Game, or load the ROM that save belongs to. The ROM keeps its seed in the save when a game starts, and tags each slot when it saves. ROMs built before this check (ROM version 002) skip it.
+- **"This save was made with a different DWR seed":** the save in this ROM's save file belongs to another seed, so the client sends no checks or items for it. Start a New Game, or load the ROM that save belongs to. The ROM keeps its seed in the save, and tags a slot with its seed at New Game. At Continue, a slot this ROM started takes the seed back from any other seed that started a game since. ROMs built before this check (ROM version 002) skip it.
 - **"This save has received N items, but the server has sent M":** the save belongs to another room or an older game of this one. Start a New Game.
 - **"This ROM is DWR AP version X, the client knows ...":** the ROM and `dwr.apworld` are from different DWR versions, and the client sends nothing. Rebuild the ROM from your `.apdwr` file, or update `dwr.apworld`.
 - **The server loads an old save:** the Archipelago server keeps progress in an `.apsave` file next to the zip. Delete it to start a fresh game.
@@ -91,7 +91,8 @@ DWR's Archipelago support builds on Serpikmin's Dragon Warrior APWorld ([Serpikm
 - **An item does not arrive:** the BizHawk Client log says why.
   - "No room for <item> yet.": a quest item (Fairy Flute, Erdrick's Token, Silver Harp, Stones of Sunlight, Staff of Rain), the Dragon's Scale or the Fighter's Ring arrived with no free inventory slot and no Torch, Fairy Water or Wings to replace. It and every item after it wait until you make room.
   - "The inventory is full: <item> replaces your <item>.": a quest item, the Dragon's Scale or the Fighter's Ring took the place of a Torch, Fairy Water or Wings. Nothing replaces the Dragon's Scale or Fighter's Ring.
-  - "Dropped <item>.": another item arrived with a full inventory, or a Herb or Magic Key arrived while you hold the most the seed allows (6, or the Random Herb Carry and Random Key Carry amount).
+  - "Dropped <item>.": a Torch, Fairy Water or Wings arrived with a full inventory.
+  - "You already hold N of <item> ... 100 Gold instead.": a Herb or Magic Key arrived at the most the seed allows.
   - "<item> is not a DWR item this client knows, so it was skipped.": the client and `dwr.apworld` are from different versions. A quest item you already hold is skipped without a log line.
 - **"DWR could not build the ROM":** check the paths in `host.yaml`.
 - **"Invalid or missing manifest" in the Archipelago log:** older `dwr.apworld` files lack the version fields Archipelago 0.7.0 needs. Update to the latest `dwr.apworld`.

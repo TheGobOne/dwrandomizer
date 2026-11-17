@@ -89,7 +89,7 @@ def main():
         # Items you do not have yet show grayed out.
         entry = {"name": name, "codes": code, "img": img, "disabled_img_mods": "@disabled"}
         if item.count > 1:
-            entry.update(type="consumable", max_quantity=item.count * 2)
+            entry.update(type="consumable", max_quantity=item.count)
         else:
             entry["type"] = "toggle"
         items.append(entry)

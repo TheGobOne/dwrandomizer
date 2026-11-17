@@ -125,12 +125,19 @@ class GiveItem(unittest.TestCase):
         addr = ram_writes[0][0]
         self.assertIn((addr, bytes([self.ram[addr]]), "RAM"), guards)
 
-    def test_herb_at_the_cap_is_dropped_without_a_message(self):
+    def test_herb_at_the_cap_gives_100_gold(self):
         self.ram[C.HERBS] = 6
         with self.assertLogs("Client", level="WARNING") as log:
             writes, guards = give(["Herb"], self.ram)[0]
-        self.assertIn("Dropped Herb", log.output[0])
-        self.assertEqual(addrs(writes), [C.AP_RECV])   # counted, nothing given, no message
+        self.assertIn("100 Gold instead", log.output[0])
+        self.assertIn((C.GOLD, (100).to_bytes(2, "little"), "RAM"), writes)
+        self.assertIn((C.MAIL_TEXT, C.dw_text("100 Gold"), "System Bus"), writes)
+        self.assertNotIn(C.HERBS, addrs(writes))
+
+    def test_own_chest_herb_at_the_cap_still_says_gold(self):
+        self.ram[C.HERBS] = 6
+        writes, _ = give(["Herb"], self.ram, sender=1, location=C.BASE + 4, chests=1 << 4)[0]
+        self.assertIn(C.MAIL_FLAG, addrs(writes))   # the chest said Herb, the game gave gold
 
     def test_caps_come_from_the_rom(self):
         client = C.DWRClient()
@@ -138,7 +145,7 @@ class GiveItem(unittest.TestCase):
         self.ram[C.HERBS] = 3
         self.ram[C.KEYS] = 8
         writes, _ = give(["Herb"], self.ram, client=client)[0]
-        self.assertEqual(addrs(writes), [C.AP_RECV])
+        self.assertNotIn(C.HERBS, addrs(writes))
         writes, _ = give(["Magic Key"], self.ram, client=client)[0]
         self.assertIn((C.KEYS, bytes([9]), "RAM"), writes)
 
@@ -208,7 +215,7 @@ class GiveItem(unittest.TestCase):
         with self.assertLogs("Client", level="INFO") as log:
             logger.info("marker")
             give(["Herb"], self.ram, guard_ok=False)
-        self.assertFalse(any("Dropped" in line for line in log.output))
+        self.assertFalse(any("instead" in line for line in log.output))
 
     def test_save_ahead_of_the_server_warns_once(self):
         client = C.DWRClient()
@@ -248,7 +255,7 @@ class GiveItem(unittest.TestCase):
 class SeedCheck(unittest.TestCase):
     ROM = b"\x01\x02\x03\x04"
 
-    def check(self, saved, tag=0, rom_hash=ROM, guard_ok=True):
+    def check(self, saved, tag=b"\x00\x00", rom_hash=ROM, guard_ok=True):
         BH.calls.clear()
         BH.guard_result = guard_ok
         client = C.DWRClient()
@@ -275,8 +282,8 @@ class SeedCheck(unittest.TestCase):
         self.assertEqual(calls, [])
 
     def test_untagged_slot_goes_on(self):
-        self.assertTrue(self.check(self.ROM, tag=0)[0])
-        self.assertTrue(self.check(self.ROM, tag=0xFF)[0])
+        self.assertTrue(self.check(self.ROM, tag=b"\x00\x00")[0])
+        self.assertTrue(self.check(self.ROM, tag=b"\xff\xff")[0])
 
     def test_other_seed_stops_with_one_warning(self):
         with self.assertLogs("Client", level="WARNING") as log:
@@ -295,16 +302,26 @@ class SeedCheck(unittest.TestCase):
         self.assertEqual(guards, [(C.SEED_HASH, other, "System Bus")])
 
     def test_slot_saved_by_another_seed_stops(self):
-        ok, _ = self.check(self.ROM, tag=0x33)
+        ok, _ = self.check(self.ROM, tag=b"\x33\x02")
+        self.assertFalse(ok)
+
+    def test_a_version_003_save_with_one_tag_byte_is_ours(self):
+        ok, _ = self.check(self.ROM, tag=bytes([self.ROM[0], 0x00]))
+        self.assertTrue(ok)
+
+    def test_second_tag_byte_tells_seeds_apart(self):
+        # Same first byte as this ROM's tag, another seed's second byte.
+        ok, _ = self.check(self.ROM, tag=bytes([self.ROM[0], 0x99]))
         self.assertFalse(ok)
 
     def test_rom_without_hash_is_not_checked(self):
         self.assertTrue(self.check(b"\x09\x09\x09\x09", rom_hash=b"")[0])
 
     def test_slot_tag_matches_the_rom_rule(self):
-        self.assertEqual(C.slot_tag(b"\x4c\x8b\x6f\x66"), 0x4C)
-        self.assertEqual(C.slot_tag(b"\x00\x01\x02\x03"), 0x5A)
-        self.assertEqual(C.slot_tag(b"\xff\x01\x02\x03"), 0x5A)
+        self.assertEqual(C.slot_tag(b"\x4c\x8b\x6f\x66"), b"\x4c\x8b")
+        self.assertEqual(C.slot_tag(b"\x00\x01\x02\x03"), b"\x5a\x01")
+        self.assertEqual(C.slot_tag(b"\xff\x01\x02\x03"), b"\x5a\x01")
+        self.assertEqual(C.slot_tag(b"\x4c\x8b\x6f\x66", 1), b"\x4c")   # ROM version 003
 
 
 if __name__ == "__main__":

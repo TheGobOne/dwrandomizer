@@ -5393,7 +5393,13 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
     skip_vanilla_credits(rom);
     setup_expansion(rom);
     run_bank_win_hook(rom);
-    custom_music_apply(rom);
+    {
+        /* An Archipelago ROM has little room left in the fixed bank: best fit keeps
+         * the large gap for the music wait loop, the last and largest piece. */
+        BOOL old = dwr_set_packing(dwr_ap_enabled() || dwr_packing());
+        custom_music_apply(rom);
+        dwr_set_packing(old);
+    }
 
     sprite(rom, sprite_name);
     invisible_npcs(rom); // in case the custom sprite also changed NPCS.

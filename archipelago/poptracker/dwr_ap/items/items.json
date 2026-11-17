@@ -68,7 +68,7 @@
     "img": "images/items/herb.png",
     "disabled_img_mods": "@disabled",
     "type": "consumable",
-    "max_quantity": 12
+    "max_quantity": 6
   },
   {
     "name": "Magic Key",
@@ -76,7 +76,7 @@
     "img": "images/items/magic_key.png",
     "disabled_img_mods": "@disabled",
     "type": "consumable",
-    "max_quantity": 12
+    "max_quantity": 6
   },
   {
     "name": "Torch",
@@ -84,7 +84,7 @@
     "img": "images/items/torch.png",
     "disabled_img_mods": "@disabled",
     "type": "consumable",
-    "max_quantity": 6
+    "max_quantity": 3
   },
   {
     "name": "Fairy Water",
@@ -92,7 +92,7 @@
     "img": "images/items/fairy_water.png",
     "disabled_img_mods": "@disabled",
     "type": "consumable",
-    "max_quantity": 6
+    "max_quantity": 3
   },
   {
     "name": "Wings",
@@ -100,7 +100,7 @@
     "img": "images/items/wings.png",
     "disabled_img_mods": "@disabled",
     "type": "consumable",
-    "max_quantity": 6
+    "max_quantity": 3
   },
   {
     "name": "100 Gold",
@@ -108,6 +108,6 @@
     "img": "images/items/100_gold.png",
     "disabled_img_mods": "@disabled",
     "type": "consumable",
-    "max_quantity": 10
+    "max_quantity": 5
   }
 ]

@@ -37,6 +37,7 @@ class FoundText(unittest.TestCase):
 
     def test_owner_with_no_font_characters_is_left_out(self):
         self.assertEqual(T.found_text("Herb", "\u5c71\u7530"), "?'s Herb")
+        self.assertEqual(T.found_text("Herb", "\u5c71\u7530", 3), "P3's Herb")
 
     def test_letters_without_a_combining_accent_are_kept(self):
         self.assertEqual(T.found_text("Herb", "\u0141ukasz"), "Lukasz's Herb")

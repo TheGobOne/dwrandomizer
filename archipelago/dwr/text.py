@@ -28,15 +28,16 @@ def game_name(name: str) -> str:
     return shown or "item"
 
 
-def found_text(item: str, owner: str = "") -> str:
+def found_text(item: str, owner: str = "", player: int = 0) -> str:
     """The text after "Thou hast found the" for a chest or search spot.
 
     Another player's item says whose it is. A long owner name is cut and ends in a period
-    ("Bartholo.'s Herb"). An owner with no DW font characters shows as "?". The item is never
+    ("Bartholo.'s Herb"). An owner with no DW font characters shows as "P" and the player
+    number ("P3's Herb"), or "?" without one. The item is never
     cut to make room for the owner, so an item name of 13 or more characters shows alone."""
     item = game_name(item)
     if owner:
-        owner = fold(owner) or "?"
+        owner = fold(owner) or (f"P{player}" if player else "?")
         room = TEXT_LEN - len(item) - len("'s ")
         if len(owner) <= room:
             return f"{owner}'s {item}"
