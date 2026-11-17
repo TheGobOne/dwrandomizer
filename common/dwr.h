@@ -41,6 +41,9 @@
 #define BIOME_EARTH 5
 #define BIOME_WESTEROS 6
 #define BIOME_COUNT 7
+/* The biome names, in BIOME_* order. The one list for the spoiler log and the command line: a new biome
+ * goes here, in BIOME_COUNT and in the site's Biome list. */
+extern const char *const dwr_biome_names[BIOME_COUNT];
 /* Earth links the Americas to the rest of the world with rafts, which use 4 spare stair warps. */
 #define RAFT_BIOME(x)             (RANDOM_MAP(x) && BIOME(x) == BIOME_EARTH)
 /* Byte 25 value for "any biome". update_flags turns it into one of them. */
@@ -56,6 +59,13 @@
 #define QUICK_SPELL_SWAP(x)       (x->flags[26] & 0x80)
 #define DISABLE_CURSOR_BLINK(x)   (x->flags[26] & 0x40)
 #define FAST_HILLS(x)             (x->flags[26] & 0x20)
+/* The bits of byte 26 that hold a flag. A new flag there goes in this mask, and in the site's check for
+ * unused bits (site/index.html, oddBits). Byte 27 holds nothing yet: 44 characters reach only its top 4 bits. */
+#define FLAGS_26_USED 0xe0
+#define FLAGS_27_USED 0x00
+/* How long a flag code is for these 27 flag bytes: 40, or 42 when byte 25 or the top 2 bits of byte 26 are
+ * set, or 44 when any other bit of byte 26 is. The site has the same rule (flags() in site/index.html). */
+#define FLAG_CODE_LENGTH(raw)     (((raw)[26] & 0x3f) ? 44 : ((raw)[25] || (raw)[26]) ? 42 : 40)
 /* The other half of the Quick Spell pair. update_flags keeps it out of the maybe step. */
 #define FREE_CHARLOCK(x)          (x->flags[11] & 0x02)
 /* 0 default, 1 low, 2 medium, 3 high. These bits sit alone in their pairs, so they are never maybe flags. */

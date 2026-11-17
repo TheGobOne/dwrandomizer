@@ -57,7 +57,7 @@ Lake, Earth, Westeros and later biomes are stored in a 26th flag byte, so their 
 
 #### Safe Start ####
 
-Swamp within 3 tiles of Tantegel becomes grass, so the first steps of the game are safe. It works with every map and Biome, and it is part of the flags and the checksum.
+Swamp within 3 tiles of Tantegel becomes grass, so the first steps of the game are safe. It needs Random Map on. With the original map it does nothing. It is part of the flags and the checksum.
 
 
 #### Encounter Rate ####
@@ -80,7 +80,7 @@ When the Dragonlord's second form dies, Return is cast for you and you arrive in
 
 #### Responsive Controls ####
 
-On the overworld, walking, the command window and pause answer a press at once instead of waiting up to 15 frames. In towns and dungeons a short press is kept until the game can act on it, because NPCs move in time with that wait. A button newly pressed during a step is kept for the next step. It is dropped only when that step starts a battle, a warp or stairs, or the hero dies on it, so the hero no longer walks by himself after a fight. A step onto a damage tile such as swamp keeps it, so a double tap in a swamp moves two tiles. Very full ROMs may not build with it on. It is part of the checksum. Command line: `--responsive-controls on`.
+On the overworld, walking, the command window and pause answer a press at once instead of waiting up to 15 frames. In towns and dungeons a short press is kept until the game can act on it, because NPCs move in time with that wait. A button newly pressed during a step is kept for the next step. It is dropped only when that step starts a battle, a warp or stairs, or the hero dies on it, so the hero no longer walks by himself after a fight. A step onto a damage tile such as swamp keeps it, so a double tap in a swamp moves two tiles. Very full ROMs may not build with it on. Archipelago builds run its read hook from bank 6 when the main program bank is too full. It is part of the checksum. Command line: `--responsive-controls on`.
 
 
 #### Fast Hills ####
@@ -450,6 +450,8 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--fast-hills` | `on`: Fast Hills |
 | `--key-herb` | `on`: adds a keys and herbs row to the stats window |
 | `--auto-stairs` | `on`: stepping onto stairs takes them |
+| `--ap-slot` | `<name>`: builds an Archipelago ROM for that slot name |
+| `--ap-patch` | `<file.apdwr>`: builds an Archipelago ROM from a patch file. Its flags and seed are used when you leave them out |
 | `--spoiler` | `on`: writes a `.spoiler.txt` next to the ROM. It changes the checksum, so a spoiler seed never matches one without |
 
 Most of these also exist as options on the website, including the spoiler log.

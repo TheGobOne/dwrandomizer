@@ -346,7 +346,8 @@ static void stair_shuffle_init(dw_rom *rom)
     size_t map_count = sizeof(indexes) / sizeof(dw_map_index) - 1;
 
     maps = calloc(map_count+1, sizeof(dungeon_map));
-    warps_from = calloc(80, sizeof(dw_warp));
+    /* Up to 102 copies: the 51 warps' starts, then their destinations. */
+    warps_from = calloc(102, sizeof(dw_warp));
     warps_to = warps_from + 15;
     j = 0;
     for (i=0; i < 102; i++) {

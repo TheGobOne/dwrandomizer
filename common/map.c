@@ -272,28 +272,50 @@ static BOOL tile_is_walkable(dw_tile tile)
 static int map_land_mass_2(dw_map *map, uint8_t x, uint8_t y,
         uint8_t lm_index)
 {
-    int size = 0;
-    int left = 0;
-    int right = 119;
+    /* A span of land at a time, with the rows to look at later kept in an explicit stack instead of
+     * recursion, so a long twisting corridor of land cannot overflow the web build's stack. Each span
+     * pushes at most 2 entries per tile, so 2 x 120 x 120 is enough. */
+    static uint8_t stack_x[2 * 120 * 120], stack_y[2 * 120 * 120];
+    int size = 0, top = 1, first = 1;
 
-    /* Move all the way to the left */
-    while(!map_ob(x-1) && tile_is_walkable(map->tiles[x-1][y]))
-        x--;
-    left = x;
+    stack_x[0] = x;
+    stack_y[0] = y;
+    while (top) {
+        int left, right, sx, sy;
 
-    while(!map_ob(x) && tile_is_walkable(map->tiles[x][y])) {
-        map->walkable[x][y] = lm_index;
-        right = x++;
-        size++;
-    }
-    /* go back to the left side and look up & down */
-    for (x = left; x <= right; x++) {
-        if (!map_ob(y-1) && tile_is_walkable(map->tiles[x][y-1]) &&
-                !map->walkable[x][y-1])
-            size += map_land_mass_2(map, x, y-1, lm_index);
-        if (!map_ob(y+1) && tile_is_walkable(map->tiles[x][y+1]) &&
-                !map->walkable[x][y+1])
-            size += map_land_mass_2(map, x, y+1, lm_index);
+        top--;
+        sx = stack_x[top];
+        sy = stack_y[top];
+        /* A tile pushed earlier may have been filled by a span since. */
+        if (!first && map->walkable[sx][sy])
+            continue;
+        first = 0;
+        x = (uint8_t)sx;
+        y = (uint8_t)sy;
+        /* Move all the way to the left */
+        while(!map_ob(x-1) && tile_is_walkable(map->tiles[x-1][y]))
+            x--;
+        left = x;
+        right = 119;
+
+        while(!map_ob(x) && tile_is_walkable(map->tiles[x][y])) {
+            map->walkable[x][y] = lm_index;
+            right = x++;
+            size++;
+        }
+        /* go back to the left side and look up & down */
+        for (x = (uint8_t)left; x <= right; x++) {
+            if (!map_ob(y-1) && tile_is_walkable(map->tiles[x][y-1]) &&
+                    !map->walkable[x][y-1]) {
+                stack_x[top] = x;
+                stack_y[top++] = (uint8_t)(y - 1);
+            }
+            if (!map_ob(y+1) && tile_is_walkable(map->tiles[x][y+1]) &&
+                    !map->walkable[x][y+1]) {
+                stack_x[top] = x;
+                stack_y[top++] = (uint8_t)(y + 1);
+            }
+        }
     }
     return size;
 }

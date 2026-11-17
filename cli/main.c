@@ -1,4 +1,5 @@
 
+#include <ctype.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,6 +15,16 @@
 
 
 /* Reads on or off, and stops on anything else. */
+/* Whether two words match, ignoring case. */
+static int same_word(const char *a, const char *b)
+{
+    while (*a && *b && tolower((unsigned char)*a) == tolower((unsigned char)*b)) {
+        a++;
+        b++;
+    }
+    return !*a && !*b;
+}
+
 static int on_off(const char *option, const char *value)
 {
     if (strcmp(value, "on") && strcmp(value, "off")) {
@@ -27,7 +38,7 @@ static void print_usage(const char *command, char *default_flags)
 {
     size_t i;
 
-    printf("Usage %s <rom_file> [flags [seed [sprite]]] <output_dir>\n", command);
+    printf("Usage %s [options] <rom_file> [flags [seed [sprite]]] <output_dir>\n", command);
     printf("\n");
     printf("A randomizer for Dragon Warrior for NES\n");
     printf("\n");
@@ -78,9 +89,6 @@ int main(int argc, char **argv)
     /* -1 and 0 for the cap: not given, so the flags decide. */
     int responsive = -1, bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, quick_swap = -1, no_blink = -1, fast_hills = -1, key_herb = -1, free_charlock = -1, auto_return = -1, auto_stairs = -1, biome = -1;
     static const char *const encounter_rates[4] = {"default", "low", "medium", "high"};
-    /* Same order as BIOME_* in dwr.h, then "random". */
-    static const char *const biome_names[BIOME_COUNT + 1] = {"continent", "caldera", "wasteland", "riverlands", "lake",
-        "earth", "westeros", "random"};
     char encoded[64] = {0};
 
     printf("DWRandomizer version %s\n", VERSION);
@@ -102,11 +110,15 @@ int main(int argc, char **argv)
                 exit(1);
             }
         } else if (!strcmp(argv[1], "--biome")) {
-            for (biome = 0; biome <= BIOME_COUNT; biome++)
-                if (!strcmp(argv[2], biome_names[biome]))
+            /* The names are dwr_biome_names in lower case, then "random" (BIOME_COUNT). */
+            for (biome = 0; biome < BIOME_COUNT; biome++)
+                if (same_word(argv[2], dwr_biome_names[biome]))
                     break;
-            if (biome > BIOME_COUNT) {
-                fprintf(stderr, "--biome must be continent, caldera, wasteland, riverlands, lake, earth, westeros or random\n");
+            if (biome == BIOME_COUNT && strcmp(argv[2], "random")) {
+                fprintf(stderr, "--biome must be");
+                for (biome = 0; biome < BIOME_COUNT; biome++)
+                    fprintf(stderr, " %c%s,", tolower((unsigned char)dwr_biome_names[biome][0]), dwr_biome_names[biome] + 1);
+                fprintf(stderr, " or random\n");
                 exit(1);
             }
         } else if (!strcmp(argv[1], "--ap-slot")) {
@@ -242,7 +254,7 @@ int main(int argc, char **argv)
         /* Byte 25 (the biome number) and byte 26 only go in the code when set, so old codes stay 40
          * characters. The top 2 bits of byte 26 fit in the 42nd character; the others need 44. */
         raw[27] = 0;
-        length = (raw[26] & 0x3f) ? 44 : (raw[25] || raw[26]) ? 42 : 40;
+        length = FLAG_CODE_LENGTH(raw);
         base32_encode(raw, 27, (uint8_t *)encoded);   /* then cut to the length */
         encoded[length] = '\0';
         flags = encoded;

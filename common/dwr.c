@@ -149,8 +149,8 @@ static void update_flags(dw_rom *rom)
     if(RANDOM_TOWN_ENTRANCES(rom) == 2) rom->flags[24] = (rom->flags[24] | 0x03) & ((mt_rand(0, 1)     ) | 0xfc);
 
     /* Byte 25 is the biome number for biomes past the first four. BIOME_RANDOM picks any biome. */
-    rom->flags[26] &= 0xe0;   /* the other bits of byte 26 are unused */
-    rom->flags[27] = 0;
+    rom->flags[26] &= FLAGS_26_USED;   /* the other bits of byte 26 are unused */
+    rom->flags[27] &= FLAGS_27_USED;
     if (QUICK_SPELL_SWAP(rom) && !QUICK_SPELL(rom)) {
         rom->flags[26] &= 0x7f;
         printf("Swap Quick Spell needs Quick Spell, so it is ignored.\n");
@@ -213,6 +213,19 @@ static BOOL dwr_init(dw_rom *rom, const char *input_file, char *flags)
         return FALSE;
     }
 
+    /* Flag codes use A-Z and 2-7. Anything else would decode as zero bits and silently change the flags. */
+    {
+        const char *c;
+
+        for (c = flags; *c; c++) {
+            if (!((*c >= 'A' && *c <= 'Z') || (*c >= '2' && *c <= '7'))) {
+                fprintf(stderr, "Flags may only use the letters A to Z and the digits 2 to 7; '%c' is not one.\n", *c);
+                free(rom->header);
+                free(rom->expansion);
+                return FALSE;
+            }
+        }
+    }
     /* Flag codes are 40, 42 or 44 characters. Other lengths would decode part of a byte, so refuse them. */
     if (strlen(flags) != 40 && strlen(flags) != 42 && strlen(flags) != 44) {
         fprintf(stderr, "Flags must be 40, 42 or 44 characters; '%s' is %d.\n", flags, (int)strlen(flags));
@@ -2910,9 +2923,10 @@ static BOOL dwr_write(dw_rom *rom, const char *output_file)
  * for byte-alignment. Otherwise this can cause strange errors that are hard to
  * debug.
  */
+_Static_assert(sizeof(dw_enemy) == 16, "dw_enemy must be 16 bytes");
+
 static void check_structs()
 {
-    assert(sizeof(dw_enemy) == 16);
 }
 
 static void magic_herbs(dw_rom *rom)
@@ -5270,8 +5284,7 @@ static void spoiler_log(dw_rom *rom, const char *path)
     }
     fprintf(out, "Seed %"PRIu64"\nFlags %s\n", rom->seed, rom->flags_encoded);
     if (RANDOM_MAP(rom)) {
-        static const char *const biomes[] = {"Continent", "Caldera", "Wasteland", "Riverlands", "Lake", "Earth", "Westeros"};
-        fprintf(out, "Biome %s\n", biomes[BIOME(rom)]);
+        fprintf(out, "Biome %s\n", BIOME(rom) < BIOME_COUNT ? dwr_biome_names[BIOME(rom)] : "?");
     }
     fprintf(out, "\nPlaces (x, y on the overworld unless noted)\n");
     for (i = 0; i < sizeof(places) / sizeof(places[0]); i++) {
@@ -5305,6 +5318,14 @@ static void spoiler_log(dw_rom *rom, const char *path)
     }
     fclose(out);
 }
+
+/* In BIOME_* order. The initializer must have BIOME_COUNT names. */
+const char *const dwr_biome_names[BIOME_COUNT] = {"Continent", "Caldera", "Wasteland", "Riverlands", "Lake",
+        "Earth", "Westeros"};
+_Static_assert(BIOME_WESTEROS == BIOME_COUNT - 1, "a new biome needs a name in dwr_biome_names");
+/* 27 flag bytes, plus one that a 44 character code spills 4 bits into; 44 characters and the end. */
+_Static_assert(sizeof(((dw_rom *)0)->flags) == 28, "flag byte count");
+_Static_assert(sizeof(((dw_rom *)0)->flags_encoded) == 45, "flag code size");
 
 /* Where find_free_space goes when the ROM is full. */
 static jmp_buf *no_space_handler = NULL;
@@ -5405,6 +5426,8 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
     jmp_buf on_no_space;
 
     check_structs();
+    if (!rom)
+        return 0;
 
     snprintf(output_file, 1024, "%s/DWR.%"PRIu64".%s.nes", output_dir,
             seed, flags);

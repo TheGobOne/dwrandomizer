@@ -70,9 +70,9 @@ Leave out the flags to use the default set, and leave out the seed to get a rand
 dwrandomizer --encounters low --bank-level easy --music pack.json5 dw.nes out/
 ```
 
-Every option is listed in [docs/FLAGS.md](docs/FLAGS.md#command-line-options). Run the program with no arguments to see the sprite names.
+Every option, including the Archipelago ones, is listed in [docs/FLAGS.md](docs/FLAGS.md#command-line-options). Run the program with no arguments to see the sprite names.
 
-To play a DWR seed in Archipelago (Windows, BizHawk), see [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
+To play a DWR seed in Archipelago (Windows; the BizHawk steps are untested, only FCEUX with a connector was run), see [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
 
 ## Custom music and lag
 
@@ -80,7 +80,7 @@ To make a pack, use the [NES Custom Music Tool](https://github.com/TheGobOne/NES
 
 Custom music runs its driver every frame, and that work takes time the game needs for walking and text. The remix budgets for it, so walking should not stutter.
 
-- **Walking:** with the wait loop in place, a beat can be dropped during a walking step, never two in a row, so the music stays at least half speed. In a test walk through Garinham, 93% of steps took the normal 16 frames. With no custom music it was 89%. If the build log says "No room for the music wait loop", the music runs from the frame only and busy frames can slow. That case has not been measured.
+- **Walking:** with the wait loop in place, a beat can be dropped during a walking step, never two in a row, so the music stays at least half speed. In a test walk through Garinham, 93% of steps took the normal 16 frames. With no custom music it was 89%. Rarely, the build log says "No room for the music wait loop": the music then runs from the frame only and busy frames can slow. That case has not been measured.
 - **Battles and text:** every beat plays, even while you hold A through a fight or a message.
 - **Stepping off a standstill in towns:** the first step can take 10 to 25 frames, because the game waits for its NPCs. The music is not the cause.
 
@@ -100,8 +100,8 @@ Run Mechanics (Battle tab) and Run Bank are separate things. Run Mechanics chang
 
 ## Known issues
 
-- Some random flag sets fail to build with "Not enough space" (about 1 in 18 random sets). Turn off one of `Build Options`, `Hurtmore Doors` or `Warp Whistle`. Archipelago builds no longer stop for space: with a full main program bank they place the vertical bridge code in pieces, run some game-start code from bank 3, and may leave the checksum off the title menu (the build log says so).
-- In Archipelago builds with a music pack, many seeds run the music from the frame only ("No room for the music wait loop"), and some keep the game's own music ("No room for the music hooks"). Gob Standard with Archipelago and the pack: about 1 seed in 4 keeps the original music, and most of the rest run from the frame only.
+- Some random flag sets fail to build with "Not enough space" (about 1 in 18 random sets). Turn off one of `Build Options`, `Hurtmore Doors` or `Warp Whistle`. Archipelago builds no longer stop for space: with a full main program bank they place the vertical bridge code in pieces, run some game-start code from bank 3, run the Responsive Controls read hook from bank 6, and may leave the checksum off the title menu (the build log says so).
+- In Archipelago builds with a music pack, the music wait loop and hooks fit on every seed tried (90 of 90 with the Gob Standard preset on the site and the setup guide's flags). If the build log says "No room for the music wait loop" or "No room for the music hooks", see [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
 - The first step off a standstill in towns can take up to 25 frames.
 - Custom music timing was measured in FCEUX. Earlier releases were also run in Mesen, and the newest flags were spot-checked there. Nothing has been tested on hardware.
 

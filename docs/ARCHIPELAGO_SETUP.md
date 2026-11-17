@@ -30,7 +30,8 @@ dwr_options:
 - If the file is missing or DWR cannot read it, the ROM is built with the game's music and the log says why.
 - The song for each scene is written next to the ROM as `<rom name>.music.txt`. A scene with no song that fits keeps the game's own song, and the log names it.
 - An Archipelago ROM keeps up to 846 bytes at the top of music bank 3: up to 646 for the found-message item names and 200 for AP code. A pack near the limit can lose a song that fits in a normal DWR ROM. See [Custom music and lag](../README.md#custom-music-and-lag) for making packs.
-- The build log can print one of two music warnings. "No room for the music hooks, keeping the original music." means the pack's music was dropped and the game's music stays. "No room for the music wait loop, the music runs from the frame only." means the music plays but can slow on busy frames. A different seed or flag string usually fits.
+- The build log can print one of two music warnings. "No room for the music hooks, keeping the original music." means the pack's music was dropped and the game's music stays. "No room for the music wait loop, the music runs from the frame only." means the music plays but can slow on busy frames. These warnings are rare: none showed up in 90 Archipelago seeds with the pack. If one appears, a different seed or flag string usually fits.
+- "The read hook runs from bank 6." is only information. Responsive Controls works the same.
 - "No room for the checksum on the title menu, leaving it out." means the ROM's main program bank was full, so the title menu shows no checksum line. The game plays the same, and the Archipelago client still checks the seed.
 - When the BizHawk Client connects to a ROM with a pack, it logs "This ROM has custom music, which changes frame timing a little." That is expected.
 - Keep the ROM you built. Rebuilding after you edit the pack changes the songs.
@@ -73,7 +74,7 @@ Put your YAML in Archipelago's `Players` folder and click Generate in the Launch
 
 After the first session, always start with Continue. Any New Game clears the received-item count and the checks stored in the ROM, so Archipelago sends your items again.
 
-Play one Archipelago game per ROM file and use one save slot. Chest and search checks are shared by all three slots.
+Play one Archipelago game per ROM file and use one save slot. Do not use Copy Quest on an Archipelago save: it does not copy the item count. Chest and search checks are shared by all three slots.
 
 ## 7. Optional: PopTracker
 

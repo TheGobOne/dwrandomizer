@@ -272,14 +272,12 @@ static void ap_chest_and_search(dw_rom *rom)
     at = name_hi + AP_TEXT_LOCS;
     /* Everything from the AP code up to $BFFF must be free before anything is written there. */
     for (i = ap_bank3_start - 0x8000; i < 0x4000; i++) {
-        if (bank3[i] != 0xff) {
-            printf("AP: bank 3 at $%04X was not empty, the AP code overwrites it\n", i + 0x8000);
-            break;
-        }
+        if (bank3[i] != 0xff)
+            dwr_give_up("AP: bank 3 is not empty where the AP code and item names go.");
     }
     for (i = 0; i < AP_TEXT_LOCS; i++) {
         if (bank3[at - 0x8000] != 0xff)
-            printf("AP: bank 3 at $%04X was not empty, the item names overwrite it\n", at);
+            dwr_give_up("AP: bank 3 is not empty where the item names go.");
         memcpy(&bank3[at - 0x8000], names[i], lens[i]);
         bank3[name_lo - 0x8000 + i] = LO(at);
         bank3[name_hi - 0x8000 + i] = HI(at);
@@ -514,7 +512,9 @@ static void ap_save_and_load(dw_rom *rom)
      * fixed bank, as before. */
     stub = dwr_try_free_space(rom->content, FIXED_FREE_START, 19);
     in3 = stub >= 0;
-    start = in3 ? ap_bank3_start : (uint16_t)find_free_space(rom->content, FIXED_FREE_START, AP_START_SIZE);
+    /* In the fixed bank the routine ends in the seed hash, whose last byte can be $FF. One byte of 0 after it
+     * keeps the free space search from handing that byte out. */
+    start = in3 ? ap_bank3_start : (uint16_t)find_free_space(rom->content, FIXED_FREE_START, AP_START_SIZE + 1);
     /* The handed-over game-start code runs first and then jumps to the routine. */
     entry = start;
     if (ap_init_len) {
@@ -589,6 +589,7 @@ static void ap_save_and_load(dw_rom *rom)
         vpatch(rom, 0xca1a, 3, 0x20, LO(stub), HI(stub));
     } else {
         patch(rom, start, AP_START_SIZE, code);
+        vpatch(rom, start + AP_START_SIZE, 1, 0x00);
         vpatch(rom, 0xca1a, 3, 0x20, LO(entry), HI(entry));
     }
 }

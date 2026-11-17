@@ -1,8 +1,13 @@
 # Unreleased - TheGobOne Remix #
+* The desktop app (electron/) and the old web interface (webui/) are removed. The website in site/ is the only interface
 * Archipelago: Copy Quest no longer carries the Archipelago item count and seed tag with the copy. Copies are not a supported way to play an Archipelago seed
 * Archipelago builds no longer stop with "Not enough space". A full fixed bank now gets its pieces placed in smaller gaps, and the game-start code of the run bank and danger meter runs from bank 3. When the title menu has no room for its checksum, the build leaves it out and says so
-* Archipelago: the music wait loop and the custom music hooks fit on more seeds. Seeds that still have no room run the music from the frame only, or keep the game's own music
-* Archipelago: the Responsive Controls stat code and the Nintendo header area are no longer used, which frees fixed bank space. Race checksums change for every build made from this version, so everyone in a race needs this build
+* Archipelago: the music wait loop and the custom music hooks fit on every seed tried (90 of 90 with Gob Standard and the setup guide's flags). The warnings can still appear on a very full ROM
+* Archipelago: when the spare map room in bank 0 is too small, the Responsive Controls read hook runs from bank 6 through the game's BRK handler (the build log says "The read hook runs from bank 6.")
+* The stat build code (Build Options) now runs in place over the unused vanilla penalty code, and the Nintendo header area ($FFE0-$FFF9) is cleared. This frees fixed bank space in every build
+* Race checksums change for every build made from this version, so everyone in a race needs this build
+* Flag codes with characters outside A-Z and 2-7 are refused instead of decoding as zero bits. `--biome` names come from one list, and its error message lists them
+* Internal: the stair shuffle buffer is big enough for every warp copy, the land mass fill no longer recurses (so a twisty map cannot overflow the web build's stack), and an Archipelago build stops if bank 3 is not empty where its code goes
 
 # 1.2.1 - TheGobOne Remix #
 * Random maps: Wasteland and Riverlands grow their land out of open water the way Continent does, with irregular coasts, lakes and islands. Both keep their own terrain mix
