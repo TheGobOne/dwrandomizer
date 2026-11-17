@@ -30,3 +30,6 @@ compile_commands.json
 
 # Private notes, not for the repo
 CLAUDE.local.md
+
+# Claude instructions, kept private
+CLAUDE.md
