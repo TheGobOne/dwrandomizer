@@ -1,11 +1,11 @@
 ---
 name: dwr-agent-suite
-description: Runs the DWR review suite of five specialist roles on the randomizer. Use whenever the user asks to review, test, audit or check DWR code, the website, a screen or menu, or the README, or asks for a run of "the agents", "the suite", or the Code, QoL, Site, UIUX or readme-writer roles, even if they don't name the role. Also use for "run our agents through the changes" or a review of recent work.
+description: Runs the DWR review suite of three specialist roles on the randomizer. Use whenever the user asks to review, test, audit or check DWR code, player features, a screen, menu or the website's usability, or asks for a run of "the agents", "the suite", or the Code, QoL or UIUX roles, even if they don't name the role. Also use for "run our agents through the changes" or a review of recent work.
 ---
 
 # DWR agent suite
 
-Five roles check the DWR randomizer from different angles. Pick the roles the request needs, load each role's brief, and do the work in that brief's voice.
+Three roles check the DWR randomizer from different angles. Pick the roles the request needs, load each role's brief, and do the work in that brief's voice.
 
 ## Roles
 
@@ -13,9 +13,7 @@ Five roles check the DWR randomizer from different angles. Pick the roles the re
 |---|---|---|
 | Code | `references/code.md` | 6502 and C review of all randomizer code: bugs, bytes, cycles, clarity |
 | QoL | `references/qol.md` | Player features, settings, and fairness for racing |
-| Site | `references/site.md` | Website rebuild and mockups in `site-mockups/` |
-| UIUX | `references/uiux.md` | Screens, menus, labels, keyboard and mouse flow, accessibility |
-| readme-writer | `references/readme-writer.md` | README accuracy and quality, with every claim checked against source |
+| UIUX | `references/uiux.md` | Screens, menus, the website, labels, keyboard and mouse flow, accessibility |
 
 ## How to run a role
 
