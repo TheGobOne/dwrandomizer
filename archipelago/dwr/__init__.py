@@ -18,7 +18,7 @@ Magic Keys can be bought, so key doors are not in logic.
 """
 import logging
 import os
-from typing import ClassVar
+from typing import Any, ClassVar, Dict
 
 from BaseClasses import Item, Location, Region
 from worlds.AutoWorld import World
@@ -56,6 +56,11 @@ class DWRWorld(World):
 
     free_charlock: bool = False
     flags_text: str = ""   # the DWR flags this slot is built with, after random_off
+    flags_turned_off: list = []   # flags the player set to Random that Archipelago turns off
+
+    def fill_slot_data(self) -> Dict[str, Any]:
+        # The client shows these once the player connects. Empty when nothing was turned off.
+        return {"dwr_flags_off": self.flags_turned_off} if self.flags_turned_off else {}
 
     def generate_early(self) -> None:
         # The ROM keeps the slot name in 32 bytes of UTF-8 for the client to log in with.
@@ -70,6 +75,7 @@ class DWRWorld(World):
                 logging.warning(f"{self.player_name}: these DWR flags were set to Random and are not supported "
                                 f"with Archipelago, so they are off: {', '.join(turned_off)}")
             self.flags_text = text
+            self.flags_turned_off = list(turned_off)
             bad = dwr_flags.unsupported(text)
             self.free_charlock = dwr_flags.free_charlock(text)
         except ValueError as error:

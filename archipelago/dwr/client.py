@@ -117,6 +117,7 @@ class DWRClient(BizHawkClient):
         self.ahead_noted = False
         self.last_received = -1   # the save's received count at the last poll, -1 before the first
         self.notes = []           # warnings from _effect, logged once its write succeeds
+        self.off_noted = False    # the Random flags turned off were logged at connect
 
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         try:
@@ -157,7 +158,7 @@ class DWRClient(BizHawkClient):
         self.herb_cap, self.key_cap = (caps >> 4, caps & 0x0F) if caps else (6, 6)
         ctx.game = self.game
         ctx.items_handling = 0b111  # receive everything, own items included
-        ctx.want_slot_data = False
+        ctx.want_slot_data = True  # for dwr_flags_off
         return True
 
     async def set_auth(self, ctx: "BizHawkClientContext") -> None:
@@ -167,6 +168,11 @@ class DWRClient(BizHawkClient):
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
         if ctx.server is None or ctx.slot is None:
             return
+        slot_data = getattr(ctx, "slot_data", None) or {}
+        if not self.off_noted and slot_data.get("dwr_flags_off"):
+            self.off_noted = True
+            logger.warning("These DWR flags were set to Random and are off, because Archipelago does not "
+                           "support them: %s", ", ".join(slot_data["dwr_flags_off"]))
         try:
             ram, block, mail, saved_hash, slot, tags = await bizhawk.read(ctx.bizhawk_ctx, [
                 (0x0000, 0x100, "RAM"),
