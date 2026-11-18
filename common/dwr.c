@@ -2993,16 +2993,19 @@ static void add_reset_stubs(dw_rom *rom)
         uint8_t *top = &rom->expansion[(bank - 3) * 0x4000];
         BOOL free_room = TRUE;
 
+        /* The stub and the vectors go in separately: bank 3's songs may reach $BFD8 but stop below the vectors,
+         * and bank 6's songs stop below the stub, which bank 7's vectors need in 32 KB mode. */
         for (i = 0; i < 8; i++)
             if (top[0x3fd8 + i] != 0xff)
                 free_room = FALSE;
+        if (free_room)
+            memcpy(&top[0x3fd8], stub, sizeof(stub));
+        free_room = TRUE;
         for (i = 0; i < 6; i++)
             if (top[0x3ffa + i] != 0xff)
                 free_room = FALSE;
-        if (!free_room)
-            continue;
-        memcpy(&top[0x3fd8], stub, sizeof(stub));
-        memcpy(&top[0x3ffa], vectors, sizeof(vectors));
+        if (free_room)
+            memcpy(&top[0x3ffa], vectors, sizeof(vectors));
     }
 }
 

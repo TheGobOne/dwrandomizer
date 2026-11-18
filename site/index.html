@@ -657,7 +657,8 @@ function songsFromPack(text){
 const BANK_ROOM=8627, MAX_MUSIC_SONGS=24;
 /* Bank 5 ends below the reset vectors; bank 4 holds songs below and above the credits code
    (pick_room in custom_music.c). */
-const BANK5_ROOM=8621, BANK4_LOW=435, BANK4_HIGH=3104, ROOMS=[BANK_ROOM,BANK_ROOM,BANK5_ROOM,BANK4_LOW,BANK4_HIGH];
+/* Bank 6 stops below the reset stub at $BFD8 (40 bytes less) and bank 3 below the vectors at $BFFA (6 less). */
+const BANK5_ROOM=8621, BANK4_LOW=435, BANK4_HIGH=3104, ROOMS=[BANK_ROOM-40,BANK_ROOM-6,BANK5_ROOM,BANK4_LOW,BANK4_HIGH];
 /* The order custom_music_apply places songs in, which decides what fits. */
 const PLACE_ORDER=['StatScroll','Overworld','Encounter','Charlock','Cave','Town','Tantegel','Dragonlord','Title','OriginalCredits','CharlockFinalFloor','Hauksness'];
 /* Who gets first claim on the space when slots are on Random. */
@@ -1111,7 +1112,7 @@ function goBlock(out){
           const missed=picks.list.filter(p=>{ const k=Object.keys(left).find(t=>left[t]>0&&(t===p.title||t.endsWith(': '+p.title))); if(k){ left[k]--; return false; } return true; });
           /* Banks 6 and 3, plus banks 5 and 4 when the log says they held songs. */
           const bk=n=>{ const m=last.map(t=>new RegExp('Music bank '+n+': (\\d+) bytes').exec(t)).find(Boolean); return m?+m[1]:0; },
-            room=2*BANK_ROOM+bk(5)+bk(4);
+            room=ROOMS[0]+ROOMS[1]+bk(5)+bk(4);
           lines.push({text:'Music: '+(picks.count-missed.length)+' of '+picks.count+' songs placed ('+(bytes/1024).toFixed(1)+' KB of '+(room/1024).toFixed(1)+' KB). Slots without a song play the default game music.'+(last.some(t=>t.includes('the stat scroll is silent'))?' The stat scroll has no song, so it is silent.':'')});
           if(missed.length) lines.push({text:'These songs did not fit, so their slots play the default game music:',items:missed.map(p=>p.tag+': '+p.title),keys:missed.map(p=>p.key)});
         }

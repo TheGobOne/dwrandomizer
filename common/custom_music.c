@@ -634,14 +634,16 @@ static BOOL has_tag(const song_t *s, const char *const tags[4])
 }
 
 /* Song areas in placement order: banks 6, 3 and 5, then bank 4 in two pieces either side of the credits
- * code ($A000 up to BANK4_HIGH). Bank 5 ends below the reset vectors. The credits hook is at $8000 in
+ * code ($A000 up to BANK4_HIGH). Bank 5 ends below the reset vectors. Bank 6 ends below the reset stub at $BFD8,
+ * which bank 7's vectors point to when a cart powers on in 32 KB mode, and bank 3 below the vectors at $BFFA
+ * (add_reset_stubs in dwr.c). The credits hook is at $8000 in
  * banks 4 and 6, below the driver. Each bank holds its own copy of the driver at FT_BASE. */
 #define MUSIC_BANKS 5
 #define BANK4_HIGH 0xb3e0
 /* The site plans the same room (BANK4_HIGH in site/index.html): if the credits code grows past this, move both. */
 _Static_assert(CREDITS_CODE_END <= BANK4_HIGH, "bank 4 credits code runs into BANK4_HIGH");
 static int music_bank_count = 2;
-static uint16_t music_bank_end[MUSIC_BANKS] = {0xc000, 0xc000, 0xbffa, 0xa000, 0xc000};
+static uint16_t music_bank_end[MUSIC_BANKS] = {0xbfd8, 0xbffa, 0xbffa, 0xa000, 0xc000};
 
 static BOOL fits_a_bank(const uint16_t next[MUSIC_BANKS], unsigned size)
 {
@@ -726,7 +728,7 @@ static const event_t events[EVENT_COUNT] = {
 /* Room in each song area, in apply_music's order: banks 6, 3 and 5 (which ends below the reset vectors),
  * then bank 4 below and above the credits code. */
 /* Bank 3 is set again for each build: in AP mode its top holds the AP code and the found-message item names. */
-static size_t pick_room[MUSIC_BANKS] = {0xc000 - FT_SONGS, 0xc000 - FT_SONGS, 0xbffa - FT_SONGS,
+static size_t pick_room[MUSIC_BANKS] = {0xbfd8 - FT_SONGS, 0xbffa - FT_SONGS, 0xbffa - FT_SONGS,
     0xa000 - FT_SONGS, 0xc000 - BANK4_HIGH};
 _Static_assert(AP_BANK3_NAMES > FT_SONGS, "AP item names overlap the bank 3 song area");
 #define PICK_ROOM_ALL (pick_room[0] + pick_room[1] + pick_room[2] + pick_room[3] + pick_room[4])
