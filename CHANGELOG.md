@@ -18,6 +18,8 @@
 * Archipelago: the client warns when the music pack did not fit, and logs when a New Game resets the received count. A rejected flag set to Random is turned off with a warning instead of stopping generation. The slot data lists the Random flags that were turned off, and the BizHawk Client logs them when you connect. The Archipelago DWR Flags option now defaults to Gob Standard (the command line default is unchanged)
 * Command line: new options `--run-bank`, `--safe-start`, `--fast-flute`, `--discard-flute`, `--screen-shake`, `--spell-flashing`, `--red-flashes`, `--disable-music`, `--jingles`, `--original-credits` and `--menu-wrap`. `--bank-cap 9` and `--run-bank off` give the same flag code as the site. The console checksum prints in uppercase, and the program prints "DWR version".
 * Command line: Biome Random with Random Map off no longer draws a random number, so the command line and the site build the same ROM for the same code. Such a code builds a different ROM than before
+* Dropdown values no option uses (for example Run Mechanics 5, Leveling Speed 3, Gold Chest 6 or an unknown Biome pattern) now play as the option's normal setting in the game too, as the site already showed, and the build log says so. Only hand-made codes are affected
+* When a build runs out of room after the checksum with a music pack, the pack is now left out before the game code is repacked, so the checksum stays the same as everyone else's. If the game code still has to be repacked, the build log and the site say the checksum can differ
 
 * Site: Safe Start works with Random Map off, as it already did in the game code
 * Site: flag codes no longer change with hidden settings. Run Bank level and cap only count with Run Bank on, and Biome only counts with Random Map on
@@ -30,7 +32,7 @@
 * Site: Copy and the page link carry the gameplay flags only. Your comfort and sound options stay as you had them through presets, links and pasted codes, and a message says when a code turned others on
 * Site: the Easy Standard preset code changed by one letter, because Safer Vanilla switches Easy Charlock off in the game. Its checksum is unchanged
 * Site: the Archipelago line under the flags names the flags that are on and the ones set to Random separately, and Alternate Running shows that it needs Run Mechanics on Vanilla
-* Tests: tests/site_parity.mjs compares the site and CLI checksum and the whole ROM (SHA-256), and reads its flag constants from common/dwr.h and dwr.c
+* Tests: tests/site_parity.mjs compares the site and CLI checksum and the whole ROM (SHA-256), and reads its flag constants from common/dwr.h and dwr.c. It also checks that the site and dwr.h agree on the flag code length for every value of bytes 25 to 27, and that turning on every comfort and sound option leaves the checksum unchanged
 
 # 1.2.1 - TheGobOne Remix #
 * Random maps: Wasteland and Riverlands grow their land out of open water the way Continent does, with irregular coasts, lakes and islands. Both keep their own terrain mix

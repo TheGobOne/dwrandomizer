@@ -74,9 +74,22 @@ static void update_flags(dw_rom *rom)
     size_t i;
     const uint8_t safe_start = rom->flags[8] & 0x20;
 
-    /* Build Options 5 was a REMIX value that is gone; old codes with it play as Original. */
-    if (BUILD_OPTIONS(rom) == 5)
-        rom->flags[24] &= (uint8_t)~0x1c;
+    /* Dropdown values no option uses go to the option's normal setting, the same as on the site, so a
+     * hand-made code builds the same ROM in both. Build Options 5 was a REMIX value that is gone. */
+    {
+        BOOL odd = FALSE;
+        const uint8_t biome = rom->flags[2] & 0x33;
+        if (BUILD_OPTIONS(rom) >= 5) { rom->flags[24] &= (uint8_t)~0x1c; odd = TRUE; }
+        if (DWX_RUN_MECHANICS(rom) == 5 || DWX_RUN_MECHANICS(rom) == 6) { rom->flags[21] &= (uint8_t)~0xe0; odd = TRUE; }
+        if (CHEST_GOLD_AMOUNT(rom) >= 6) { rom->flags[21] &= (uint8_t)~0x1c; odd = TRUE; }
+        if ((rom->flags[13] & 0x30) == 0x30) { rom->flags[13] &= (uint8_t)~0x30; odd = TRUE; }
+        if (!rom->flags[25] && biome != 0x00 && biome != 0x01 && biome != 0x10 && biome != 0x11 && biome != 0x22) {
+            rom->flags[2] &= (uint8_t)~0x33;
+            odd = TRUE;
+        }
+        if (odd)
+            printf("Some flag values are not recognized, so those options use their normal setting.\n");
+    }
     const uint8_t free_charlock_flag = rom->flags[11] & 0x02;
     const uint8_t auto_return_flag = rom->flags[3] & 0x02;
     const uint8_t responsive_flag = rom->flags[6] & 0x02;
@@ -5728,17 +5741,20 @@ static uint64_t dwr_randomize_tries(const char* input_file, uint64_t seed, char 
             fit_extras = FALSE;
         } else if (!fit_extras) {
             fit_extras = TRUE;
-        } else if (!fit_game) {
-            /* Last resort. A music pack can then change the checksum, but the build works. */
-            fit_game = TRUE;
-            fit_extras = FALSE;
         } else if (custom_music_has_pack()) {
-            /* Still no room after the checksum with a music pack: the game keeps its own music. */
+            /* No room after the checksum with a music pack: drop the pack before repacking the game
+             * code, so the checksum stays the same as a build without the pack. */
             custom_music_disable(TRUE);
             fit_game = FALSE;
             fit_extras = FALSE;
             printf("Out of room with the music pack, keeping the original music.\n");
             continue;
+        } else if (!fit_game) {
+            /* Last resort: repacking the game code changes the checksum. */
+            fit_game = TRUE;
+            fit_extras = FALSE;
+            printf("Repacked the game code to make room, so this checksum can differ from "
+                    "the same flags and seed built with other comfort or sound options.\n");
         } else {
             return 0;
         }

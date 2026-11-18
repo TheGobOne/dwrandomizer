@@ -221,7 +221,7 @@ int dwr_ap_patch_free_charlock(void)
 _Static_assert(AP_BANK3_NAMES == 0xc000 - AP_TEXT_LOCS * (AP_TEXT_LEN + 1 + 2),
         "AP_BANK3_NAMES must be the room for the longest names");
 
-/* $7FEA: 1 when the pack's music has its wait loop, 2 when it runs from the frame only. */
+/* $7FEA: 1 when the pack's music has its wait loop, 2 when it runs from the frame only, 3 when the pack was left out. */
 void dwr_ap_mark_music(dw_rom *rom, int state)
 {
     if (ap_enabled && !memcmp(&rom->content[0x7fe0], "DWRAP", 5))

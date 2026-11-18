@@ -1095,6 +1095,7 @@ function goBlock(out){
         s.download=out_name+'.spoiler.txt'; setTimeout(()=>{ s.click(); setTimeout(()=>URL.revokeObjectURL(s.href),5000); },300); }
       const hex=sum.toString(16).padStart(16,'0').toUpperCase(); State.showChecksum(hex); const last=log.slice(log.map(t=>t.includes('Out of room')).lastIndexOf(true)+1);
       const lines=[{text:'Checksum '+hex+'. The title screen shows the first 6 digits ('+hex.slice(0,6)+').'+(last.some(t=>t.includes('No room for the checksum on the title menu'))?' This Archipelago build had no room for it, so its title screen leaves it out.':'')}];
+      if(log.some(t=>t.includes('Repacked the game code'))) lines.push({text:'The game code was repacked to make room, so this checksum can differ from racers on the same flags and seed with other comfort or sound options.'});
       if(last.some(t=>t.includes('No room for Free Charlock'))) lines.push({text:'Free Charlock did not fit in this ROM, so Charlock plays as normal.'});
       if(last.some(t=>t.includes('No room for name screen wrapping'))) lines.push({text:'Name screen wrapping did not fit in this ROM, so the name cursor stops at the edges.'});
       if(picks.count&&((State.v.nomusic|0)||log.some(t=>t.includes('Disable Music is on')))){
@@ -1104,7 +1105,7 @@ function goBlock(out){
         /* Placed songs are the log lines ending in (N bytes, bank B); the title starts after the padded slot name. */
         const left={}; let bytes=0, placed=0;
         last.forEach(t=>{ const m=/\((\d+) bytes, bank \d\)\s*$/.exec(t); if(!m) return; const title=t.slice(15,m.index).trim(); left[title]=(left[title]||0)+1; bytes+=+m[1]; placed++; });
-        if(last.some(t=>t.includes('keeping the original music'))){
+        if(log.some(t=>t.includes('keeping the original music'))){
           lines.push({text:'The music pack did not fit in this ROM, so the default game music plays, and the stat scroll plays the built-in credits song.'});
         } else {
           /* The log shows 'Group: Title', so match on the end. */

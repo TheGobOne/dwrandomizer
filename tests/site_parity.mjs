@@ -70,6 +70,27 @@ need(siteM, 'FLAG_LENGTHS, FLAGS_26_USED and FLAGS_27_USED in site/index.html');
   }
 }
 
+// The site's own length rule (in flags()) must agree with FLAG_CODE_LENGTH for every value of bytes 25 to 27,
+// including byte 27 bits that no flag uses yet.
+const SITE_HTML = fs.readFileSync(path.join(SITE, 'index.html'), 'utf8');
+{
+  const m = SITE_HTML.match(/const len=(\(\(bytes\[26\][^;]+);/);
+  const siteLength = need(m ? new Function('bytes', 'return ' + m[1] + ';') : null, 'the length rule in site/index.html flags()');
+  for (const b25 of [0, 1, 0xff]) for (let b26 = 0; b26 < 256; b26++) for (let b27 = 0; b27 < 256; b27 += 16) {
+    const raw = Object.assign(new Array(28).fill(0), { 25: b25, 26: b26, 27: b27 });
+    if (siteLength(raw) !== codeLength(raw)) {
+      console.error('site_parity: code length differs for bytes 25-27 = ' + [b25, b26, b27].map((x) => x.toString(16)) +
+        ': site ' + siteLength(raw) + ', dwr.h ' + codeLength(raw));
+      process.exit(1);
+    }
+  }
+}
+
+// The site's PERSONAL options must not change the checksum, or race links that leave them out would split races.
+const SITE_PERSONAL = need((SITE_HTML.match(/const PERSONAL = \[([^\]]*)\]/) || [])[1], 'PERSONAL in site/index.html')
+  .match(/'([^']+)'/g).map((s) => s.slice(1, -1));
+const SITE_FLAG_MAP = JSON.parse(need((SITE_HTML.match(/const FLAG_MAP = (\{.*?\});\s*\n/) || [])[1], 'FLAG_MAP in site/index.html'));
+
 function decode(code) {
   let bits = '';
   for (const c of code) bits += A.indexOf(c).toString(2).padStart(5, '0');
@@ -146,6 +167,23 @@ function run() {
   const M = globalThis.Module;
   const FS = globalThis.FS || M.FS;
   let bad = 0, total = 0;
+  {
+    // Every PERSONAL option off, then every one on: the CLI checksum must stay the same.
+    const set = (on) => {
+      const raw = decode(GOB_STANDARD);
+      for (const id of SITE_PERSONAL) {
+        const m = SITE_FLAG_MAP[id];
+        if (!m) { console.error('site_parity: PERSONAL option ' + id + ' is not in FLAG_MAP'); process.exit(1); }
+        raw[m.byte] = (raw[m.byte] & ~(m.mask << m.shift) & 0xff) | ((on ? 1 : 0) << m.shift);
+      }
+      return encode(raw);
+    };
+    const off = cliBuild(set(false), 1001, fs.mkdtempSync(path.join(work, 'p'))).sum;
+    const on = cliBuild(set(true), 1001, fs.mkdtempSync(path.join(work, 'p'))).sum;
+    total++;
+    if (off !== on || !/^[0-9a-f]{16}$/.test(off)) bad++;
+    console.log((off === on ? 'same ' : 'DIFF ') + 'PERSONAL (' + SITE_PERSONAL.length + ' options) off ' + off + ' on ' + on);
+  }
   for (const [name, flags] of flagSets) {
     for (let s = 1; s <= SEEDS; s++) {
       const seed = 1000 + s;

@@ -65,7 +65,8 @@ extern const char *const dwr_biome_names[BIOME_COUNT];
 #define FLAGS_27_USED 0x00
 /* How long a flag code is for these 27 flag bytes: 40, or 42 when byte 25 or the top 2 bits of byte 26 are
  * set, or 44 when any other bit of byte 26 is. The site has the same rule (flags() in site/index.html). */
-#define FLAG_CODE_LENGTH(raw)     (((raw)[26] & 0x3f) ? 44 : ((raw)[25] || (raw)[26]) ? 42 : 40)
+/* Byte 27's top 4 bits fall in the 44th letter, the same rule as the site. */
+#define FLAG_CODE_LENGTH(raw)     ((((raw)[26] & 0x3f) || ((raw)[27] & 0xf0)) ? 44 : ((raw)[25] || (raw)[26]) ? 42 : 40)
 /* The other half of the Quick Spell pair. update_flags keeps it out of the maybe step. */
 #define FREE_CHARLOCK(x)          (x->flags[11] & 0x02)
 /* 0 default, 1 low, 2 medium, 3 high. These bits sit alone in their pairs, so they are never maybe flags. */
