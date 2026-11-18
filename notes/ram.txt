@@ -1,6 +1,6 @@
 Address         | Function                | Notes
 =============== | ======================= | ============================================================================
-0x30-0x34       | Far call scratch        | Used by the game's BRK handler ($FD3A) for far calls into bank 6 (dwr.c far_place); a far call site must keep nothing here
+0x30-0x34       | Far call scratch        | Used by the game's BRK handler ($FD3A) for far calls into bank 7 (dwr.c far_place); a far call site must keep nothing here
 0x37-0x39       | Far call scratch        | Same: a far call also uses 4 more stack bytes than a jsr, so only main-loop code may use one
 0x3a            | X position              |
 0x3b            | Y position              |

@@ -1228,7 +1228,7 @@ static BOOL apply_music(dw_rom *rom)
      * (pick_like_site) and the placement below must both use the same room. */
     music_bank_end[1] = dwr_ap_bank3_start();
     pick_room[1] = music_bank_end[1] - FT_SONGS;
-    /* Far-call routines that did not fit below the driver sit at the top of bank 6 (dwr_far_floor). */
+    /* Far-call routines are in bank 7 now, so this is $C000; it only matters if they move back to bank 6. */
     music_bank_end[0] = dwr_far_floor() > FT_SONGS ? dwr_far_floor() : FT_SONGS;
     pick_room[0] = music_bank_end[0] - FT_SONGS;
     if (choose_like_site)

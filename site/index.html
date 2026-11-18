@@ -1417,7 +1417,8 @@ let spaceTimer=null;
 const LOG_SLOT={'Title':'Title','Overworld':'Overworld','Town':'Town','Tantegel':'Tantegel','Hauksness':'Hauksness','Charlock':'Charlock',
   'Cave':'Cave','Final floor':'Charlock Final Floor','Encounter':'Encounter','Dragonlord':'Dragonlord','Credits':'Stat Scroll','Ending':'Original Credits'};
 /* Bytes still free in the main program bank, from FIXED_FREE_START (dwr.h). Runs of 6 or more blank bytes count. */
-function freeBytes(rom){ let free=0,run=0; for(let i=0x10010+0xc331;i<0x10010+0xfff0;i++){ if(rom[i]===0xff) run++; else { if(run>=6) free+=run; run=0; } } return run>=6?free+run:free; }
+/* The fixed bank is the last 16 KB of PRG, just before the 16 KB of CHR, so it is found from the end of the file. */
+function freeBytes(rom){ let free=0,run=0; const base=rom.length-0x8000-0xc000; for(let i=base+0xc331;i<base+0xfff0;i++){ if(rom[i]===0xff) run++; else { if(run>=6) free+=run; run=0; } } return run>=6?free+run:free; }
 function checkSpace(){ spaceTimer=null;
   if(!State.rom||!wasmReady){ spaceLine.textContent=''; spaceLine.setAttribute('aria-busy','false'); return; }
   try{ const r=buildCached(); /* A Random slot with no room for any tagged song is switched to Default, and the line says so. */

@@ -206,8 +206,8 @@ static BOOL dwr_init(dw_rom *rom, const char *input_file, char *flags)
 
     rom->header = malloc(ROM_SIZE);
     memset(rom->header, 0xff, ROM_SIZE);
-    rom->expansion = (uint8_t*)malloc(0x10000);
-    memset(rom->expansion, 0xff, 0x10000);
+    rom->expansion = (uint8_t*)malloc(EXPANSION_SIZE);
+    memset(rom->expansion, 0xff, EXPANSION_SIZE);
 
     input = fopen(input_file, "rb");
     if (!input) {
@@ -2900,7 +2900,7 @@ static void free_unused_patch_routines(dw_rom *rom)
  */
 void setup_expansion(dw_rom *rom)
 {
-    rom->header[4] = 8; /* set to 8 PRG banks */
+    rom->header[4] = PRG_BANKS; /* the fixed bank is the last one, so MMC1 maps it at $C000 */
 
     /* patching various routines to keep track of statistics */
     if(!DAMAGE_BONKS(rom))
@@ -2955,7 +2955,7 @@ static BOOL dwr_write(dw_rom *rom, const char *output_file)
 
     fwrite(rom->header, 1, 0x10, output);
     fwrite(rom->content, 1, 0xc000, output);
-    fwrite(rom->expansion, 1, 0x10000, output);
+    fwrite(rom->expansion, 1, EXPANSION_SIZE, output);
     fwrite(&rom->content[0xc000], 1, 0x8000, output);
     fclose(output);
     return TRUE;
@@ -4144,7 +4144,7 @@ static uint64_t rom_checksum(dw_rom *rom)
 {
     /* Expansion banks hold code and music that change the game, so they count too. */
     uint64_t crc = crc64(0, rom->content, 0x10000);
-    crc = crc64(crc, rom->expansion, 0x10000);
+    crc = crc64(crc, rom->expansion, EXPANSION_SIZE);
     uint8_t mixed = gameplay_patches | (write_spoiler ? 0x10 : 0);
 
     if (mixed)
@@ -4249,28 +4249,28 @@ static uint16_t rc_space(dw_rom *rom, uint8_t n)
 }
 #define RC_CPU(x) ((uint16_t)((x) < 0x4000 ? (x) + 0x8000 : (x)))
 
-/* Far calls into bank 6, through the game's own BRK handler at $FD3A. The 3 bytes `brk, index, bank` map the bank,
+/* Far calls into bank 7, through the game's own BRK handler at $FD3A. The 3 bytes `brk, index, bank` map the bank,
  * call the routine whose address is at $8000 + 2 * index, and map the old bank back when it ends with rts.
- * The bank byte is FAR_BANK << 4 | 7. The handler takes the bank from the high nibble. The NMI ($FF15-$FF2A) looks
+ * The bank byte is FAR_BANK << 4 | 7. The handler takes the bank from the high nibble (plus 16 when bit 3 is set,
+ * which a far call never uses), so any bank up to 15 works. The NMI ($FF15-$FF2A) looks
  * for a low nibble of 7 in the byte at the PC it interrupted: that is how it restarts a BRK it took over. With any
  * other low nibble that byte runs as an opcode, and $60 would be rts.
  * A, X and Y pass both ways. Only C, V and D pass in: the handler sets N and Z from the bank number before the
  * callee runs. All flags pass out. A call costs about 334 cycles more than a jsr and at its peak 6 more stack bytes
  * (3 while the callee runs). It uses zero page $30-$34 and $37-$39, so only code that runs in the main loop, never
  * in the NMI, may be called this way, and the call site must not keep anything in those bytes.
- * Bank 6: $8000-$8033 is the music's credits code in music builds, the first FAR_SLOTS words from $8034 are the
- * call table (index 26 on), and routines go after it up to $80FF. The music driver starts at $8100, so a routine
- * that does not fit there goes at the top of bank 6, growing down, and the music's song room in bank 6 ends where
- * the lowest of those starts (dwr_far_floor). */
-#define FAR_BANK 6
-#define FAR_TABLE 0x8034
-#define FAR_INDEX 26 /* (FAR_TABLE - $8000) / 2 */
-#define FAR_SLOTS 8
-#define FAR_LOW_END 0x8100 /* where the music driver starts */
-#define FAR_TOP 0xc000     /* the end of bank 6 */
+ * Bank 7 holds nothing else: the call table is the first FAR_SLOTS words from $8000 and the routines follow it.
+ * Before the ROM grew to 256 KB they shared bank 6 with the music driver, so the code can still place routines
+ * at the top of the bank, growing down (dwr_far_floor), but in bank 7 the low area always has room first. */
+#define FAR_BANK 7
+#define FAR_TABLE 0x8000
+#define FAR_INDEX 0 /* (FAR_TABLE - $8000) / 2 */
+#define FAR_SLOTS 16
+#define FAR_LOW_END 0xc000 /* the whole bank */
+#define FAR_TOP 0xc000     /* the end of bank 7 */
 static int far_used;
 static uint16_t far_next;  /* the next free byte below FAR_LOW_END */
-static uint16_t far_floor; /* the lowest byte used at the top of bank 6; FAR_TOP when none is */
+static uint16_t far_floor; /* the lowest byte used at the top of bank 7; FAR_TOP when none is */
 
 static void far_reset(void)
 {
@@ -4279,7 +4279,8 @@ static void far_reset(void)
     far_floor = FAR_TOP;
 }
 
-/* Where the far routines at the top of bank 6 start: the music's songs in bank 6 must end below it. */
+/* Where the far routines at the top of their bank start. Far calls are in bank 7 now, so the music in bank 6
+ * no longer shares its bank with them; custom_music.c only uses this when FAR_BANK is 6. */
 uint16_t dwr_far_floor(void)
 {
     return far_floor;
@@ -4295,7 +4296,7 @@ static BOOL far_free(const uint8_t *b6, uint16_t at, int n)
     return TRUE;
 }
 
-/* The CPU address where a routine of n bytes would go in bank 6 next, or 0 when it does not fit: below $8100
+/* The CPU address where a routine of n bytes would go in bank 7 next, or 0 when it does not fit: below $8100
  * when it fits there, else under the routines already at the top. */
 static uint16_t far_space(dw_rom *rom, int n)
 {
@@ -4311,7 +4312,7 @@ static uint16_t far_space(dw_rom *rom, int n)
     return 0;
 }
 
-/* Puts a routine in bank 6 and gives the 3 bytes that call it. FALSE when there is no room. */
+/* Puts a routine in bank 7 and gives the 3 bytes that call it. FALSE when there is no room. */
 static BOOL far_place(dw_rom *rom, const uint8_t *code, int n, uint8_t call[3])
 {
     uint8_t *b6 = &rom->expansion[(FAR_BANK - 3) * 0x4000];
@@ -4334,7 +4335,7 @@ static BOOL far_place(dw_rom *rom, const uint8_t *code, int n, uint8_t call[3])
     return TRUE;
 }
 
-/* Puts a routine that ends with rts in bank 6, and a 6 byte stub in the fixed bank that makes the far call and
+/* Puts a routine that ends with rts in bank 7, and a 6 byte stub in the fixed bank that makes the far call and
  * then jumps to jmp_to. Returns the stub's address. Stops the build when either bank has no room. */
 static uint16_t far_stub(dw_rom *rom, const uint8_t *body, int n, uint16_t jmp_to)
 {
@@ -4384,21 +4385,21 @@ static void responsive_controls(dw_rom *rom)
     int read_in_map;
     _Static_assert(sizeof read_code == 109, "read hook size");
     /* The spare end of the map in bank 0 first. When it is too small, an Archipelago build puts the read hook
-     * in bank 6 behind a far call and keeps the fixed bank's room. Other builds use the fixed bank when it has
-     * room, and bank 6 when it does not. */
+     * in bank 7 behind a far call and keeps the fixed bank's room. Other builds use the fixed bank when it has
+     * room, and bank 7 when it does not. */
     read_in_map = search_free_space(rom->content, 0x1d5d, 0x2653, sizeof read_code);
     if (read_in_map < 0
             && (dwr_ap_enabled() || dwr_try_free_space(rom->content, FIXED_FREE_START, sizeof read_code) < 0)
             && far_place(rom, read_code, sizeof read_code, read_call)) {
-        printf("The read hook runs from bank 6.\n");
+        printf("The read hook runs from bank 7.\n");
         read_far = TRUE;
         read_hook = 0;
     } else {
         read_hook = read_in_map >= 0 ? (uint16_t)read_in_map : find_free_space(rom->content, FIXED_FREE_START, sizeof read_code);
         patch(rom, read_hook, sizeof read_code, read_code);
     }
-    /* The frame hook. When the fixed bank is full it goes in bank 6 behind a far call at each wait. It ends with
-     * a jump to the real frame wait either way: in bank 6 the rts at the end of $FF74 returns through the far
+    /* The frame hook. When the fixed bank is full it goes in bank 7 behind a far call at each wait. It ends with
+     * a jump to the real frame wait either way: in bank 7 the rts at the end of $FF74 returns through the far
      * call's handler, which maps the old bank again. */
     {
         int at = search_free_space(rom->content, 0x1d5d, 0x2653, 59);
@@ -4416,7 +4417,7 @@ static void responsive_controls(dw_rom *rom)
             0x68, 0xa8,
             0x28};
         /* The real frame wait: NMI only runs its work from there. In the fixed bank or bank 0 the nop keeps $FF
-         * from looking free; bank 6 is filled through far_next and far_floor, so it does not need one. */
+         * from looking free; bank 7 is filled through far_next and far_floor, so it does not need one. */
         const uint8_t frame_tail[4] = {0x4c, 0x74, 0xff, 0xea};
 
         if (at < 0)
@@ -4706,7 +4707,7 @@ static void run_bank(dw_rom *rom)
     if (QUICK_SPELL(rom)) {
         /* Window code $F8: print the last spell's short name, 5 letters from entry `last` of a table whose entry 0
          * is blank. The code (31 bytes) and the 55 byte table go in the fixed bank when they fit. When it is full
-         * they go in bank 6 behind a far call, where the code ends with rts (29 bytes), and a 6 byte stub in the
+         * they go in bank 7 behind a far call, where the code ends with rts (29 bytes), and a 6 byte stub in the
          * fixed bank makes that call and then jumps to the window's exit at $A62B. */
         uint8_t body[86];
         const int at = dwr_try_free_space(rom->content, FIXED_FREE_START, 86);
@@ -4926,7 +4927,7 @@ static void danger_meter(dw_rom *rom)
                 vpatch(rom, init + 10, 3, 0x4c, LO(chain), HI(chain));
                 vpatch(rom, 0xca1a, 3, 0x20, LO(init), HI(init));
             } else {
-                /* The fixed bank is full: the 10 bytes and an rts go in bank 6 behind a far call, and a 6 byte stub
+                /* The fixed bank is full: the 10 bytes and an rts go in bank 7 behind a far call, and a 6 byte stub
                  * in the fixed bank makes the call and then jumps to the old chain. */
                 uint8_t body[11];
 
@@ -4990,7 +4991,7 @@ static void run_bank_win_hook(dw_rom *rom)
             patch(rom, init, RUN_BANK_INIT_SIZE, code);
             vpatch(rom, init + RUN_BANK_INIT_SIZE, 3, 0x4c, LO(init_target), HI(init_target));
         } else {
-            /* The fixed bank is full: the code and an rts go in bank 6 behind a far call, and a 6 byte stub in the
+            /* The fixed bank is full: the code and an rts go in bank 7 behind a far call, and a 6 byte stub in the
              * fixed bank makes the call and then jumps to the old chain. */
             uint8_t body[RUN_BANK_INIT_SIZE + 1];
 

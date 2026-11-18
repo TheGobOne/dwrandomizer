@@ -213,6 +213,11 @@ uint16_t find_free_space_in(uint8_t *content, uint16_t start, uint16_t end, uint
 void dwr_no_room(void);
 /* Bank 6 from here to $BFFF holds far-call routines; the music's songs in bank 6 end below it. */
 uint16_t dwr_far_floor(void);
+/* The output ROM has 16 PRG banks of 16 KB (256 KB): banks 0-2 and the fixed bank (15, last) from the original
+ * game, and 12 expansion banks (3-14) in rom->expansion. Bank 3 is Archipelago code, 4 and 5 music, 6 the music
+ * driver and songs, 7 the far-call routines, and 8-14 are empty. */
+#define PRG_BANKS 16
+#define EXPANSION_SIZE ((PRG_BANKS - 4) * 0x4000)
 int dwr_try_free_space(uint8_t *content, uint16_t start, uint8_t n);
 void dwr_give_up(const char *why);
 BOOL dwr_packing(void);
