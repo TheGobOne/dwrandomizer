@@ -2650,25 +2650,32 @@ static void winter_theme(dw_rom *rom)
  * @param rom The rom struct
  * @param crc The rom checksum
  */
+static int search_free_space(uint8_t *content, uint16_t start, uint16_t end, uint8_t n);
 static void begin_quest_checksum(dw_rom *rom, uint64_t crc)
 {
     char crc_text[] = " CRC: XXXXXX";
-    uint16_t newcode;
+    uint16_t newcode, cpu;
+    int at = dwr_try_free_space(rom->content, FIXED_FREE_START, 39);
 
-    /* The window is one 39-byte block. An Archipelago build fills the fixed bank with many small pieces and
-     * can leave no gap that long. Its seed is checked by the AP client, so it goes without the checksum
-     * instead of stopping the build. */
-    if (dwr_ap_enabled() && dwr_try_free_space(rom->content, FIXED_FREE_START, 39) < 0) {
+    /* The window is one 39-byte block of window data. The window code and its pointer table ($AF8E) are in bank 1,
+     * which is mapped whenever a window is drawn (the game's own data for this window is at $B2A8), so when the
+     * fixed bank has no gap that long, the block goes in bank 1's spare room instead. */
+    if (at < 0)
+        at = search_free_space(rom->content, 0x7f0a, BANK_1_FREE_END, 39);
+    /* An Archipelago build's seed is checked by the AP client, so it goes without the checksum instead of
+     * stopping the build. */
+    if (at < 0 && dwr_ap_enabled()) {
         printf("No room for the checksum on the title menu, leaving it out.\n");
         return;
     }
-    newcode = find_free_space(rom->content, FIXED_FREE_START, 39);
+    newcode = at >= 0 ? (uint16_t)at : find_free_space(rom->content, FIXED_FREE_START, 39);
+    cpu = newcode < 0x8000 ? (uint16_t)(newcode + 0x4000) : newcode;
 
     // This grabs the checksum
     snprintf(crc_text+6, 7, "%016"PRIX64, crc);
 
     //replaces the "begin new quest" window data address
-    vpatch(rom, 0x6f8e, 2, newcode & 0xff, (newcode >> 8) & 0xff);
+    vpatch(rom, 0x6f8e, 2, cpu & 0xff, (cpu >> 8) & 0xff);
 
     //our brand new "begin new quest" window
     vpatch(rom, newcode, 7,
@@ -3906,25 +3913,31 @@ void ascetic_king(dw_rom *rom)
  *
  * @param rom The rom struct
  */
+static BOOL far_place(dw_rom *rom, const uint8_t *code, int n, uint8_t call[3]);
 void step_counter(dw_rom *rom)
 {
 	const uint16_t ram_s = 0x6804; // and 0x6805! Just random RAM addresses I thought might be unused
 	const int in_map = map_tail_space(rom, 13);
-	const uint16_t newcode = in_map >= 0 ? (uint16_t)in_map : find_free_space(rom->content, 0xc82b, 13); // Starting address for new code
-	const uint16_t cpu = in_map >= 0 ? (uint16_t)(newcode + 0x8000) : newcode;
-
-    vpatch(rom, 0x3265, 4, 0x20, cpu & 0xff, (cpu >> 8) & 0xff, 0xea); // JSR newcode, NOP for opcode alignment. Hooking into RightSynced
-    vpatch(rom, 0x335f, 4, 0x20, cpu & 0xff, (cpu >> 8) & 0xff, 0xea); // JSR newcode, NOP for opcode alignment. Hooking into LeftSynced
-    vpatch(rom, 0x3517, 4, 0x20, cpu & 0xff, (cpu >> 8) & 0xff, 0xea); // JSR newcode, NOP for opcode alignment. Hooking into UpSynced
-    vpatch(rom, 0x33eb, 4, 0x20, cpu & 0xff, (cpu >> 8) & 0xff, 0xea); // JSR newcode, NOP for opcode alignment. Hooking into DownSynced
-
-    vpatch(rom, newcode, 13,
+	/* Not behind a far call: a test walk in FCEUX with this routine in bank 6 gave 26 steps where the fixed bank
+	 * gave 44, so it stays in bank 0's map tail or the fixed bank. */
+	const int at = in_map >= 0 ? in_map : (int)find_free_space(rom->content, 0xc82b, 13); // Starting address for new code
+	const uint16_t cpu = in_map >= 0 ? (uint16_t)(at + 0x8000) : (uint16_t)at;
+	const uint8_t code[13] = {
         0xee, ram_s & 0xff, (ram_s >> 8) & 0xff,        // inc ram_s
         0xd0, 3,                                        // BNE to Done, no overflow on first byte
         0xee, (ram_s+1) & 0xff, ((ram_s+1) >> 8) & 0xff, // inc ram_s+1
         0xa5, 0x16, 0xc9, 0x20,                         // Done! Original code we overwrote
         0x60                                            // RTS
-    );
+    };
+	uint8_t hook[3] = {0x20, cpu & 0xff, (cpu >> 8) & 0xff}; // JSR newcode
+	int hooks;
+
+	patch(rom, (uint16_t)at, sizeof code, code);
+	for (hooks = 0; hooks < 4; hooks++) {
+		/* Hooks into RightSynced, LeftSynced, UpSynced, DownSynced; each is the call, then a NOP for opcode alignment. */
+		static const uint16_t sites[4] = {0x3265, 0x335f, 0x3517, 0x33eb};
+		vpatch(rom, sites[hooks], 4, hook[0], hook[1], hook[2], 0xea);
+	}
 }
 
 /**
@@ -3937,11 +3950,10 @@ void npc_guillotine(dw_rom *rom)
     if (!NPC_GUILLOTINE(rom))
         return;
 
-    const uint16_t newcode = find_free_space(rom->content, 0xc82b, 20); // Starting address for new code
-
-    vpatch(rom, 0xd11f, 2, newcode & 0xff, (newcode >> 8) & 0xff); // Save original JSR to set NPC direction but point to newcode
-
-    vpatch(rom, newcode, 20,
+    /* The routine has 20 bytes. When the fixed bank is full it goes in bank 6 behind a far call (BRK, index, bank)
+     * that replaces the JSR at $D11F. It only calls $C04A in the fixed bank, so bank 6 can stay mapped. */
+    const int at = dwr_try_free_space(rom->content, 0xc82b, 20);
+    const uint8_t body[20] = {
         0xc9, 30,           // CMP 30 — A contains NPC index at this point. Is NPC mobile?
         0x90, 0x04,         // BCC to guillotining if yes
         0x20, 0x4a, 0xc0, 0x60, // No → do original JSR then RTS
@@ -3953,7 +3965,17 @@ void npc_guillotine(dw_rom *rom)
         0x95, 0x53,         // STA,X 3rd NPC byte to set it to zero
         0x68,               // PLA to restore NPC offset for later use by original code
         0x60                // RTS
-    );
+    };
+    uint8_t call[3];
+
+    if (at >= 0) {
+        vpatch(rom, 0xd11f, 2, at & 0xff, (at >> 8) & 0xff); // Save original JSR to set NPC direction but point to newcode
+        patch(rom, (uint16_t)at, sizeof body, body);
+    } else {
+        if (!far_place(rom, body, sizeof body, call))
+            find_free_space(rom->content, 0xc82b, 20); /* no room anywhere: stops this build */
+        vpatch(rom, 0xd11f, 3, call[0], call[1], call[2]);
+    }
 }
 
 /**
@@ -4195,13 +4217,13 @@ static uint16_t rc_space(dw_rom *rom, uint8_t n)
  * A, X, Y and the flags pass through both ways. It uses zero page $30-$34 and $37-$39 and 4 more stack bytes than a
  * jsr, so only code that runs in the main loop, never in the NMI, may be called this way, and the call site must
  * not keep anything in those bytes. Bank 6 holds the music driver from $8100; $8000-$8033 is the music's own code in
- * music builds. $8034-$80FF is free in every build: the first FAR_SLOTS words are the call table (index 26 on), the
- * routines follow. */
+ * music builds. The first FAR_SLOTS words from $8034 are the call table (index 26 on), and routines go in the
+ * free bytes after them, up to the end of bank 6. */
 #define FAR_BANK 6
 #define FAR_TABLE 0x8034
 #define FAR_INDEX 26 /* (FAR_TABLE - $8000) / 2 */
-#define FAR_SLOTS 4
-#define FAR_END 0x8100
+#define FAR_SLOTS 8
+#define FAR_END 0xc000 /* end of bank 6; far_place only uses bytes that are still $FF, so the music driver's data is safe */
 static int far_used;
 static uint16_t far_next;
 
@@ -4211,19 +4233,30 @@ static void far_reset(void)
     far_next = FAR_TABLE + 2 * FAR_SLOTS;
 }
 
+/* The CPU address where a routine of n bytes would go in bank 6 next, or 0 when it does not fit. */
+static uint16_t far_space(dw_rom *rom, int n)
+{
+    const uint8_t *b6 = &rom->expansion[(FAR_BANK - 3) * 0x4000];
+    uint16_t entry = (uint16_t)(FAR_TABLE + 2 * far_used);
+    int i;
+
+    if (far_used >= FAR_SLOTS || far_next + n > FAR_END)
+        return 0;
+    for (i = far_next - 0x8000; i < far_next - 0x8000 + n; i++)
+        if (b6[i] != 0xff)
+            return 0;
+    if (b6[entry - 0x8000] != 0xff || b6[entry - 0x8000 + 1] != 0xff)
+        return 0;
+    return far_next;
+}
+
 /* Puts a routine in bank 6 and gives the 3 bytes that call it. FALSE when there is no room. */
 static BOOL far_place(dw_rom *rom, const uint8_t *code, int n, uint8_t call[3])
 {
     uint8_t *b6 = &rom->expansion[(FAR_BANK - 3) * 0x4000];
     uint16_t entry = (uint16_t)(FAR_TABLE + 2 * far_used);
-    int i;
 
-    if (far_used >= FAR_SLOTS || far_next + n > FAR_END)
-        return FALSE;
-    for (i = far_next - 0x8000; i < far_next - 0x8000 + n; i++)
-        if (b6[i] != 0xff)
-            return FALSE;
-    if (b6[entry - 0x8000] != 0xff || b6[entry - 0x8000 + 1] != 0xff)
+    if (!far_space(rom, n))
         return FALSE;
     b6[entry - 0x8000] = LO(far_next);
     b6[entry - 0x8000 + 1] = HI(far_next);
@@ -4242,6 +4275,8 @@ static void responsive_controls(dw_rom *rom)
     const uint16_t stamp_x = 0x6817, stamp_y = 0x6818;
     const uint8_t READING = 0xa5, DONE = 0x5a, PENDING = 0x3c; /* other values, as in fresh RAM, mean nothing is saved */
     uint16_t read_hook, frame_hook, step_end, battle_start;
+    BOOL rc_frame_far = FALSE;
+    uint8_t rc_frame_call[3] = {0, 0, 0};
     size_t i;
 
     if (!RESPONSIVE_CONTROLS(rom))
@@ -4273,26 +4308,54 @@ static void responsive_controls(dw_rom *rom)
      * in bank 6 behind a far call and keeps the fixed bank's room; other builds use the fixed bank as always. */
     read_in_map = search_free_space(rom->content, 0x1d5d, 0x2653, sizeof read_code);
     memcpy(read_call, NO_FAR, 3);
-    if (read_in_map < 0 && dwr_ap_enabled() && far_place(rom, read_code, sizeof read_code, read_call)) {
+    if (read_in_map < 0
+            && (dwr_ap_enabled() || dwr_try_free_space(rom->content, FIXED_FREE_START, sizeof read_code) < 0)
+            && far_place(rom, read_code, sizeof read_code, read_call)) {
         printf("The read hook runs from bank 6.\n");
         read_hook = 0;
     } else {
         read_hook = read_in_map >= 0 ? (uint16_t)read_in_map : find_free_space(rom->content, FIXED_FREE_START, sizeof read_code);
         patch(rom, read_hook, sizeof read_code, read_code);
     }
-    frame_hook = rc_space(rom, 59);
-    vpatch(rom, frame_hook, 59,
-        0x08, /* callers count on the carry surviving a frame wait */
-        0xad, LO(state), HI(state), 0xc9, READING, 0xd0, 0x2e,
-        0x98, 0x48,
-        0xa9, 0x01, 0x8d, 0x16, 0x40, 0xa9, 0x00, 0x8d, 0x16, 0x40,
-        0xa0, 0x08,
-        0xad, 0x16, 0x40, 0x29, 0x03, 0xc9, 0x01, 0x66, 0x46, 0x88, 0xd0, 0xf4,
-        0xad, LO(prev), HI(prev), 0x49, 0xff, 0x25, 0x46,     /* newly pressed */
-        0x0d, LO(buf), HI(buf), 0x8d, LO(buf), HI(buf),
-        0xa5, 0x46, 0x8d, LO(prev), HI(prev),
-        0x68, 0xa8,
-        0x28, 0x4c, 0x74, 0xff, 0xea); /* The real frame wait: NMI only runs its work from there. The nop keeps $FF from looking free. */
+    /* The frame hook. When the fixed bank is full it goes in bank 6 behind a far call at each wait, and its last
+     * jump to the real frame wait becomes a jsr and an rts, so the far call can return. */
+    {
+        int at = search_free_space(rom->content, 0x1d5d, 0x2653, 59);
+        uint8_t frame_call[3] = {0, 0, 0}, frame_code[59];
+        const uint8_t frame_head[55] = {
+            0x08, /* callers count on the carry surviving a frame wait */
+            0xad, LO(state), HI(state), 0xc9, READING, 0xd0, 0x2e,
+            0x98, 0x48,
+            0xa9, 0x01, 0x8d, 0x16, 0x40, 0xa9, 0x00, 0x8d, 0x16, 0x40,
+            0xa0, 0x08,
+            0xad, 0x16, 0x40, 0x29, 0x03, 0xc9, 0x01, 0x66, 0x46, 0x88, 0xd0, 0xf4,
+            0xad, LO(prev), HI(prev), 0x49, 0xff, 0x25, 0x46,     /* newly pressed */
+            0x0d, LO(buf), HI(buf), 0x8d, LO(buf), HI(buf),
+            0xa5, 0x46, 0x8d, LO(prev), HI(prev),
+            0x68, 0xa8,
+            0x28};
+        /* The real frame wait: NMI only runs its work from there. The nop keeps $FF from looking free. The far
+         * version jumps back with rts, so the far call's handler can map the old bank again. */
+        const uint8_t frame_tail[4] = {0x4c, 0x74, 0xff, 0xea};
+        const uint8_t frame_tail_far[4] = {0x20, 0x74, 0xff, 0x60};
+        BOOL frame_far;
+
+        if (at < 0)
+            at = dwr_try_free_space(rom->content, FIXED_FREE_START, 59);
+        frame_far = at < 0;
+        memcpy(frame_code, frame_head, sizeof frame_head);
+        memcpy(frame_code + sizeof frame_head, frame_far ? frame_tail_far : frame_tail, sizeof frame_tail);
+        if (frame_far) {
+            if (!far_place(rom, frame_code, sizeof frame_code, frame_call))
+                find_free_space(rom->content, FIXED_FREE_START, 59); /* no room anywhere: stops this build */
+            frame_hook = 0;
+        } else {
+            frame_hook = (uint16_t)at;
+            patch(rom, frame_hook, sizeof frame_code, frame_code);
+        }
+        rc_frame_far = frame_far;
+        memcpy(rc_frame_call, frame_call, sizeof frame_call);
+    }
     /* After a step, $B219 runs the tile's effects: a battle, a warp, stairs, damage. The presses saved during the step
      * are kept for the next step unless that step started a battle or moved the hero (a warp or stairs changes the
      * map or the position). A step on a damage tile such as swamp keeps them, even though it waits a few frames.
@@ -4328,8 +4391,12 @@ static void responsive_controls(dw_rom *rom)
     /* The frame waits in the four step routines, so nothing else pays for reading the buttons, as it would
      * while booting and in menus if $FF74 itself were hooked. */
     for (i = 0x3252; i < 0x36da; i++) {
-        if (rom->content[i] == 0x20 && rom->content[i + 1] == 0x74 && rom->content[i + 2] == 0xff)
-            vpatch(rom, i + 1, 2, LO(RC_CPU(frame_hook)), HI(RC_CPU(frame_hook)));
+        if (rom->content[i] == 0x20 && rom->content[i + 1] == 0x74 && rom->content[i + 2] == 0xff) {
+            if (rc_frame_far)
+                vpatch(rom, i, 3, rc_frame_call[0], rc_frame_call[1], rc_frame_call[2]);
+            else
+                vpatch(rom, i + 1, 2, LO(RC_CPU(frame_hook)), HI(RC_CPU(frame_hook)));
+        }
     }
     vpatch(rom, 0xcaf0 + 1, 2, LO(RC_CPU(step_end)), HI(RC_CPU(step_end)));
     vpatch(rom, 0xcb04 + 1, 2, LO(RC_CPU(step_end)), HI(RC_CPU(step_end)));
@@ -4559,21 +4626,48 @@ static void run_bank(dw_rom *rom)
 
     /* Window code $F8 is only in the window when Quick Spell is on. */
     if (QUICK_SPELL(rom)) {
-        /* Window code $F8: print the last spell's short name, in the fixed bank. */
-        c = find_free_space(rom->content, FIXED_FREE_START, 98);
-        vpatch(rom, c, 48,
+        /* Window code $F8: print the last spell's short name. The code and its 50 byte name table are 98 bytes. They go
+         * in the fixed bank when they fit. When it is full they go in bank 6 behind a far call, and a 6 byte stub in
+         * the fixed bank makes that call and then jumps to the window's exit at $A62B. */
+        uint8_t body[98], call[3];
+        const int at = dwr_try_free_space(rom->content, FIXED_FREE_START, 98);
+        const uint16_t far_at = at < 0 ? far_space(rom, 98) : 0;
+        const BOOL in_far = at < 0 && far_at != 0;
+        /* rts when the code runs behind a far call, otherwise the jump to the window's exit. */
+        const uint8_t leave[3] = {in_far ? 0x60 : 0x4c, in_far ? 0xea : 0x2b, in_far ? 0xea : 0xa6};
+        const uint16_t base = in_far ? far_at : (uint16_t)at;
+        const uint8_t spell[48] = {
             0xa9, 0x05, 0x8d, 0xe2, 0x64,
             0xae, LO(last), HI(last), 0xf0, 0x19,
             0xca, 0x86, 0x1a, 0x8a, 0x0a, 0x0a, 0x18, 0x65, 0x1a, 0xaa,
             0xa0, 0x05,
-            0xbd, LO(c + 48), HI(c + 48),
-            0x99, 0xc9, 0x64, 0xe8, 0x88, 0xd0, 0xf6, 0x4c, 0x2b, 0xa6,
+            0xbd, LO(base + 48), HI(base + 48),
+            0x99, 0xc9, 0x64, 0xe8, 0x88, 0xd0, 0xf6, leave[0], leave[1], leave[2],
             0xa0, 0x05, 0xa9, 0x5f, 0x99, 0xc9, 0x64, 0x88, 0xd0, 0xfa,
-            0x4c, 0x2b, 0xa6);
+            leave[0], leave[1], leave[2]};
+
+        if (at < 0 && !far_at)
+            find_free_space(rom->content, FIXED_FREE_START, 98); /* no room anywhere: stops this build */
+        memcpy(body, spell, sizeof spell);
         names = MODERN_SPELLS(rom) ? modern_names : vanilla_names;
         for (i = 0; i < 50; i++) {
             char ch = names[i];
-            rom->content[c + 48 + i] = (ch == ' ') ? 0x5f : (uint8_t)(0x24 + ch - 'A');
+            body[48 + i] = (ch == ' ') ? 0x5f : (uint8_t)(0x24 + ch - 'A');
+        }
+        if (in_far) {
+            const uint8_t stub[6] = {0, 0, 0, 0x4c, 0x2b, 0xa6};
+            uint8_t patched[6];
+
+            far_place(rom, body, 98, call); /* far_space already said it fits */
+            memcpy(patched, stub, sizeof patched);
+            patched[0] = call[0];
+            patched[1] = call[1];
+            patched[2] = call[2];
+            c = find_free_space(rom->content, FIXED_FREE_START, 6);
+            patch(rom, c, sizeof patched, patched);
+        } else {
+            c = base;
+            patch(rom, c, sizeof body, body);
         }
         vpatch(rom, 0x66e1, 2, LO(c), HI(c));
     }
@@ -4753,10 +4847,34 @@ static void danger_meter(dw_rom *rom)
         if (!dwr_ap_start_init(init_code, sizeof(init_code))) {
             uint16_t chain = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
 
-            init = find_free_space(rom->content, FIXED_FREE_START, 13);
-            patch(rom, init, 10, init_code);
-            vpatch(rom, init + 10, 3, 0x4c, LO(chain), HI(chain));
-            vpatch(rom, 0xca1a, 3, 0x20, LO(init), HI(init));
+            const int at = dwr_try_free_space(rom->content, FIXED_FREE_START, 13);
+
+            if (at >= 0) {
+                init = (uint16_t)at;
+                patch(rom, init, 10, init_code);
+                vpatch(rom, init + 10, 3, 0x4c, LO(chain), HI(chain));
+                vpatch(rom, 0xca1a, 3, 0x20, LO(init), HI(init));
+            } else {
+                /* The fixed bank is full: the 10 bytes and an rts go in bank 6 behind a far call, and a 6 byte stub
+                 * in the fixed bank makes the call and then jumps to the old chain. */
+                uint8_t body[11], call[3], stub[6];
+                const uint16_t far_at = far_space(rom, sizeof body);
+
+                if (!far_at)
+                    init = find_free_space(rom->content, FIXED_FREE_START, 13); /* no room anywhere: stops this build */
+                memcpy(body, init_code, 10);
+                body[10] = 0x60; /* rts, back through the far call's handler */
+                far_place(rom, body, sizeof body, call);
+                stub[0] = call[0];
+                stub[1] = call[1];
+                stub[2] = call[2];
+                stub[3] = 0x4c;
+                stub[4] = LO(chain);
+                stub[5] = HI(chain);
+                init = find_free_space(rom->content, FIXED_FREE_START, 6);
+                patch(rom, init, sizeof stub, stub);
+                vpatch(rom, 0xca1a, 3, 0x20, LO(init), HI(init));
+            }
         }
     }
 }
@@ -4805,9 +4923,30 @@ static void run_bank_win_hook(dw_rom *rom)
 
         run_bank_init_code(code);
         init_target = rom->content[0xca1b] | (rom->content[0xca1c] << 8);
-        init = find_free_space(rom->content, FIXED_FREE_START, RUN_BANK_INIT_SIZE + 3);
-        patch(rom, init, RUN_BANK_INIT_SIZE, code);
-        vpatch(rom, init + RUN_BANK_INIT_SIZE, 3, 0x4c, LO(init_target), HI(init_target));
+        const int at = dwr_try_free_space(rom->content, FIXED_FREE_START, RUN_BANK_INIT_SIZE + 3);
+
+        if (at >= 0) {
+            init = (uint16_t)at;
+            patch(rom, init, RUN_BANK_INIT_SIZE, code);
+            vpatch(rom, init + RUN_BANK_INIT_SIZE, 3, 0x4c, LO(init_target), HI(init_target));
+        } else {
+            /* The fixed bank is full: the code and an rts go in bank 6 behind a far call, and a 6 byte stub in the
+             * fixed bank makes the call and then jumps to the old chain. */
+            uint8_t body[RUN_BANK_INIT_SIZE + 1], call[3], stub[6];
+
+            memcpy(body, code, RUN_BANK_INIT_SIZE);
+            body[RUN_BANK_INIT_SIZE] = 0x60;
+            if (!far_place(rom, body, sizeof body, call))
+                find_free_space(rom->content, FIXED_FREE_START, RUN_BANK_INIT_SIZE + 3); /* stops this build */
+            stub[0] = call[0];
+            stub[1] = call[1];
+            stub[2] = call[2];
+            stub[3] = 0x4c;
+            stub[4] = LO(init_target);
+            stub[5] = HI(init_target);
+            init = find_free_space(rom->content, FIXED_FREE_START, 6);
+            patch(rom, init, sizeof stub, stub);
+        }
         vpatch(rom, 0xca1a, 3, 0x20, LO(init), HI(init));
     }
 
