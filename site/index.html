@@ -1015,7 +1015,7 @@ function spaceMessage(){ const on=SPACE_FLAGS.filter(id=>State.v[id]).map(id=>St
   return 'Not enough ROM space for these flags. '+(on.length?'Try turning off one of: '+on.slice(0,5).join(', ')+'.':'Try turning some flags off.'); }
 /* One full build in the browser. The button downloads it, and the space check only measures it. */
 function buildOnce(spoiler){
-  /* The build writes a file named for the full flags. The download is named for the game flags, so racers with the same flags get the same name. */
+  /* The build writes a file named for the full flags. The download is named for the game flags (see the end of this function). */
   const seed=BigInt(State.seed||'0').toString(), flags=State.flags(), out_name='DWR.'+seed+'.'+flags+'.nes';
   const sprite=State.find('sprite')[4][State.v.sprite|0]||'Random';
   FS.writeFile('/input.nes',State.rom.bytes);
@@ -1035,7 +1035,10 @@ function buildOnce(spoiler){
   if(sum!==0n){ data=FS.readFile('/'+out_name); FS.unlink('/'+out_name);
     const sp='/'+out_name+'.spoiler.txt';
     if(FS.analyzePath(sp).exists){ spoilerText=FS.readFile(sp,{encoding:'utf8'}); FS.unlink(sp); } }
-  return {seed,flags,out_name:'DWR.'+seed+'.'+State.flags(true)+'.nes',picks,log,sum,data,spoilerText};
+  /* Racers on the same flags get the same name. Comfort or sound options, or a music pack, add a tag, so builds
+   * of one seed with and without them can be told apart. */
+  const tag=(PERSONAL.some(id=>State.v[id]|0)?'+comfort':'')+(picks.count&&!(State.v.nomusic|0)?'+music':'');
+  return {seed,flags,out_name:'DWR.'+seed+'.'+State.flags(true)+tag+'.nes',picks,log,sum,data,spoilerText};
 }
 /* The space line builds the ROM for the current flags and seed. Randomize reuses that build when nothing has changed. */
 let buildCache=null, sizeCache=null;
