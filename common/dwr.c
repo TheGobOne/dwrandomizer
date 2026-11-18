@@ -155,7 +155,13 @@ static void update_flags(dw_rom *rom)
         rom->flags[26] &= 0x7f;
         printf("Swap Quick Spell needs Quick Spell, so it is ignored.\n");
     }
-    if (rom->flags[25] == BIOME_RANDOM) {
+    if (rom->flags[25] == BIOME_RANDOM && !RANDOM_MAP(rom)) {
+        /* No map is generated, so there is no biome to pick. Drawing a random number here would change the rest
+         * of the seed, and the site drops the biome from such a code, so the same code built two ROMs. */
+        rom->flags[25] = 0;
+        rom->flags[2] &= (uint8_t)~0x33;
+        printf("Biome needs Random Map, so it is ignored.\n");
+    } else if (rom->flags[25] == BIOME_RANDOM) {
         uint8_t b = (uint8_t)mt_rand(0, BIOME_COUNT - 1);
         rom->flags[25] = 0;
         rom->flags[2] &= (uint8_t)~0x33;
