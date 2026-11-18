@@ -176,7 +176,7 @@ Nothing found blocks Phase 3.
 | Random Chest Locations: a moved chest sets its index's bit | Pass (run five, which opens the first Tantegel chest that RCL moved; it needs a ROM built with RCL through the CLI, because the APWorld rejects RCL) |
 | Mailbox: received items show "Thou hast found the <name>." | Pass (run six: message on screen; full AP run: each item cleared the mailbox before the next) |
 
-How the mailbox works: the client writes the item name in DW tiles to `$6850` and sets `$682E`. The ROM hooks the after-step code at `$CDBF`. After the hero's next step it shows the message and clears the flag. The client gives the next item only after the flag clears. The ROM was version `002` then (`004` now).
+How the mailbox works: the client writes the item name in DW tiles to `$6850` and sets `$682E` to 1. The ROM hooks the after-step code at `$CDBF`. After the hero's next step it clears the flag, stops the NPCs and opens the dialog window (the game's routine at `$CBEE`), then shows the message. Before the window was opened, the text printed over the old screen with no frame. The client gives the next item only after the flag clears. The ROM was version `002` then (`004` now).
 
 ## Phase 4 status (2026-11-16)
 

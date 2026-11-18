@@ -131,7 +131,7 @@ class GiveItem(unittest.TestCase):
             writes, guards = give(["Herb"], self.ram)[0]
         self.assertIn("100 Gold instead", log.output[0])
         self.assertIn((C.GOLD, (100).to_bytes(2, "little"), "RAM"), writes)
-        self.assertIn((C.MAIL_TEXT, C.dw_text("100 Gold"), "System Bus"), writes)
+        self.assertIn((C.MAIL_TEXT, C.dw_text("100 Gold", "Friend", 2), "System Bus"), writes)  # "Gold from Friend"
         self.assertNotIn(C.HERBS, addrs(writes))
 
     def test_own_chest_herb_at_the_cap_still_says_gold(self):

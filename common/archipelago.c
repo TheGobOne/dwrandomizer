@@ -12,7 +12,7 @@
  *   $6826        search spot bits, bit n = search table entry n
  *   $6827        1 between a continue's load and game start
  *   $6828-$682d  items received, saved copy for save slots 0-2
- *   $682e        mailbox: nonzero when the client has a "received" message waiting
+ *   $682e        mailbox: 1 when the client has a "received" message waiting
  *   $6830-$6840  found-message name buffer
  *   $6842-$6845  seed hash of the ROM that started this game (written by the
  *                ROM at a new game), so a save from another seed is caught
@@ -623,6 +623,13 @@ static void ap_signature(dw_rom *rom)
  * $CDBF, so the message never interrupts a map change. To show the message the
  * hook drops its own return address and jumps to $D242 (show message), which
  * ends in $CF6A's rts back to the field loop, like a command does.
+ *
+ * $D242 prints into the dialog window and expects it open: every command opens
+ * it first with jsr $C6F0, .byte 2. Without it the text goes over whatever the
+ * last window left on screen, with no frame, and the NPCs keep walking over it.
+ * The game's own $CBEE does lda #$FF, sta $96 (NPCs stop), opens window 2 and
+ * returns, so the hook calls it. lsr tests and clears the flag in one go, so
+ * the client must write 1.
  */
 #define AP_MAIL_TEXT 0x6850
 _Static_assert(((AP_MAIL_TEXT) >> 8) == ((AP_NAME_BUF) >> 8), "the mailbox shares the show routine's $A4");
@@ -631,9 +638,15 @@ static void ap_mailbox(dw_rom *rom)
 {
     uint16_t hook;
 
+    static const uint8_t open_dialog[9] = {0xa9, 0xff, 0x85, 0x96, 0x20, 0xf0, 0xc6, 0x02, 0x60};
+
     if (rom->content[0xcdbf] != 0xa5 || rom->content[0xcdc0] != 0xe4
             || rom->content[0xcdc1] != 0x29 || rom->content[0xcdc2] != 0x04) {
         printf("AP mailbox: unexpected code at $CDBF, received items will have no message\n");
+        return;
+    }
+    if (memcmp(&rom->content[0xcbee], open_dialog, sizeof open_dialog)) {
+        printf("AP mailbox: unexpected code at $CBEE, received items will have no message\n");
         return;
     }
     if (!ap_show_tail) {
@@ -641,16 +654,15 @@ static void ap_mailbox(dw_rom *rom)
         return;
     }
     /* The show routine's tail sets $A3 from A, $A4 to $68 and shows $D9. */
-    hook = find_free_space(rom->content, FIXED_FREE_START, 22);
-    vpatch(rom, hook, 22,
-        0xad, LO(AP_MAIL_FLAG), HI(AP_MAIL_FLAG),     /* lda flag        */
-        0xd0, 0x05,                                   /* bne show        */
+    hook = find_free_space(rom->content, FIXED_FREE_START, 20);
+    vpatch(rom, hook, 20,
+        0x4e, LO(AP_MAIL_FLAG), HI(AP_MAIL_FLAG),     /* lsr flag: 1 to 0, C = 1 */
+        0xb0, 0x05,                                   /* bcs show        */
         0xa5, 0xe4,                                   /* lda $e4 (moved) */
         0x29, 0x04,                                   /* and #$04 (moved) */
         0x60,                                         /* rts             */
         0x68, 0x68,                                   /* show: pla, pla  */
-        0xa9, 0x00,                                   /* lda #0          */
-        0x8d, LO(AP_MAIL_FLAG), HI(AP_MAIL_FLAG),     /* sta flag        */
+        0x20, 0xee, 0xcb,                             /* jsr $cbee: stop NPCs, open window 2 */
         0xa9, LO(AP_MAIL_TEXT),                       /* lda #<text      */
         0x4c, LO(ap_show_tail), HI(ap_show_tail)      /* jmp show tail   */
     );

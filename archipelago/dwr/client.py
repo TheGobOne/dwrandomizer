@@ -21,7 +21,7 @@ import worlds._bizhawk as bizhawk
 from worlds._bizhawk.client import BizHawkClient
 
 from .data import BASE, GAME, GWAELIN, LOCATION_NAME_TO_ID
-from .text import game_name
+from .text import received_text
 
 if TYPE_CHECKING:
     from worlds._bizhawk.context import BizHawkClientContext
@@ -59,9 +59,9 @@ def untagged(tag: bytes) -> bool:
     return not tag or tag[0] in (0, 0xFF)
 
 
-def dw_text(name: str) -> bytes:
-    """The item name as DW tiles, ended by $FA, for the mailbox."""
-    codes = [DW_FONT.index(c) if c in DW_FONT else DW_FONT.index(" ") for c in game_name(name)]
+def dw_text(name: str, sender: str = "", player: int = 0) -> bytes:
+    """The item name as DW tiles, ended by $FA, for the mailbox. A sender's name is added: "Herb from Alex"."""
+    codes = [DW_FONT.index(c) if c in DW_FONT else DW_FONT.index(" ") for c in received_text(name, sender, player)]
     return bytes(codes + [0xFA])
 
 MAP = 0x45          # 0 until a game is running
@@ -263,8 +263,11 @@ class DWRClient(BizHawkClient):
         # The game already said "Thou hast found" for your own opened chests and search spots
         # (unless it gives something else), and an item that was not given gets no message at all.
         found_here = item.player == ctx.slot and opened_in_game(item.location, block)
+        sender = ctx.player_names.get(item.player, "?")
         if given and (not found_here or self.shown != name):
-            writes.append((MAIL_TEXT, dw_text(self.shown), "System Bus"))
+            # Another player's item names them in the message. Your own items do not.
+            from_other = item.player != ctx.slot
+            writes.append((MAIL_TEXT, dw_text(self.shown, sender if from_other else "", item.player), "System Bus"))
             writes.append((MAIL_FLAG, b"\x01", "System Bus"))
         # Only write if nothing changed since the snapshot: the counter (a save loaded, a reset),
         # and every game byte the effect rewrites (a shop purchase or herb use in between).
@@ -277,7 +280,6 @@ class DWRClient(BizHawkClient):
             for note in self.notes:
                 logger.warning(note)
         if ok and given:
-            sender = ctx.player_names.get(item.player, "?")
             logger.info("Received %s from %s.", name if self.shown == name else
                         f"{self.shown} (for {name})", sender)
 

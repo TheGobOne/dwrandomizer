@@ -51,5 +51,29 @@ class FoundText(unittest.TestCase):
         self.assertEqual(T.game_name("Master Sword Of Light"), "Master Sword Of")
 
 
+class ReceivedText(unittest.TestCase):
+    def test_item_from_another_player_names_them(self):
+        self.assertEqual(T.received_text("Herb", "Alex", 2), "Herb from Alex")
+
+    def test_long_sender_is_cut_with_a_period(self):
+        self.assertEqual(T.received_text("Herb", "Bartholomew"), "Herb from Barth.")
+
+    def test_long_item_uses_a_shorter_way_of_writing_it(self):
+        self.assertEqual(T.received_text("Erdrick's Sword", "Alex"), "Sword from Alex")
+        self.assertEqual(T.game_name("Progressive Sword Upgrade"), "Prog. Sword Upgr")
+        self.assertEqual(T.received_text("Progressive Sword Upgrade", "Alex"), "Upgr from Alex")
+
+    def test_item_alone_when_no_form_leaves_room(self):
+        self.assertEqual(T.received_text("Abcdefghijklmnopq", "Alex"), "Abcdefghijklmnop")
+
+    def test_no_sender_is_the_item_alone(self):
+        self.assertEqual(T.received_text("Herb"), "Herb")
+        self.assertEqual(T.received_text("Stones of Sunlight"), "Sunlight Stones")
+
+    def test_owner_with_no_font_characters(self):
+        self.assertEqual(T.received_text("Herb", "\u5c71\u7530", 3), "Herb from P3")
+        self.assertEqual(T.received_text("Herb", "\u5c71\u7530"), "Herb from ?")
+
+
 if __name__ == "__main__":
     unittest.main()
