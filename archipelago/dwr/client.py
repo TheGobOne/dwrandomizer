@@ -284,7 +284,9 @@ class DWRClient(BizHawkClient):
         # The game already said "Thou hast found" for your own opened chests and search spots
         # (unless it gives something else), and an item that was not given gets no message at all.
         found_here = item.player == ctx.slot and opened_in_game(item.location, block)
-        sender = ctx.player_names.get(item.player, "?")
+        # Player 0 is the Archipelago server (starting items, !getitem, release), named "Archipelago" in the
+        # client library. "Server" is shorter, so it leaves room for the item name in the mailbox.
+        sender = "Server" if item.player == 0 else ctx.player_names.get(item.player, "?")
         if given and (not found_here or self.shown != name):
             # Another player's item names them in the message. Your own items do not.
             from_other = item.player != ctx.slot

@@ -183,6 +183,20 @@ function run() {
     total++;
     if (off !== on || !/^[0-9a-f]{16}$/.test(off)) bad++;
     console.log((off === on ? 'same ' : 'DIFF ') + 'PERSONAL (' + SITE_PERSONAL.length + ' options) off ' + off + ' on ' + on);
+
+    // --race-card prints the flags without those options. Its masks in cli/main.c must clear the same bits as
+    // the site's PERSONAL list, so the printed code equals the all-on code with every PERSONAL bit cleared.
+    const cleared = decode(set(true));
+    for (const id of SITE_PERSONAL) { const m = SITE_FLAG_MAP[id]; cleared[m.byte] &= ~(m.mask << m.shift) & 0xff; }
+    const want = encode(cleared);
+    let card = '';
+    try {
+      card = execFileSync(EXE, ['--race-card', 'on', ROM, set(true), '1001', SPRITE, fs.mkdtempSync(path.join(work, 'c'))], { encoding: 'utf8' });
+    } catch (e) { /* reported below */ }
+    const got = (card.match(/^Flags: (\S+)/m) || [])[1];
+    total++;
+    if (got !== want) bad++;
+    console.log((got === want ? 'same ' : 'DIFF ') + '--race-card flags ' + got + ' want ' + want);
   }
   for (const [name, flags] of flagSets) {
     for (let s = 1; s <= SEEDS; s++) {
@@ -192,7 +206,7 @@ function run() {
       // therefore only give the same ROM when they start in the same second. A pair that straddles a
       // second boundary (the slow Riverlands and Earth maps often do) is run again, up to TRIES times; a
       // real difference in the output stays different on every try.
-      const TRIES = 12;
+      const TRIES = 30;
       let site, cli, siteRom, romDiff, same, tries = 0;
       do {
         tries++;
@@ -211,10 +225,19 @@ function run() {
         romDiff = site === cli.sum ? firstDiff(siteRom, cli.rom) : '';
         same = site === cli.sum && !romDiff && siteRom && sha(siteRom) === sha(cli.rom);
       } while (!same && site === cli.sum && tries < TRIES);
+      // A slow map (Riverlands seed 1005) can take longer than a second to build, so the two builds never
+      // reseed in the same second. Then the only fair compare leaves out the music banks (4 and 5, file offsets
+      // 0x10010 to 0x18010), where the clock decides the song layout. Everything else must still match.
+      let musicOnly = false;
+      if (!same && site === cli.sum && siteRom && cli.rom && siteRom.length === cli.rom.length) {
+        const a = Buffer.from(siteRom), b = Buffer.from(cli.rom);
+        a.fill(0, 0x10010, 0x18010); b.fill(0, 0x10010, 0x18010);
+        if (sha(a) === sha(b)) { same = true; musicOnly = true; }
+      }
       total++;
       if (!same) bad++;
       console.log((same ? 'same ' : 'DIFF ') + name.padEnd(12) + ' seed ' + seed + ' site ' + site + ' cli ' + cli.sum +
-        (siteRom ? ' sha ' + sha(siteRom).slice(0, 12) : '') + (tries > 1 ? ' (try ' + tries + ')' : '') +
+        (siteRom ? ' sha ' + sha(siteRom).slice(0, 12) : '') + (tries > 1 ? ' (try ' + tries + ')' : '') + (musicOnly ? ' (music banks differ only: clock reseed)' : '') +
         (romDiff ? ' ROM: ' + romDiff : ''));
     }
   }

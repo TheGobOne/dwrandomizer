@@ -89,6 +89,7 @@ static void print_usage(const char *command, char *default_flags)
     printf("  --jingles on|off   (on: jingles still play when Disable Music is on, Don't Mute Jingles)\n");
     printf("  --original-credits on|off   (off: Skip Original Credits)\n");
     printf("  --menu-wrap on|off\n");
+    printf("  --race-card on|off   (on: after the build, print a card to share: version, flags without comfort and sound options, seed, checksum)\n");
     printf("\n");
     printf("Sprite should be one of: ");
     for(i=0; i < sprite_count(); i++) {
@@ -99,6 +100,33 @@ static void print_usage(const char *command, char *default_flags)
         }
     }
     printf("\n");
+}
+
+/* The same text as the site's Copy button: the flags without the comfort and sound options (the site's
+ * PERSONAL list), so every racer on the same flags and seed gets the same line. */
+static void print_race_card(const char *flags, uint64_t seed, uint64_t crc)
+{
+    uint8_t raw[28] = {0};
+    char code[64] = {0};
+    int length;
+
+    strncpy(code, flags, 44);
+    base32_decode((uint8_t *)code, raw);
+    raw[3] &= 0x3f;     /* Menu Wrapping */
+    raw[14] &= 0x91;    /* Disable Music, Spell Flashing, Custom Spell Names, Skip Credits, Screen Shake */
+    raw[16] &= 0xef;    /* Don't Mute Jingles */
+    raw[17] &= 0x7f;    /* Red Flashes */
+    raw[22] &= 0xfe;    /* Winter Theme */
+    raw[26] &= 0xbf;    /* Disable Cursor Blink */
+    raw[27] = 0;
+    length = FLAG_CODE_LENGTH(raw);
+    base32_encode(raw, 27, (uint8_t *)code);
+    code[length] = '\0';
+    printf("\nDWR - %s\n", VERSION);
+    printf("Flags: %s\n", code);
+    printf("Seed: %"PRIu64"\n", seed);
+    printf("Checksum: %016"PRIX64" (the title screen shows %06"PRIX64")\n", crc, crc >> 40);
+    printf("Your comfort and sound options are not in these flags.\n");
 }
 
 int main(int argc, char **argv)
@@ -112,7 +140,7 @@ int main(int argc, char **argv)
     /* -1 and 0 for the cap: not given, so the flags decide. */
     int responsive = -1, bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, quick_swap = -1, no_blink = -1, fast_hills = -1, key_herb = -1, free_charlock = -1, auto_return = -1, auto_stairs = -1, biome = -1;
     int run_bank = -1, safe_start = -1, fast_flute = -1, discard_flute = -1, no_shake = -1;
-    int no_spell_flash = -1, no_red_flash = -1, no_music = -1, dont_mute_jingles = -1, skip_credits = -1, menu_wrap = -1;
+    int no_spell_flash = -1, no_red_flash = -1, no_music = -1, dont_mute_jingles = -1, skip_credits = -1, menu_wrap = -1, race_card = 0;
     static const char *const encounter_rates[4] = {"default", "low", "medium", "high"};
     char encoded[64] = {0};
 
@@ -202,6 +230,8 @@ int main(int argc, char **argv)
             skip_credits = !on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--menu-wrap")) {
             menu_wrap = on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--race-card")) {
+            race_card = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--bank-level")) {
             for (bank_level = 0; bank_level < 4; bank_level++)
                 if (!strcmp(argv[2], bank_levels[bank_level]))
@@ -344,8 +374,11 @@ int main(int argc, char **argv)
 
     printf("Randomizing using seed: %"PRIu64" with flags %s\n", seed, flags);
 
-    if (!dwr_randomize(input_file, seed, flags, sprite, output_dir))
+    const uint64_t crc = dwr_randomize(input_file, seed, flags, sprite, output_dir);
+    if (!crc)
         return 1;
+    if (race_card)
+        print_race_card(flags, seed, crc);
 
     return 0;
 }

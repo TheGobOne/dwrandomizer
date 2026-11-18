@@ -475,6 +475,7 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--jingles` | `on` or `off`. `on` turns on Don't Mute Jingles (jingles keep playing with Disable Music on) |
 | `--original-credits` | `on` or `off`. `off` turns on Skip Original Credits |
 | `--menu-wrap` | `on` or `off`: Menu Wrapping |
+| `--race-card` | `on` or `off`. `on` prints a card after the build to paste into a race: version, the flags without your comfort and sound options, the seed and the checksum. It is the same text as the site's Copy button |
 | `--spoiler` | `on` or `off`: `on` writes a `.spoiler.txt` next to the ROM. It changes the checksum, so a spoiler seed never matches one without |
 
 Most of these also exist as options on the website, including the spoiler log.

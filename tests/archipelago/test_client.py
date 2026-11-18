@@ -160,6 +160,12 @@ class GiveItem(unittest.TestCase):
         self.assertIn((C.MAIL_TEXT, C.dw_text("100 Gold", "Friend", 2), "System Bus"), writes)  # "100 Gold from F."
         self.assertNotIn(C.HERBS, addrs(writes))
 
+    def test_server_item_is_from_server_not_archipelago(self):
+        # Player 0 is the server (starting items, !getitem). The client library names it "Archipelago".
+        self.ram[C.HERBS] = 2
+        writes, guards = give(["Herb"], self.ram, sender=0)[0]
+        self.assertIn((C.MAIL_TEXT, C.dw_text("Herb", "Server", 0), "System Bus"), writes)
+
     def test_own_chest_herb_at_the_cap_still_says_gold(self):
         self.ram[C.HERBS] = 6
         writes, _ = give(["Herb"], self.ram, sender=1, location=C.BASE + 4, chests=1 << 4)[0]

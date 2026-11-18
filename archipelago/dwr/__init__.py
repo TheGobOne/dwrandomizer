@@ -63,6 +63,14 @@ class DWRWorld(World):
         turned_off = getattr(self, "flags_turned_off", [])
         return {SLOT_FLAGS_OFF: list(turned_off)} if turned_off else {}
 
+    def write_spoiler_header(self, spoiler_handle) -> None:
+        # The spoiler log is the only place a player can see this without the client. Nothing is written
+        # when no Random flag was turned off.
+        turned_off = getattr(self, "flags_turned_off", [])
+        if turned_off:
+            spoiler_handle.write("DWR flags set to Random and turned off, because Archipelago does not support "
+                                 f"them: {', '.join(turned_off)}\n")
+
     def generate_early(self) -> None:
         self.flags_turned_off = []
         # The ROM keeps the slot name in 32 bytes of UTF-8 for the client to log in with.
