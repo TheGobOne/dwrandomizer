@@ -78,7 +78,7 @@ local function no_buttons()
   return {A = false, B = false, select = false, start = false, up = false, down = false, left = false, right = false}
 end
 local last_frame, last_pad = -1, no_buttons()
-local deliver_t0, last_count, last_change = 0, -1, 0
+local deliver_t0, last_count, last_change, batch_at = 0, -1, 0, nil
 local function driver()
   local fc = emu.framecount()
   if fc == last_frame then joypad.set(1, last_pad); return end
@@ -176,8 +176,13 @@ local function driver()
     -- shows only after a step, and the next item waits for it.
     local count = rd(0x6820) + 256 * rd(0x6821)
     if count ~= last_count then
+      -- 4 or more items at once come as one batch with one message: take screenshots of it.
+      if last_count >= 0 and count - last_count >= 4 then batch_at = frame end
       last_count = count; last_change = os.time()
       log(string.format("received %d, mail flag %d", count, rd(0x682e)))
+    end
+    if batch_at and (frame - batch_at == 120 or frame - batch_at == 240 or frame - batch_at == 400) then
+      shot("batch_" .. (frame - batch_at)); log(string.format("batch shot, mail flag %d", rd(0x682e)))
     end
     -- Walk out and back in each direction in turn, so some step lands even next to water.
     if age() % 90 == 10 then
