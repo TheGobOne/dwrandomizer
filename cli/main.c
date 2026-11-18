@@ -83,6 +83,12 @@ static void print_usage(const char *command, char *default_flags)
     printf("  --fast-flute on|off\n");
     printf("  --discard-flute off|on|random\n");
     printf("  --screen-shake on|off   (off: Disable Screen Shake)\n");
+    printf("  --spell-flashing on|off   (off: Disable Spell Flashing)\n");
+    printf("  --red-flashes on|off   (off: Disable Red Flashes)\n");
+    printf("  --disable-music on|off   (on: Disable Music; a music pack is left out too)\n");
+    printf("  --mute-jingles on|off   (on: Don't Mute Jingles, which keeps jingles when Disable Music is on)\n");
+    printf("  --original-credits on|off   (off: Skip Original Credits)\n");
+    printf("  --menu-wrap on|off\n");
     printf("\n");
     printf("Sprite should be one of: ");
     for(i=0; i < sprite_count(); i++) {
@@ -106,6 +112,7 @@ int main(int argc, char **argv)
     /* -1 and 0 for the cap: not given, so the flags decide. */
     int responsive = -1, bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, quick_swap = -1, no_blink = -1, fast_hills = -1, key_herb = -1, free_charlock = -1, auto_return = -1, auto_stairs = -1, biome = -1;
     int run_bank = -1, safe_start = -1, fast_flute = -1, discard_flute = -1, no_shake = -1;
+    int no_spell_flash = -1, no_red_flash = -1, no_music = -1, dont_mute_jingles = -1, skip_credits = -1, menu_wrap = -1;
     static const char *const encounter_rates[4] = {"default", "low", "medium", "high"};
     char encoded[64] = {0};
 
@@ -182,6 +189,18 @@ int main(int argc, char **argv)
             discard_flute = off_on_random(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--screen-shake")) {
             no_shake = !on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--spell-flashing")) {
+            no_spell_flash = !on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--red-flashes")) {
+            no_red_flash = !on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--disable-music")) {
+            no_music = on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--mute-jingles")) {
+            dont_mute_jingles = on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--original-credits")) {
+            skip_credits = !on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--menu-wrap")) {
+            menu_wrap = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--bank-level")) {
             for (bank_level = 0; bank_level < 4; bank_level++)
                 if (!strcmp(argv[2], bank_levels[bank_level]))
@@ -231,7 +250,8 @@ int main(int argc, char **argv)
     }
 
     if (bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || quick_swap >= 0 || no_blink >= 0 || fast_hills >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0 || responsive >= 0 || auto_stairs >= 0 || biome >= 0 ||
-            run_bank >= 0 || safe_start >= 0 || fast_flute >= 0 || discard_flute >= 0 || no_shake >= 0) {
+            run_bank >= 0 || safe_start >= 0 || fast_flute >= 0 || discard_flute >= 0 || no_shake >= 0 ||
+            no_spell_flash >= 0 || no_red_flash >= 0 || no_music >= 0 || dont_mute_jingles >= 0 || skip_credits >= 0 || menu_wrap >= 0) {
         /* 27 bytes plus room for the 4 spare bits a 44 character code decodes into. */
         uint8_t raw[28] = {0};
         int length;
@@ -272,6 +292,18 @@ int main(int argc, char **argv)
             raw[18] = (uint8_t)((raw[18] & 0xe7) | (discard_flute << 3));
         if (no_shake >= 0)
             raw[14] = (uint8_t)((raw[14] & 0xfd) | (no_shake ? 0x02 : 0));
+        if (no_spell_flash >= 0)
+            raw[14] = (uint8_t)((raw[14] & 0xdf) | (no_spell_flash ? 0x20 : 0));
+        if (no_music >= 0)
+            raw[14] = (uint8_t)((raw[14] & 0xbf) | (no_music ? 0x40 : 0));
+        if (skip_credits >= 0)
+            raw[14] = (uint8_t)((raw[14] & 0xfb) | (skip_credits ? 0x04 : 0));
+        if (dont_mute_jingles >= 0)
+            raw[16] = (uint8_t)((raw[16] & 0xef) | (dont_mute_jingles ? 0x10 : 0));
+        if (no_red_flash >= 0)
+            raw[17] = (uint8_t)((raw[17] & 0x7f) | (no_red_flash ? 0x80 : 0));
+        if (menu_wrap >= 0)
+            raw[3] = (uint8_t)((raw[3] & 0x3f) | (menu_wrap ? 0x40 : 0));
         if (quick_spell >= 0)
             raw[11] = (uint8_t)((raw[11] & 0xfe) | (quick_spell ? 0x01 : 0));
         if (quick_swap >= 0)
