@@ -454,6 +454,12 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--fast-flute` | `on` or `off`: Fast Flute |
 | `--discard-flute` | `off`, `on` or `random`: Discard Flute |
 | `--screen-shake` | `on` or `off`. `off` turns on Disable Screen Shake |
+| `--spell-flashing` | `on` or `off`. `off` turns on Disable Spell Flashing |
+| `--red-flashes` | `on` or `off`. `off` turns on Disable Red Flashes |
+| `--disable-music` | `on` or `off`. `on` turns on Disable Music, and a music pack is left out too |
+| `--mute-jingles` | `on` or `off`. `on` turns on Don't Mute Jingles (jingles play with Disable Music on) |
+| `--original-credits` | `on` or `off`. `off` turns on Skip Original Credits |
+| `--menu-wrap` | `on` or `off`: Menu Wrapping |
 | `--spoiler` | `on` or `off`: `on` writes a `.spoiler.txt` next to the ROM. It changes the checksum, so a spoiler seed never matches one without |
 
 Most of these also exist as options on the website, including the spoiler log.
