@@ -26,7 +26,7 @@ Stronger monsters earn more. Kills per run, from the weakest tier of monster to 
 | Strict | 24, 16, 12, 8, 6, 4, 3 |
 | Very Strict | 32, 24, 16, 12, 8, 6, 4 |
 
-The bank holds 9 runs unless a cap of 1 to 99 is chosen.
+The bank holds 9 runs unless a cap of 1 to 99 is chosen. Command line: `--run-bank on`, `off` or `random`, with `--bank-cap` and `--bank-level`.
 
 
 #### Quick Spell ####
@@ -52,12 +52,12 @@ Needs Random Map. Chooses the shape of the generated overworld. The choice is pa
 - **Westeros**: one long continent. The Wall, a line of mountains across the North, has a single pass, and Charlock is always beyond it while Tantegel is always south of it. The Neck, partway down, is swamp. Always normal size.
 - **Random**: picks one of the seven.
 
-Random, Lake, Earth, Westeros and later biomes are stored in a 26th flag byte, so their flag codes are at least 42 characters, or 44 with Fast Hills on. Codes for the first four biomes stay 40 characters. Old codes with Biome set to Random keep picking from the first four.
+Random, Lake, Earth, Westeros and later biomes are stored in a 26th flag byte, so their flag codes are at least 42 characters, or 44 with Fast Hills on. Codes for the first four biomes stay 40 characters. A 40 letter code with Biome set to Random still picks from the first four when run from the command line. The website reads it as the new Random and writes a 42 letter code that picks from all seven, so the map can differ.
 
 
 #### Safe Start ####
 
-Swamp within 3 tiles of Tantegel becomes grass, so the first steps of the game are safe. The game code applies it with Random Map off too, where it only matters if a swamp tile lies near Tantegel (in a check of 6 seeds on the original land it changed the ROM for 1). The website no longer requires Random Map for it. It is part of the flags and the checksum.
+Swamp within 3 tiles of Tantegel becomes grass, so the first steps of the game are safe. Tiles within 3 of Charlock are left alone, and the border of a nearby town changes too. The game code applies it with Random Map off too, where it only matters if a swamp tile lies near Tantegel, which on the original land only happens when places are shuffled onto it. The website does not require Random Map for it. It is part of the flags and the checksum. Command line: `--safe-start on`.
 
 
 #### Encounter Rate ####
@@ -95,7 +95,7 @@ Stepping onto stairs takes them at once, the way stepping onto a town enters it,
 
 #### Free Charlock ####
 
-Entering Charlock from the overworld puts you in the Dragonlord's room, beside him and facing him. Nothing starts by itself: talk to him when you are ready, and the usual dialogue and fight follow. Erdrick's Sword and Erdrick's Armor are never in a Charlock chest, since most of Charlock is skipped. Short Charlock, Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. On a very full ROM the build stops, as it does for other flags that need space. It is part of the checksum, along with Auto Return. Command line: `--free-charlock on`.
+Entering Charlock from the overworld puts you in the Dragonlord's room, beside him and facing him. Nothing starts by itself: talk to him when you are ready, and the usual dialogue and fight follow. Erdrick's Sword and Erdrick's Armor are never in a Charlock chest, since most of Charlock is skipped. Short Charlock, Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. No Armor in Charlock is also turned off on the website. In the game it has no effect with Free Charlock, since Erdrick's Armor is never in a Charlock chest. On a very full ROM the build stops, as it does for other flags that need space. It is part of the checksum, along with Auto Return. Command line: `--free-charlock on`.
 
 
 #### Show Key & Herb Counter ####
@@ -105,7 +105,7 @@ Adds a row to the bottom of the stats window that reads `K n  H n`: keys and her
 
 #### Disable Screen Shake ####
 
-Keeps the screen still when you take damage.
+Keeps the screen still when you take damage. Command line: `--screen-shake off` turns this flag on.
 
 
 #### Custom Music Packs ####
@@ -213,7 +213,7 @@ Prevents the screen from flashing when walking on damage tiles. If bonk damage i
 
 #### Discard Flute ####
 
-Make it possible to drop the flute on finding a new item with a full inventory, or sell to a shop for 1 G. The flute options (Warp Whistle, Discard Flute, Flute Is For, Fast Flute) sit together in the Fairy Flute section of the Hero & Magic tab.
+Make it possible to drop the flute on finding a new item with a full inventory, or sell to a shop for 1 G. The flute options (Warp Whistle, Discard Flute, Flute Is For, Fast Flute) sit together in the Fairy Flute section of the Hero & Magic tab. Command line: `--discard-flute on`, `off` or `random`.
 
 
 #### Return Escapes ####
@@ -223,7 +223,7 @@ The Return spell can be used in battle for a guaranteed escape.
 
 #### Return To Town ####
 
-Wings and Return send you to the last place you saved or used an inn at.
+Wings and Return send you to the last place you saved or used an inn at. You land on a grass, desert, hills or trees tile beside the place, checking the tile south of it first, then north, west and east. If none of those four is such a tile, a swamp or bridge tile beside it is used, checked in the same order. Only if there is none of those either do you land on the place itself. The same rule applies to the Warp Whistle. It covers Tantegel, Brecconary, Kol, Garinham, Cantlin and Rimuldar.
 
 
 #### Warp Whistle ####
@@ -310,11 +310,6 @@ Adds a row to the stats window showing how many times you've died. With Show Key
 The post-credits sequence will show how many steps you've taken in your entire playthrough.
 
 
-#### Differences from Standard ####
-
-The `Summary` tab will now show differences between the chosen flagset and the standard flagset. Active cosmetic flags will also be displayed separately there.
-
-
 #### Summer Sale Chance ####
 
 Normally, having `Summer Sale` on Random will make each piece of gear have a 50% chance to have a reduced price. This probability can now be modified (12.5%, 25%, 50% or 75%).
@@ -337,7 +332,7 @@ Gwaelin might not be in her usual Swamp Cave today. Look for her in [one of thes
 
 #### Fast Flute ####
 
-The Fairy Flute plays only the climb up the scale from its song, at its original speed (about 0.8 seconds, down from 4.5), with or without `Speed Hacks`. With `Randomized Flute Music` on, every note of the chosen song is sped up instead. `Speed Hacks` no longer speeds the flute on its own. Older flag codes keep their flute: the old `Normal Flute Speed` bit is this flag turned off.
+The Fairy Flute plays only the climb up the scale from its song, at its original speed (about 0.8 seconds, down from 4.5), with or without `Speed Hacks`. With `Randomized Flute Music` on, every note of the chosen song is sped up instead. `Speed Hacks` no longer speeds the flute on its own. Older flag codes keep their flute: the old `Normal Flute Speed` bit is this flag turned off. Command line: `--fast-flute on` or `off`.
 
 
 #### Hints ####
@@ -372,7 +367,7 @@ XP and Gold gained from monsters will be randomized, but within [pre-set, hardco
 
 #### Disable Music / Don't Mute Jingles ####
 
-While `Disable Music` exists in mcgrew's official version, it has been improved such that input from two seeds differing only by that flag will sync, and will not affect checksum anymore. It now mutes more things as well, so for some players' convenience, a new flag allows to not mute the Silver Harp, Fairy Flute and Gwaelin's music jingles.
+While `Disable Music` exists in mcgrew's official version, it has been improved such that input from two seeds differing only by that flag will sync, and will not affect checksum anymore. It now mutes more things as well, so for some players' convenience, a new flag allows to not mute the Silver Harp, Fairy Flute and Gwaelin's music jingles. With `Disable Music` on, the jingles are muted too unless `Don't Mute Jingles` is on. A custom music pack is left out of the ROM as well (the build log says "Disable Music is on, so the music pack is left out.").
 
 
 #### Don't let Lorik or the Dragonlord end your game ####
@@ -414,7 +409,7 @@ When on your status screen, hold Start and Select to warp to the end of the game
 
 #### Build Options ####
 
-Which stats the hero grows best in. Set on the Hero & Magic tab. Another huge piece of work from Crump's Brother!
+Which stats the hero grows best in. Set on the Hero & Magic tab. Another huge piece of work from Crump's Brother! When it is not `Original`, the title menu line for message speed reads `CHANGE BUILD (EXP 0)` and opens the build window.
 
 * `Original`: the name impacts your stat build. All builds are -3/+10% for the selected stats.
 * `Free Selection`: stat builds are freely chosen on a menu at the start and are not tied to name length. Text speed is set to `Fast` automatically.
@@ -454,6 +449,11 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--auto-stairs` | `on` or `off`: stepping onto stairs takes them |
 | `--ap-slot` | `<name>`: builds an Archipelago ROM for that slot name |
 | `--ap-patch` | `<file.apdwr>`: builds an Archipelago ROM from a patch file. Its flags and seed are used when you leave them out |
+| `--run-bank` | `off`, `on` or `random`: Run Bank |
+| `--safe-start` | `on` or `off`: Safe Start |
+| `--fast-flute` | `on` or `off`: Fast Flute |
+| `--discard-flute` | `off`, `on` or `random`: Discard Flute |
+| `--screen-shake` | `on` or `off`. `off` turns on Disable Screen Shake |
 | `--spoiler` | `on` or `off`: `on` writes a `.spoiler.txt` next to the ROM. It changes the checksum, so a spoiler seed never matches one without |
 
 Most of these also exist as options on the website, including the spoiler log.

@@ -63,8 +63,8 @@ Randomizer RAM (not in the original game; vanilla use of $6900-$6BFF is unverifi
 0x6806          | Run Bank count          | Banked runs (cap 1-99, 9 when the cap is 0). Cleared at a new game
 0x6807          | Last spell              | Quick Spell and Run Bank: id of the last spell cast, plus 1 (0 for none)
 0x6808          | Run Bank points         | Kill points toward the next run, 96 make one run (dots at 32 and 64)
-0x6809          | Danger meter            | Encounter Rate Low, Medium or High: points added by each step
-0x680a          | Danger target           | Encounter Rate: the meter value that triggers a fight check
+0x6809          | Danger meter            | Encounter Rate Low, Medium or High: running total of step points (4 grass, 5 most tiles, 8 hills and desert)
+0x680a          | Danger target           | Encounter Rate: a fight check starts when the meter at $6809 reaches this value
 0x680b          | RC step map             | Responsive Controls: map number where the step ended
 0x680c          | RC state                | $A5 reading, $5A step finished, $3C step pending. Other values (fresh RAM) mean nothing saved
 0x680d          | RC press buffer         | Responsive Controls: buttons newly pressed during the step

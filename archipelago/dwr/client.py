@@ -36,7 +36,7 @@ ROM_VERSIONS = (b"002", b"003", b"004")  # 002: no seed hash or carry caps; 003:
 
 AP_RECV = 0x6820
 AP_BLOCK_SIZE = 7  # $6820-$6826
-MAIL_FLAG = 0x682E  # 1 while a received item's message is waiting to be shown
+MAIL_FLAG = 0x682E  # 1 while a received item's message is waiting to be shown. Write exactly 1: the hook shifts it right, so 2 or $FF would be lost or shown on several steps
 SEED_HASH = 0x6842  # 4 bytes: the seed hash of the ROM this game was started with
 SLOT_TAGS = 0x6846  # 6 bytes: the tag of each save slot, 2 bytes each
 SAVE_SLOT = 0x6039  # the save slot in use (0-2)

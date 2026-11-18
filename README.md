@@ -12,7 +12,7 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 |---|---|
 | **Custom music** | Load a JSON5 pack of FamiTracker modules; tagged scenes and events play your songs. |
 | **Biome** | Generated maps can be a Caldera, a Wasteland, Riverlands, a Lake, Earth or Westeros (needs Random Map). |
-| **Safe Start** | Swamp within 3 tiles of Tantegel becomes grass. |
+| **Safe Start** | Swamp within 3 tiles of Tantegel becomes grass (except within 3 tiles of Charlock). |
 | **Encounter Rate** | Low, Medium or High use a danger meter instead of a roll on every step. |
 | **Run Bank** | Wins earn banked escapes; spend one with the `BANK` battle command. |
 | **Auto Return** | Winning against the Dragonlord returns you to Tantegel. |
@@ -40,7 +40,7 @@ A **vanilla Dragon Warrior (NES) ROM that you supply yourself**. No ROMs are inc
 
 ### Website
 
-The generator is the static page in [`site/`](site/) (`index.html` plus `dwrandomizer.js` and `dwrandomizer.wasm`). Choose your ROM, pick options, press generate, and it saves a patched `.nes`. Everything runs in the browser through WebAssembly. Phone play is not supported.
+The generator is the static page in [`site/`](site/) (`index.html` plus `dwrandomizer.js` and `dwrandomizer.wasm`). Choose your ROM, pick options, press generate, and it saves a patched `.nes`. Everything runs in the browser through WebAssembly.
 
 What the page adds on top of the options:
 
@@ -50,9 +50,9 @@ What the page adds on top of the options:
 
 ### Command line
 
-Flag codes are 40, 42 or 44 letters (A-Z and 2-7). A code stays 40 letters unless it uses the Random biome, Lake or a later biome, Swap Quick Spell or Disable Cursor Blink (42), or Fast Hills (44). Other lengths are refused.
+Flag codes are 40, 42 or 44 letters (A-Z and 2-7). A code stays 40 letters unless it uses the Random biome, Lake or a later biome, Swap Quick Spell or Disable Cursor Blink (42), or Fast Hills (44). Other lengths are refused. An old 40 letter code with Biome set to Random still works: the command line picks from the first four biomes for it, and the website reads it as the new Random (all seven) and writes a 42 letter code, so the map can differ.
 
-Build with CMake and a C compiler (the build folder in this checkout was made on Windows with GCC and MinGW Makefiles):
+Build with CMake 3.7 or newer and a C compiler. The author builds on Windows with GCC and MinGW Makefiles:
 
 ```sh
 cmake -S . -B build
@@ -71,9 +71,9 @@ Leave out the flags to use the default set, and leave out the seed to get a rand
 dwrandomizer --encounters low --bank-level easy --music pack.json5 dw.nes out/
 ```
 
-Every option, including the Archipelago ones, is listed in [docs/FLAGS.md](docs/FLAGS.md#command-line-options). Run the program with no arguments to see the sprite names.
+Every option, including the Archipelago ones, is listed in [docs/FLAGS.md](docs/FLAGS.md#command-line-options). Run the program with no arguments to see the same list and the sprite names.
 
-To play a DWR seed in Archipelago (Windows; the BizHawk steps are untested, only FCEUX with a connector was run), see [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
+To play a DWR seed in Archipelago, see [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md). It says which steps were run and which were not.
 
 ## Custom music and lag
 
@@ -89,7 +89,7 @@ The timing notes come from FCEUX runs. Nothing here was checked on hardware.
 
 ## Escapes at a glance
 
-Run Mechanics (Battle tab) and Run Bank are separate things. Run Mechanics changes how a run attempt is decided (Vanilla, Safer Vanilla, DW2, DW4, or Costs XP). Run Bank is a stockpile you spend for a sure escape, and it cannot be used on the Dragonlord. Tables for both are in [docs/FLAGS.md](docs/FLAGS.md#run-bank). We recommend Run Mechanics set to `Vanilla` when you use Run Bank.
+Run Mechanics (Battle tab) and Run Bank are separate things. Run Mechanics changes how a run attempt is decided (Vanilla, Safer Vanilla, DW2, DW4, or Costs XP). Run Bank is a stockpile you spend for a sure escape, and it cannot be used on the Dragonlord. Run Bank is explained in [docs/FLAGS.md](docs/FLAGS.md#run-bank) and Run Mechanics in [docs/FLAGS.md](docs/FLAGS.md#run-mechanics). We recommend Run Mechanics set to `Vanilla` when you use Run Bank.
 
 ## What this does not do
 
@@ -97,12 +97,12 @@ Run Mechanics (Battle tab) and Run Bank are separate things. Run Mechanics chang
 - Its seeds and flags are not compatible with mcgrew's or juef17's versions.
 - Custom music cannot replace sound effects, and each ROM fits at most 24 songs from a pack (`MAX_PLACED` in `common/custom_music.c`).
 - Phone play is not a supported way to use it.
-- Archipelago play is Windows only, and six flags are rejected for it: Random Chest Locations, Stair Shuffle, Cursed Princess, Three's Company, Radish Finish and Disguised Dragonlord. See [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
+- Archipelago play is Windows only, and six flags are rejected for it when they are on. A rejected flag set to Random is turned off with a warning. The list is in [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
 
 ## Known issues
 
-- Some random flag codes fail to build with "Not enough space". A sweep on 2026-11-17 with `build/dwrandomizer.exe` and random letter codes gave 3 failures in 200 at 40 letters and 4 in 200 at 44 letters (about 1 in 57 overall). Turn off one of `Build Options`, `Hurtmore Doors` or `Warp Whistle`. Archipelago builds no longer stop for space: with a full main program bank they place the vertical bridge code in pieces, run some game-start code from bank 3, run the Responsive Controls read hook from bank 6, and may leave the checksum off the title menu (the build log says so).
-- In Archipelago builds with a music pack, the music wait loop and hooks fit on every seed tried (90 of 90 with the Gob Standard preset from the website and the setup guide's older example flags). If the build log says "No room for the music wait loop" or "No room for the music hooks", see [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
+- Some random flag codes fail to build with "Not enough space". A sweep on 2026-11-18 with `build/dwrandomizer.exe` (version 1.2.2, no music pack) and 300 random 44 letter codes gave 1 failure (seed 1213188089, 13 bytes for the step counter). The commit message of the bank 6 fallback (6341b41) records 5 in 300 before it, which was not rerun here. The random letters are not how players pick flags, and 40 and 42 letter codes were not part of this sweep (a sweep on 2026-11-17 gave 3 in 200 at 40 letters and 4 in 200 at 44 letters, not rerun). If a build fails, turn off one of `Build Options`, `Hurtmore Doors` or `Warp Whistle`. When the main program bank is full, some routines now run from bank 6 behind a far call (Quick Spell names, the Run Bank start code, the Responsive Controls hooks and NPC Guillotine) and the title checksum window can sit in bank 1. Other code still needs room in the main bank, and a build stops if it finds none. Archipelago builds also place the vertical bridge code in pieces, run some game-start code from bank 3, and may leave the checksum off the title menu (the build log says so).
+- In Archipelago builds with a music pack, the music wait loop and hooks fit on every seed tried (90 of 90 with the Gob Standard preset from the website and with the earlier example string `IVICEV2EKADEAMAAAADQAEBWAAAJACAAAAIBQAAA`, which is no longer in the setup guide). If the build log says "No room for the music wait loop" or "No room for the music hooks", see [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
 - The first step off a standstill in towns can take longer than later steps.
 - Custom music timing was measured in FCEUX. The release notes for 1.0.1, 1.2.0 and 1.2.1 say FCEUX and Mesen, and for 1.0 FCEUX only. Nothing is recorded for hardware.
 

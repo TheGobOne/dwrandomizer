@@ -3453,6 +3453,12 @@ static BOOL tile_is_plain_land(dw_tile tile)
     return tile == TILE_GRASS || tile == TILE_DESERT || tile == TILE_HILL || tile == TILE_TREES;
 }
 
+/* Second choice when a place has no plain land beside it: standing on swamp or a bridge beats standing on the entrance. */
+static BOOL tile_is_walkable_edge(dw_tile tile)
+{
+    return tile == TILE_SWAMP || tile == TILE_BRIDGE;
+}
+
 void find_zoom_tile(dw_rom *rom, uint8_t town, uint8_t zoom_data[][3], uint8_t i)
 {
     // town is warp index in map.h
@@ -3463,15 +3469,28 @@ void find_zoom_tile(dw_rom *rom, uint8_t town, uint8_t zoom_data[][3], uint8_t i
     zoom_data[i][1] = x;
     zoom_data[i][2] = y;
 
-    /* Land next to the entrance, never on another town, cave, castle, bridge or swamp tile. */
-    if(y < 119 && tile_is_plain_land(rom->map.tiles[x][y+1]))
-        zoom_data[i][2] = y+1;
-    else if(y > 0 && tile_is_plain_land(rom->map.tiles[x][y-1]))
-        zoom_data[i][2] = y-1;
-    else if(x > 0 && tile_is_plain_land(rom->map.tiles[x-1][y]))
-        zoom_data[i][1] = x-1;
-    else if(x < 119 && tile_is_plain_land(rom->map.tiles[x+1][y]))
-        zoom_data[i][1] = x+1;
+    /* Land next to the entrance, never on another town, cave or castle tile. Plain land first, then
+     * swamp or a bridge, then the entrance itself. */
+    BOOL (*ok[2])(dw_tile) = { tile_is_plain_land, tile_is_walkable_edge };
+    int pass;
+    for(pass = 0; pass < 2; pass++) {
+        if(y < 119 && ok[pass](rom->map.tiles[x][y+1])) {
+            zoom_data[i][2] = y+1;
+            return;
+        }
+        if(y > 0 && ok[pass](rom->map.tiles[x][y-1])) {
+            zoom_data[i][2] = y-1;
+            return;
+        }
+        if(x > 0 && ok[pass](rom->map.tiles[x-1][y])) {
+            zoom_data[i][1] = x-1;
+            return;
+        }
+        if(x < 119 && ok[pass](rom->map.tiles[x+1][y])) {
+            zoom_data[i][1] = x+1;
+            return;
+        }
+    }
 }
 
 /* The menu's current save slot, and three bytes each for what is kept per slot. */
@@ -4445,9 +4464,9 @@ static void raft_piers(dw_rom *rom)
     if (!RAFT_BIOME(rom))
         return;
     printf("Installing the raft piers...\n");
-    c = find_free_space(rom->content, FIXED_FREE_START, 42);
-    vpatch(rom, c, 42,
-        0xa5, 0xe0,                   /* lda $e0       ; the block under the hero          */
+    c = find_free_space(rom->content, FIXED_FREE_START, 40);
+    vpatch(rom, c, 40,
+                                      /* A already holds $e0, the block under the hero ($cdb0: lda $3c : sta $e0) */
         0xc9, 0x0a,                   /* cmp #$0a                                          */
         0xd0, 0x21,                   /* bne go        ; town, cave or castle: warp        */
         0xa2, 0x00,                   /* ldx #0                                            */
@@ -5603,7 +5622,7 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
     /* Music and the look of the game come after the checksum and can be packed on their own. */
     fit_best = fit_extras;
     fail_stage = 2;
-    printf("Checksum: %016"PRIx64"\n", crc);
+    printf("Checksum: %016"PRIX64"\n", crc);
     if(WINTER_THEME(rom))
     {
         crc = dwr_randomizeWithoutWinterTheme(input_file, seed, flags);
@@ -5612,7 +5631,7 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
                 dwr_no_room();
             dwr_give_up("Could not make the checksum without the Winter theme.");
         }
-        printf("Checksum without winter theme: %016"PRIx64"\n", crc);
+        printf("Checksum without winter theme: %016"PRIX64"\n", crc);
     }
 
     begin_quest_checksum(rom, crc);

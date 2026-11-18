@@ -113,7 +113,7 @@ class DWRWorld(World):
             blocked = {"Erdrick's Sword", "Erdrick's Armor", "Silver Harp", "Stones of Sunlight",
                        "Staff of Rain", "Erdrick's Token"}
             for name in CHARLOCK_CHESTS:
-                self.get_location(name).item_rule =                     lambda item: not (item.player == player and item.name in blocked)
+                self.get_location(name).item_rule = lambda item: not (item.player == player and item.name in blocked)
         self.multiworld.completion_condition[player] = lambda state: state.has("Victory", player)
 
     def get_filler_item_name(self) -> str:

@@ -50,9 +50,10 @@ Fixed bank changes (all builds unless marked AP)
 The fixed bank is $C000-$FFFF. These uses replace the old ones in AP builds:
 - Stat build code: $F09E-$F0CC (47 bytes) holds the new code in place of the vanilla penalty code.
 - Nintendo header $FFE0-$FFF9 (26 bytes): cleared to $FF. $FFDF stays $80 for the reset code.
-- Vertical bridge routine: 80 bytes, or five pieces (45, 13, 10, 7, 5) when no 80-byte gap exists.
+- Vertical bridge routine: 80 bytes in the bank 0 map tail if it fits, else in the fixed bank, else five pieces (45, 13, 10, 7, 5) in fixed bank gaps.
+- Bank 0 map tail $9D5D-$A652 (search_free_space 0x1d5d-0x2653): whatever the map leaves free. The Responsive Controls read hook (109) and frame hook (59) take it first, then the vertical bridge (80) and the step counter (13), each only when it fits.
 - Run bank and danger meter game-start code: bank 3 when the AP code is there.
-- Checksum window (39 bytes): left out, with a build message, when no gap is left (AP only).
-- Responsive Controls read hook (109 bytes): bank 6 $8034-$80FF behind a BRK far call when the bank 0 map tail is too small (AP only).
+- Checksum window (39 bytes): the fixed bank first, then bank 1 spare room ($7F0A up to BANK_1_FREE_END), then (AP only) left out with a build message.
+- Far call fallbacks (all builds): when the fixed bank has no gap, these go in bank 6 behind a BRK far call (index, bank): Quick Spell name routine (98), run bank start code (13 and 20), Responsive Controls frame hook (59), NPC Guillotine routine (20) and the read hook (109, also whenever the map tail is too small in an AP build). The call table starts at $8034 with 8 slots, routines follow it up to $BFFF in bytes that are still $FF. The step counter and the step-end routine stay in the fixed bank or the map tail.
 Each of these is checked with find_free_space or dwr_try_free_space. Measured on Gob Standard seeds 2, 7, 10 and 17: music hooks need 112 bytes in pieces of 17 or less.
 

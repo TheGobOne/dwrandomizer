@@ -238,7 +238,7 @@ int main(int argc, char **argv)
         strncpy(encoded, flags, 44);
         base32_decode((uint8_t *)encoded, raw);
         if (bank_cap)
-            raw[12] = (uint8_t)((raw[12] & 0x80) | bank_cap);
+            raw[12] = (uint8_t)((raw[12] & 0x80) | (bank_cap == 9 ? 0 : bank_cap));   /* 9 is the default, written as 0 like the site */
         if (bank_level >= 0) {
             raw[12] = (uint8_t)((raw[12] & 0x7f) | ((bank_level & 2) << 6));
             raw[14] = (uint8_t)((raw[14] & 0xfe) | (bank_level & 1));
@@ -260,6 +260,10 @@ int main(int argc, char **argv)
         /* The bits are those in common/dwr.h. For pairs, the low bit is on and the high bit is random. */
         if (run_bank >= 0)
             raw[11] = (uint8_t)((raw[11] & 0xf3) | (run_bank << 2));
+        if (!(raw[11] & 0x0c)) {   /* no cap or level without Run Bank, as on the site */
+            raw[12] = 0;
+            raw[14] &= 0xfe;
+        }
         if (safe_start >= 0)
             raw[8] = (uint8_t)((raw[8] & 0xdf) | (safe_start ? 0x20 : 0));
         if (fast_flute >= 0)   /* stored inverted: 0 is on */

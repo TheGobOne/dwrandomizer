@@ -1,25 +1,26 @@
 # 1.2.2 - TheGobOne Remix #
 * The desktop app (electron/) and the old web interface (webui/) are removed. The website in site/ is the only interface
 * Archipelago: Copy Quest no longer carries the Archipelago item count and seed tag with the copy. Copies are not a supported way to play an Archipelago seed
-* Archipelago builds no longer stop with "Not enough space". A full fixed bank now gets its pieces placed in smaller gaps, and the game-start code of the run bank and danger meter runs from bank 3. When the title menu has no room for its checksum, the build leaves it out and says so
-* Archipelago: the music wait loop and the custom music hooks fit on every seed tried (90 of 90 with Gob Standard and the older setup guide flags). The warnings can still appear on a very full ROM
+* Archipelago builds stop for lack of space much less often. A full fixed bank now gets its pieces placed in smaller gaps, and the game-start code of the run bank and danger meter runs from bank 3. When the title menu has no room for its checksum, the build leaves it out and says so
+* Archipelago: the music wait loop and the custom music hooks fit on every seed tried (90 of 90 with Gob Standard and with the earlier example string IVICEV2EKADEAMAAAADQAEBWAAAJACAAAAIBQAAA, which the setup guide no longer shows). The warnings can still appear on a very full ROM
 * Archipelago: when the spare map room in bank 0 is too small, the Responsive Controls read hook runs from bank 6 through the game's BRK handler (the build log says "The read hook runs from bank 6.")
-* The stat build code (Build Options) now runs in place over the unused vanilla penalty code, and the Nintendo header area ($FFE0-$FFF9) is cleared. This frees fixed bank space in every build
-* Race checksums change in every build, not only Archipelago builds: the Nintendo header area ($FFE0-$FFF9) is cleared and the checksum now covers the expansion banks, so everyone in a race needs this version
+* The stat build code (Build Options) now runs in place over the unused vanilla penalty code, and the Nintendo header area ($FFE0-$FFF9) is cleared in every build. Both free fixed bank space
+* Race checksums change in every build, not only Archipelago builds: the Nintendo header area ($FFE0-$FFF9) is cleared and the checksum now covers the code in the expansion banks (not music packs), so everyone in a race needs this version
 * Flag codes with characters outside A-Z and 2-7 are refused instead of decoding as zero bits. `--biome` names come from one list, and its error message lists them
 * Internal: the stair shuffle buffer is big enough for every warp copy, the land mass fill no longer recurses (so a twisty map cannot overflow the web build's stack), and an Archipelago build stops if bank 3 is not empty where its code goes
-* Return and the Warp Whistle land on grass, desert, hills or trees beside the place, never on a town, cave, castle, bridge or swamp tile
-* Fixed bank room: the step counter and the vertical bridge code use spare bank 0 space when it is free, and three patches are smaller (about 50 bytes freed on average)
+* Return and the Warp Whistle land on a grass, desert, hills or trees tile beside the place (south first, then north, west and east). If none of those four is such a tile, a swamp or bridge tile beside the place is used (same order), and only then the place itself
+* Fixed bank room: the step counter and the vertical bridge code use spare bank 0 space when it is free, and three patches are 1 to 2 bytes smaller
 * The title menu reads "CHANGE BUILD (EXP 0)"
+* When the fixed bank has no gap for a routine, it now runs from bank 6 behind a far call: the Quick Spell name routine, the Run Bank start code, the Responsive Controls hooks and the NPC Guillotine routine. The title checksum window falls back to bank 1. In a sweep of 300 random 44 letter codes, failures with "Not enough space" went from 5 to 1. The step counter stays in the fixed bank, since a copy in bank 6 lost steps in FCEUX
 * Disable Music now keeps a music pack's songs out too
 * Archipelago: mailbox items from another player read "Herb from Alex", in a framed window with the NPCs held still
-* Archipelago: the client warns when the music pack did not fit, and logs when a New Game resets the received count. A rejected flag set to Random is turned off with a warning instead of stopping generation. The default flags are Gob Standard
+* Archipelago: the client warns when the music pack did not fit, and logs when a New Game resets the received count. A rejected flag set to Random is turned off with a warning instead of stopping generation. The Archipelago DWR Flags option now defaults to Gob Standard (the command line default is unchanged)
 * Command line: new options `--run-bank`, `--safe-start`, `--fast-flute`, `--discard-flute` and `--screen-shake`. It prints "DWR version"
 * Site: Safe Start works with Random Map off, as it already did in the game code
 * Site: flag codes no longer change with hidden settings. Run Bank level and cap only count with Run Bank on, and Biome only counts with Random Map on
 * Site: the Copy text and the page link carry the DWR version, and a link from another version shows a warning. The checksum shows 16 uppercase digits; the title screen shows the first 6
 * Site: presets show a message with an Undo button. The flute options sit together on Hero & Magic, and Easy Charlock is on Quest. Renamed labels: Discard Flute (was DK Flute), Summer Sale Chance, Death Necklace, Menu Wrapping, Torches in Battle, Custom Spell Names
-* Site: one table drives the "Needs" and "Off while" tags. No Hurtmore, Heal/Hurt Before "More", Level 1 Radiant, Level 1 Repel and Alternate Running Algorithm are greyed out when what they need is off
+* Site: one table drives the "Needs" and "Off while" tags. Options such as No Hurtmore, Heal/Hurt Before "More", Level 1 Radiant, Level 1 Repel and Alternate Running Algorithm are greyed out when what they need is off; the page lists each need
 * Site: bad flag codes show their error under the Flags box and keep what was typed. Randomize without a ROM says "Choose your ROM first."
 * Site: the page scrolls once on screens shorter than 990 px, the base text is 14 px, and a message shows if the randomizer fails to load
 * Site: old Biome Random codes pick from all 7 biomes, so they can give a different map than before

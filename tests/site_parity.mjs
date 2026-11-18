@@ -57,9 +57,9 @@ function cliChecksum(flags, seed, dir) {
   } catch (e) {
     return 'CLI failed';
   }
-  const winter = log.match(/Checksum without winter theme: ([0-9a-f]{16})/);
-  const plain = log.match(/Checksum: ([0-9a-f]{16})/);
-  return (winter || plain || [null, 'no checksum'])[1];
+  const winter = log.match(/Checksum without winter theme: ([0-9a-fA-F]{16})/);
+  const plain = log.match(/Checksum: ([0-9a-fA-F]{16})/);
+  return (winter || plain || [null, 'no checksum'])[1].toLowerCase();   // the CLI prints upper case
 }
 
 const flagSets = [['Gob Standard', GOB_STANDARD]].concat(BIOMES.map((b, i) => [b, withBiome(GOB_STANDARD, i)]));

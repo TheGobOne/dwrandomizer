@@ -96,7 +96,7 @@ Item shops (Herb, Torch, Wings, Dragon's Scale, Fairy Water) and key vendors are
 
 ### RAM and SRAM that DWR already uses
 
-From `notes/ram.txt`: `$6800-$6818` (return/whistle, run attempts, step counter, Run Bank, danger meter, Responsive Controls, per-slot copies, the vertical bridge flag), `$6900-$6BFF` (custom music driver). `$6670-$675F` (monster fought/won/died stats) is not in `notes/ram.txt` and was not checked against the game here. Serpikmin's patch uses `$7000` for the received counter and RAM `$0E`, which DWR's search code also uses as a flag, so the AP block is in work RAM instead: `$6820-$6860` (the full map is at the top of `common/archipelago.c`).
+From `notes/ram.txt`: `$6800-$6818` (return/whistle, run attempts, step counter, Run Bank, danger meter, Responsive Controls, per-slot copies, the vertical bridge flag), `$6900-$6BFF` (custom music driver). Serpikmin's patch uses `$7000` for the received counter and RAM `$0E`, which DWR's search code also uses as a flag, so the AP block is in work RAM instead: `$6820-$6860` (the full map is at the top of `common/archipelago.c`).
 
 ## 4. Phased plan
 
@@ -180,7 +180,7 @@ How the mailbox works: the client writes the item name in DW tiles to `$6850` an
 
 ## Phase 4 status (2026-11-16)
 
-- Flags the logic does not cover are rejected at generation (`archipelago/dwr/flags.py`): Random Chest Locations, Stair Shuffle, Cursed Princess, Three's Company, Radish Finish and Disguised Dragonlord. Free Charlock is read from the flag string.
+- Flags the logic does not cover are rejected at generation when on, and turned off with a warning when set to Random (`archipelago/dwr/flags.py`): Random Chest Locations, Stair Shuffle, Cursed Princess, Three's Company, Radish Finish and Disguised Dragonlord. Free Charlock is read from the flag string.
 - Random Map: covered. The default flags turn it on, and a seed with it on was beaten in FCEUX turbo.
 - Open Charlock: generates and builds. Covered by the logic argument (the Rainbow Drop rules are stricter than needed). Not played through; the first real play of an Open Charlock seed is the test.
 
@@ -193,7 +193,7 @@ How the mailbox works: the client writes the item name in DW tiles to `$6850` an
 
 ## Review fixes (2026-11-16)
 
-- Seed check: the ROM writes its 4-byte seed hash to `$6842` at a new game and tags each save slot at `$6846` (stride 2). The client compares both with the ROM signature and sends nothing for a save from another seed. A save from before the hash (0 or `$FF` there) takes this ROM's hash. ROM version is `003`.
+- Seed check: the ROM writes its 4-byte seed hash to `$6842` at a new game and tags each save slot at `$6846` (stride 2). The client compares both with the ROM signature and sends nothing for a save from another seed. A save from before the hash (0 or `$FF` there) takes this ROM's hash. ROM version was `003` then.
 - Game start: the AP work now runs before the throne room loads, so nothing sees the old state, and the mailbox flag is cleared there.
 - Herb and Magic Key caps come from the ROM signature, so Random Herb Carry and Random Key Carry work. An item at the cap is dropped with a log line instead of holding up the items behind it.
 - Items that are not given (dropped, already held) and items from your own opened chests and search spots get no mailbox message. Items from `!collect` or a release get one.

@@ -58,10 +58,23 @@ class ReceivedText(unittest.TestCase):
     def test_long_sender_is_cut_with_a_period(self):
         self.assertEqual(T.received_text("Herb", "Bartholomew"), "Herb from Barth.")
 
-    def test_long_item_uses_a_shorter_way_of_writing_it(self):
-        self.assertEqual(T.received_text("Erdrick's Sword", "Alex"), "Sword from Alex")
+    def test_long_item_is_never_shortened_to_make_room_for_the_sender(self):
+        self.assertEqual(T.received_text("Erdrick's Sword", "Alex"), "Erdrick's Sword")
+        self.assertEqual(T.received_text("Staff of Rain", "Al"), "Staff of Rain")
+        self.assertEqual(T.received_text("Staff of Rain", "Bartholomew"), "Staff of Rain")
+        self.assertEqual(T.received_text("Master Sword", "Link"), "Master Sword")
         self.assertEqual(T.game_name("Progressive Sword Upgrade"), "Prog. Sword Upgr")
-        self.assertEqual(T.received_text("Progressive Sword Upgrade", "Alex"), "Upgr from Alex")
+        self.assertEqual(T.received_text("Progressive Sword Upgrade", "Alex"), "Prog. Sword Upgr")
+
+    def test_sender_is_cut_before_the_item_is(self):
+        self.assertEqual(T.received_text("Fairy Water", "Al"), "Fairy Water")
+        self.assertEqual(T.received_text("100 Gold", "Friend"), "100 Gold from F.")
+        self.assertEqual(T.received_text("Staff of Rain", "A"), "Staff of Rain")
+
+    def test_found_text_cuts_at_a_word_end_and_keeps_a_number(self):
+        self.assertEqual(T.game_name("Small Key (Dungeon 1)"), "Small Key 1")
+        self.assertEqual(T.game_name("Small Key (Dungeon 2)"), "Small Key 2")
+        self.assertEqual(T.game_name("Metroid Super Missile Expansion"), "Metroid Super")
 
     def test_item_alone_when_no_form_leaves_room(self):
         self.assertEqual(T.received_text("Abcdefghijklmnopq", "Alex"), "Abcdefghijklmnop")

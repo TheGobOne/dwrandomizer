@@ -25,29 +25,44 @@ def fold(text: str) -> str:
     return " ".join(text.split())
 
 
-def _forms(name: str, drop_leading: bool) -> list:
-    """Ways to write an item, longest first: whole, with abbreviations, then (if drop_leading)
-    without leading words."""
+def _forms(name: str) -> list:
+    """Ways to write an item, longest first: whole, then with abbreviations. No word is dropped,
+    so the item never reads as a different one."""
     words = fold(SHORT_NAMES.get(name, name)).split()
     if not words:
         return []
     abbr = [ABBREV.get(w, w) for w in words]
-    forms = [" ".join(words), " ".join(abbr)]
-    if drop_leading:
-        for i in range(1, len(words)):
-            forms += [" ".join(words[i:]), " ".join(abbr[i:])]
-    return list(dict.fromkeys(forms))
+    return list(dict.fromkeys([" ".join(words), " ".join(abbr)]))
+
+
+def _cut(form: str) -> str:
+    """A form too long for the message, cut at a word end. A trailing number is kept, so
+    "Small Key Dungeon 1" and "... 2" stay apart."""
+    if len(form) <= TEXT_LEN:
+        return form
+    words = form.split()
+    if len(words) > 1 and words[-1].isdigit():
+        head = words[:-1]
+        while head and len(" ".join(head + [words[-1]])) > TEXT_LEN:
+            head.pop()
+        if head:
+            return " ".join(head + [words[-1]])
+    cut = form[:TEXT_LEN]
+    if form[TEXT_LEN] != " " and " " in cut:
+        cut = cut[:cut.rfind(" ")]
+    return cut.rstrip()
 
 
 def game_name(name: str) -> str:
     """The item name as the game shows it, or "item" when none of it is in the DW font.
 
-    The first way of writing it that fits 16 characters is used. A name that fits no way is cut."""
-    forms = _forms(name, drop_leading=False)
+    The first way of writing it that fits 16 characters is used. A name that fits no way is cut
+    at a word end."""
+    forms = _forms(name)
     for form in forms:
         if len(form) <= TEXT_LEN:
             return form
-    return forms[0][:TEXT_LEN].rstrip() if forms else "item"
+    return _cut(forms[0]) if forms else "item"
 
 
 def _owner(name: str, player: int) -> str:
@@ -57,22 +72,17 @@ def _owner(name: str, player: int) -> str:
 def received_text(item: str, sender: str = "", player: int = 0) -> str:
     """The mailbox text for an item another player sent: "Herb from Alex".
 
-    The item and the sender share 16 characters. A shorter way of writing the item is used when
-    the sender will not fit, and a long sender name is cut and ends in a period. When no way of
-    writing the item leaves room for the sender, the item alone is shown."""
+    The item and the sender share 16 characters. The item is never shortened to make room: a
+    long sender name is cut and ends in a period ("Staff of Rain from A."). When even a one
+    letter sender does not fit, the item is shown alone."""
     if not sender:
         return game_name(item)
     owner = _owner(sender, player)
-    forms = _forms(item, drop_leading=True)
-    # The sender's whole name first, then the first form that leaves any room for a cut one.
-    for form in forms:
-        if TEXT_LEN - len(form) - len(" from ") >= len(owner):
-            return f"{form} from {owner}"
-    # A cut sender needs at least two characters before its period, or the item is shortened further.
+    forms = [f for f in _forms(item) if len(f) <= TEXT_LEN]
     for form in forms:
         room = TEXT_LEN - len(form) - len(" from ")
-        if room >= 3:
-            return f"{form} from {owner[:room - 1].rstrip()}."
+        if room >= len(owner):
+            return f"{form} from {owner}"
     for form in forms:
         room = TEXT_LEN - len(form) - len(" from ")
         if room >= 2:

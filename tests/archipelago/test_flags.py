@@ -35,7 +35,7 @@ class RejectedFlags(unittest.TestCase):
             # FLAG_MAP is keyed by option id (older sites keyed it by label text).
             f = flag_map[opt] if opt in flag_map else flag_map[labels[opt]]
             site_bits.add((labels[opt], f["byte"], f["mask"] << f["shift"]))
-        apworld_bits = {(name, byte, mask) for name, byte, mask, _ in flags.UNSUPPORTED}
+        apworld_bits = {(name, byte, mask) for name, byte, mask, *_ in flags.UNSUPPORTED}
         self.assertEqual(site_bits, apworld_bits)
 
 
@@ -56,7 +56,7 @@ class RandomOff(unittest.TestCase):
         self.assertEqual(flags.random_off(GOB_STANDARD), (GOB_STANDARD, []))
 
     def test_random_flags_are_turned_off(self):
-        for name, byte, mask, _ in flags.UNSUPPORTED:
+        for name, byte, mask, *_ in flags.UNSUPPORTED:
             maybe = mask & 0xAA
             code = with_bits(GOB_STANDARD, byte, mask, maybe)
             out, names = flags.random_off(code)
@@ -65,7 +65,7 @@ class RandomOff(unittest.TestCase):
             self.assertEqual(flags.unsupported(out), [])
 
     def test_flags_that_are_on_stay_rejected(self):
-        for name, byte, mask, _ in flags.UNSUPPORTED:
+        for name, byte, mask, *_ in flags.UNSUPPORTED:
             code = with_bits(GOB_STANDARD, byte, mask, mask & 0x55)
             out, names = flags.random_off(code)
             self.assertEqual((out, names), (code, []))

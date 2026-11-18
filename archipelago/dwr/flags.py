@@ -9,14 +9,15 @@ from typing import List, Tuple
 
 BASE32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
 
-# (flag name, byte, mask, why). Byte and mask match common/dwr.h and FLAG_MAP in site/index.html.
+# (flag name, byte, mask, on bits, why). Byte and mask match common/dwr.h and FLAG_MAP in site/index.html.
+# The on bits are the part of the mask that means "on" (the low bit of a pair); the rest is "maybe".
 UNSUPPORTED = [
-    ("Random Chest Locations", 0, 0x30, "a chest can move into Charlock, and the logic would call it reachable early"),
-    ("Stair Shuffle", 2, 0x0C, "dungeon stairs are not in the AP logic yet"),
-    ("Cursed Princess", 8, 0x0C, "the win is not the Dragonlord, so the client cannot see the goal"),
-    ("Three's Company", 8, 0x03, "the win is not the Dragonlord, so the client cannot see the goal"),
-    ("Radish Finish", 20, 0xC0, "the win is not the Dragonlord, so the client cannot see the goal"),
-    ("Disguised Dragonlord", 16, 0x0C, "not tested with AP yet"),
+    ("Random Chest Locations", 0, 0x30, 0x10, "a chest can move into Charlock, and the logic would call it reachable early"),
+    ("Stair Shuffle", 2, 0x0C, 0x04, "dungeon stairs are not in the AP logic yet"),
+    ("Cursed Princess", 8, 0x0C, 0x04, "the win is not the Dragonlord, so the client cannot see the goal"),
+    ("Three's Company", 8, 0x03, 0x01, "the win is not the Dragonlord, so the client cannot see the goal"),
+    ("Radish Finish", 20, 0xC0, 0x40, "the win is not the Dragonlord, so the client cannot see the goal"),
+    ("Disguised Dragonlord", 16, 0x0C, 0x04, "not tested with AP yet"),
 ]
 FREE_CHARLOCK = (11, 0x02)
 
@@ -48,7 +49,7 @@ def decode(flags: str) -> List[int]:
 def unsupported(flags: str) -> List[str]:
     """'Name: why' for each flag in this string that the APWorld does not support."""
     data = decode(flags)
-    return [f"{name}: {why}" for name, index, mask, why in UNSUPPORTED if data[index] & mask]
+    return [f"{name}: {why}" for name, index, mask, _, why in UNSUPPORTED if data[index] & mask]
 
 
 def random_off(flags: str) -> Tuple[str, List[str]]:
@@ -61,9 +62,9 @@ def random_off(flags: str) -> Tuple[str, List[str]]:
     data = decode(text)
     bits = [(BASE32.find(c) >> (4 - k)) & 1 for c in text for k in range(5)]
     names = []
-    for name, index, mask, _ in UNSUPPORTED:
+    for name, index, mask, on, _ in UNSUPPORTED:
         value = data[index] & mask
-        if value and not value & 0x55:   # the high bit of a pair is "maybe", the low bit "on"
+        if value and not value & on:   # only the "maybe" bit is set
             names.append(name)
             for bit in range(8):
                 if mask & value & (0x80 >> bit):
