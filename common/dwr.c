@@ -66,6 +66,46 @@ static int compare(const void *a, const void *b)
 
 
 /**
+ * Sets dropdown values no option uses to the option's normal setting, the same as the site does, so a
+ * hand-made code builds the same ROM and shows the same code in both. Build Options 5 was a REMIX value
+ * that is gone.
+ *
+ * @param raw The 27 decoded flag bytes (28 with the spare byte)
+ * @return TRUE when a value was changed
+ */
+BOOL dwr_normalize_flags(uint8_t raw[28])
+{
+    BOOL odd = FALSE;
+    const uint8_t biome = raw[2] & 0x33;
+
+    if (((raw[24] & 0x1c) >> 2) >= 5) {   /* Build Options */
+        raw[24] &= (uint8_t)~0x1c;
+        odd = TRUE;
+    }
+    if (((raw[21] & 0xe0) >> 5) == 5 || ((raw[21] & 0xe0) >> 5) == 6) {   /* Run Mechanics */
+        raw[21] &= (uint8_t)~0xe0;
+        odd = TRUE;
+    }
+    if (((raw[21] & 0x1c) >> 2) >= 6) {   /* Gold Chest: 500-755 G */
+        raw[21] &= (uint8_t)~0x1c;
+        odd = TRUE;
+    }
+    if ((raw[13] & 0x30) == 0x30) {   /* Leveling Speed */
+        raw[13] &= (uint8_t)~0x30;
+        odd = TRUE;
+    }
+    if ((raw[17] & 0x70) == 0x70) {   /* Crit Chance: Vanilla (1/32) */
+        raw[17] = (uint8_t)((raw[17] & ~0x70) | 0x10);
+        odd = TRUE;
+    }
+    if (!raw[25] && biome != 0x00 && biome != 0x01 && biome != 0x10 && biome != 0x11 && biome != 0x22) {
+        raw[2] &= (uint8_t)~0x33;
+        odd = TRUE;
+    }
+    return odd;
+}
+
+/**
  * Updates the "maybe" flags to be either on or off
  *
  */
@@ -74,22 +114,8 @@ static void update_flags(dw_rom *rom)
     size_t i;
     const uint8_t safe_start = rom->flags[8] & 0x20;
 
-    /* Dropdown values no option uses go to the option's normal setting, the same as on the site, so a
-     * hand-made code builds the same ROM in both. Build Options 5 was a REMIX value that is gone. */
-    {
-        BOOL odd = FALSE;
-        const uint8_t biome = rom->flags[2] & 0x33;
-        if (BUILD_OPTIONS(rom) >= 5) { rom->flags[24] &= (uint8_t)~0x1c; odd = TRUE; }
-        if (DWX_RUN_MECHANICS(rom) == 5 || DWX_RUN_MECHANICS(rom) == 6) { rom->flags[21] &= (uint8_t)~0xe0; odd = TRUE; }
-        if (CHEST_GOLD_AMOUNT(rom) >= 6) { rom->flags[21] &= (uint8_t)~0x1c; odd = TRUE; }
-        if ((rom->flags[13] & 0x30) == 0x30) { rom->flags[13] &= (uint8_t)~0x30; odd = TRUE; }
-        if (!rom->flags[25] && biome != 0x00 && biome != 0x01 && biome != 0x10 && biome != 0x11 && biome != 0x22) {
-            rom->flags[2] &= (uint8_t)~0x33;
-            odd = TRUE;
-        }
-        if (odd)
-            printf("Some flag values are not recognized, so those options use their normal setting.\n");
-    }
+    if (dwr_normalize_flags(rom->flags))
+        printf("Some flag values are not recognized, so those options use their normal setting.\n");
     const uint8_t free_charlock_flag = rom->flags[11] & 0x02;
     const uint8_t auto_return_flag = rom->flags[3] & 0x02;
     const uint8_t responsive_flag = rom->flags[6] & 0x02;
@@ -2009,7 +2035,7 @@ static uint16_t run_bank_up_code = 0;
 
 /**
  * Enables top to bottom wrapping of the menu cursor. It changes no gameplay, so it runs after the checksum.
- * It only writes fixed addresses ($69E0, $6A23 and $7EA0-$7F01, which no other code uses), so it takes no free space.
+ * It only writes fixed addresses ($69E0, $6A23 and $7EA0-$7F09, which no other code uses), so it takes no free space.
  *
  * @param rom The rom struct.
  */
@@ -2672,6 +2698,14 @@ static void winter_theme(dw_rom *rom)
 
 }
 
+/* TRUE when the last build had no room for the checksum on the title menu. */
+static BOOL title_checksum_left_out = FALSE;
+
+BOOL dwr_title_checksum_left_out(void)
+{
+    return title_checksum_left_out;
+}
+
 /**
  * Creates a new "BEGIN A NEW QUEST" window which will contain the ROM
  * checksum
@@ -2681,6 +2715,7 @@ static void winter_theme(dw_rom *rom)
  */
 static void begin_quest_checksum(dw_rom *rom, uint64_t crc)
 {
+    title_checksum_left_out = FALSE;
     char crc_text[] = " CRC: XXXXXX";
     uint16_t newcode, cpu;
     int at = dwr_try_free_space(rom->content, FIXED_FREE_START, 39);
@@ -2694,6 +2729,7 @@ static void begin_quest_checksum(dw_rom *rom, uint64_t crc)
      * stopping the build. */
     if (at < 0 && dwr_ap_enabled()) {
         printf("No room for the checksum on the title menu, leaving it out.\n");
+        title_checksum_left_out = TRUE;
         return;
     }
     newcode = at >= 0 ? (uint16_t)at : find_free_space(rom->content, FIXED_FREE_START, 39);
@@ -2935,6 +2971,40 @@ void setup_expansion(dw_rom *rom)
 }
 
 
+
+/**
+ * Gives every expansion bank the reset stub and vectors that banks 0-2 have in the original game, where the
+ * bank still has room for them. A cart can power on with MMC1 in 32 KB mode, where $C000 shows the odd bank of
+ * a pair: its vectors point to the stub at $BFD8 of the even bank, which resets the mapper and jumps to the
+ * game's reset code in the fixed bank. Called after everything else is placed, so nothing has to leave room
+ * for it, and it never writes over a byte that is in use (bank 5's vectors are the credits' own).
+ *
+ * @param rom The rom struct
+ */
+static void add_reset_stubs(dw_rom *rom)
+{
+    /* sei; inc $BFDF; jmp $FF8E, then the $80 that the inc writes back to reset the mapper. */
+    static const uint8_t stub[8] = { 0x78, 0xee, 0xdf, 0xbf, 0x4c, 0x8e, 0xff, 0x80 };
+    /* NMI, RESET and IRQ all point to the stub. */
+    static const uint8_t vectors[6] = { 0xd8, 0xbf, 0xd8, 0xbf, 0xd8, 0xbf };
+    int bank, i;
+
+    for (bank = 3; bank < PRG_BANKS - 1; bank++) {
+        uint8_t *top = &rom->expansion[(bank - 3) * 0x4000];
+        BOOL free_room = TRUE;
+
+        for (i = 0; i < 8; i++)
+            if (top[0x3fd8 + i] != 0xff)
+                free_room = FALSE;
+        for (i = 0; i < 6; i++)
+            if (top[0x3ffa + i] != 0xff)
+                free_room = FALSE;
+        if (!free_room)
+            continue;
+        memcpy(&top[0x3fd8], stub, sizeof(stub));
+        memcpy(&top[0x3ffa], vectors, sizeof(vectors));
+    }
+}
 
 /**
  * Writes the new rom out to disk.
@@ -3543,7 +3613,7 @@ void zoom_and_whistle(dw_rom *rom)
 	// Just random RAM addresses I thought might be unused
     const uint16_t ram_i = 0x6800; // Index of town to warp to with Return
     const uint16_t ram_j = 0x6801; // Index of town to warp-whistle to
-	const uint16_t ram_v = 0x6802; // List of visited towns (00RC GKBT)
+	const uint16_t ram_v = 0x6802; // List of visited towns (0HRC GKBT, H = Hauksness, bit $40)
 
 	/* Copies the visited towns and Return town into this save slot's own bytes. */
 	uint16_t persist, newcode, address;
@@ -4288,31 +4358,20 @@ static uint16_t rc_space(dw_rom *rom, uint8_t n)
  * callee runs. All flags pass out. A call costs about 334 cycles more than a jsr and at its peak 6 more stack bytes
  * (3 while the callee runs). It uses zero page $30-$34 and $37-$39, so only code that runs in the main loop, never
  * in the NMI, may be called this way, and the call site must not keep anything in those bytes.
- * Bank 7 holds nothing else: the call table is the first FAR_SLOTS words from $8000 and the routines follow it.
- * Before the ROM grew to 256 KB they shared bank 6 with the music driver, so the code can still place routines
- * at the top of the bank, growing down (dwr_far_floor), but in bank 7 the low area always has room first. */
+ * Bank 7 holds nothing else: the call table is the first FAR_SLOTS words from $8000 and the routines follow it,
+ * growing up to the reset stub at $BFD8 (add_reset_stubs). */
 #define FAR_BANK 7
 #define FAR_TABLE 0x8000
 #define FAR_INDEX 0 /* (FAR_TABLE - $8000) / 2 */
 #define FAR_SLOTS 16
-#define FAR_LOW_END 0xc000 /* the whole bank */
-#define FAR_TOP 0xc000     /* the end of bank 7 */
+#define FAR_END 0xbfd8 /* the reset stub and vectors are above this */
 static int far_used;
-static uint16_t far_next;  /* the next free byte below FAR_LOW_END */
-static uint16_t far_floor; /* the lowest byte used at the top of bank 7; FAR_TOP when none is */
+static uint16_t far_next; /* the next free byte below FAR_END */
 
 static void far_reset(void)
 {
     far_used = 0;
     far_next = FAR_TABLE + 2 * FAR_SLOTS;
-    far_floor = FAR_TOP;
-}
-
-/* Where the far routines at the top of their bank start. Far calls are in bank 7 now, so the music in bank 6
- * no longer shares its bank with them; custom_music.c only uses this when FAR_BANK is 6. */
-uint16_t dwr_far_floor(void)
-{
-    return far_floor;
 }
 
 static BOOL far_free(const uint8_t *b6, uint16_t at, int n)
@@ -4325,8 +4384,8 @@ static BOOL far_free(const uint8_t *b6, uint16_t at, int n)
     return TRUE;
 }
 
-/* The CPU address where a routine of n bytes would go in bank 7 next, or 0 when it does not fit: below $8100
- * when it fits there, else under the routines already at the top. */
+/* The CPU address where a routine of n bytes would go in bank 7 next, or 0 when it does not fit. Routines go
+ * one after another from the end of the call table up to FAR_END. */
 static uint16_t far_space(dw_rom *rom, int n)
 {
     const uint8_t *b6 = &rom->expansion[(FAR_BANK - 3) * 0x4000];
@@ -4334,10 +4393,8 @@ static uint16_t far_space(dw_rom *rom, int n)
 
     if (far_used >= FAR_SLOTS || !far_free(b6, entry, 2))
         return 0;
-    if (far_next + n <= FAR_LOW_END && far_free(b6, far_next, n))
+    if (far_next + n <= FAR_END && far_free(b6, far_next, n))
         return far_next;
-    if (far_floor - n >= FAR_LOW_END && far_free(b6, (uint16_t)(far_floor - n), n))
-        return (uint16_t)(far_floor - n);
     return 0;
 }
 
@@ -4356,10 +4413,7 @@ static BOOL far_place(dw_rom *rom, const uint8_t *code, int n, uint8_t call[3])
     call[0] = 0x00;
     call[1] = (uint8_t)(FAR_INDEX + far_used);
     call[2] = (uint8_t)((FAR_BANK << 4) | 0x07);
-    if (at < FAR_LOW_END)
-        far_next = (uint16_t)(at + n);
-    else
-        far_floor = at;
+    far_next = (uint16_t)(at + n);
     far_used++;
     return TRUE;
 }
@@ -4446,7 +4500,7 @@ static void responsive_controls(dw_rom *rom)
             0x68, 0xa8,
             0x28};
         /* The real frame wait: NMI only runs its work from there. In the fixed bank or bank 0 the nop keeps $FF
-         * from looking free; bank 7 is filled through far_next and far_floor, so it does not need one. */
+         * from looking free; bank 7 is filled through far_next, so it does not need one. */
         const uint8_t frame_tail[4] = {0x4c, 0x74, 0xff, 0xea};
 
         if (at < 0)
@@ -4735,19 +4789,20 @@ static void run_bank(dw_rom *rom)
     /* Window code $F8 is only in the window when Quick Spell is on. */
     if (QUICK_SPELL(rom)) {
         /* Window code $F8: print the last spell's short name, 5 letters from entry `last` of a table whose entry 0
-         * is blank. The code (31 bytes) and the 55 byte table go in the fixed bank when they fit. When it is full
-         * they go in bank 7 behind a far call, where the code ends with rts (29 bytes), and a 6 byte stub in the
-         * fixed bank makes that call and then jumps to the window's exit at $A62B. */
-        uint8_t body[86];
-        const int at = dwr_try_free_space(rom->content, FIXED_FREE_START, 86);
-        const uint16_t far_at = at < 0 ? far_space(rom, 84) : 0;
+         * is "-----", so the slot shows before the first cast. The code (30 bytes) and the 55 byte table go in the
+         * fixed bank when they fit. When it is full they go in bank 7 behind a far call, where the code ends with
+         * rts (28 bytes), and a 6 byte stub in the fixed bank makes that call and then jumps to the window's exit
+         * at $A62B. `last` is 0-10, so both asl leave the carry clear for the adc. */
+        uint8_t body[85];
+        const int at = dwr_try_free_space(rom->content, FIXED_FREE_START, 85);
+        const uint16_t far_at = at < 0 ? far_space(rom, 83) : 0;
         const BOOL in_far = at < 0;
-        const int code_len = in_far ? 29 : 31, len = code_len + 55;
+        const int code_len = in_far ? 28 : 30, len = code_len + 55;
         const uint16_t base = in_far ? far_at : (uint16_t)at;
-        const uint8_t spell[31] = {
+        const uint8_t spell[30] = {
             0xa9, 0x05, 0x8d, 0xe2, 0x64,             /* lda #5 : sta $64e2 */
             0xad, LO(last), HI(last), 0x85, 0x1a,     /* lda last : sta $1a */
-            0x0a, 0x0a, 0x18, 0x65, 0x1a, 0xaa,       /* x = last * 5 */
+            0x0a, 0x0a, 0x65, 0x1a, 0xaa,             /* x = last * 5 */
             0xa0, 0x05,                               /* ldy #5 */
             0xbd, LO(base + code_len), HI(base + code_len), /* loop: lda table,x */
             0x99, 0xc9, 0x64, 0xe8, 0x88, 0xd0, 0xf6, /* sta $64c9,y : inx : dey : bne loop */
@@ -4757,8 +4812,8 @@ static void run_bank(dw_rom *rom)
         memcpy(body, spell, (size_t)code_len);
         names = MODERN_SPELLS(rom) ? modern_names : vanilla_names;
         for (i = 0; i < 55; i++) {
-            char ch = i < 5 ? ' ' : names[i - 5];
-            body[code_len + i] = (ch == ' ') ? 0x5f : (uint8_t)(0x24 + ch - 'A');
+            char ch = i < 5 ? '-' : names[i - 5];
+            body[code_len + i] = (ch == ' ') ? 0x5f : (ch == '-') ? 0x49 : (uint8_t)(0x24 + ch - 'A');
         }
         if (in_far) {
             if (!far_at) {
@@ -5612,7 +5667,7 @@ uint64_t dwr_randomizeWithoutWinterTheme(const char* input_file, uint64_t seed, 
     /* This inner build sets its own addresses and far-call state; the outer build still needs its own after it. */
     uint16_t saved_win = run_bank_win_code, saved_up = run_bank_up_code;
     const int saved_far_used = far_used;
-    const uint16_t saved_far_next = far_next, saved_far_floor = far_floor;
+    const uint16_t saved_far_next = far_next;
     uint64_t crc;
 
     /* Chosen on its own, so it matches a build made without the Winter theme. */
@@ -5631,7 +5686,6 @@ uint64_t dwr_randomizeWithoutWinterTheme(const char* input_file, uint64_t seed, 
     run_bank_up_code = saved_up;
     far_used = saved_far_used;
     far_next = saved_far_next;
-    far_floor = saved_far_floor;
     return crc;
 }
 
@@ -5729,6 +5783,7 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
     sprite(rom, sprite_name);
     invisible_npcs(rom); // in case the custom sprite also changed NPCS.
     noir_mode(rom);
+    add_reset_stubs(rom);
 
 
     no_space_handler = NULL;
@@ -5746,6 +5801,15 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
     return crc;
 }
 
+/* TRUE when the last build repacked the game code as a last resort, so its checksum can differ from the same
+ * flags and seed built with other comfort or sound options. */
+static BOOL last_repacked = FALSE;
+
+BOOL dwr_last_repacked(void)
+{
+    return last_repacked;
+}
+
 /**
  * Randomizes a Dragon Warrior rom file. If the code does not fit, the build is tried again with
  * the code packed more tightly, first for what comes after the checksum, then for everything.
@@ -5758,6 +5822,7 @@ static uint64_t dwr_randomize_tries(const char* input_file, uint64_t seed, char 
     BOOL fit_game = FALSE, fit_extras = FALSE;
     uint64_t crc;
 
+    last_repacked = FALSE;
     for (;;) {
         ran_out_of_room = FALSE;
         crc = dwr_randomize_once(input_file, seed, flags, sprite_name, output_dir, fit_game, fit_extras);
@@ -5773,9 +5838,9 @@ static uint64_t dwr_randomize_tries(const char* input_file, uint64_t seed, char 
             fit_extras = TRUE;
         } else if (custom_music_has_pack()) {
             /* No room after the checksum with a music pack: drop the pack before repacking the game
-             * code, so the checksum stays the same as a build without the pack. */
+             * code, so the checksum stays the same as a build without the pack. fit_game stays as it is:
+             * nothing before the checksum reads the pack, so a game that needed best fit still needs it. */
             custom_music_disable(TRUE);
-            fit_game = FALSE;
             fit_extras = FALSE;
             printf("Out of room with the music pack, keeping the original music.\n");
             continue;
@@ -5783,6 +5848,7 @@ static uint64_t dwr_randomize_tries(const char* input_file, uint64_t seed, char 
             /* Last resort: repacking the game code changes the checksum. */
             fit_game = TRUE;
             fit_extras = FALSE;
+            last_repacked = TRUE;
             printf("Repacked the game code to make room, so this checksum can differ from "
                     "the same flags and seed built with other comfort or sound options.\n");
         } else {

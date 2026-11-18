@@ -6,7 +6,7 @@ SELECTED_ITEM EQU $D7
 ITEMS         EQU $C1
 
 .db "NES", $1a
-.db 8  ; PRG ROM banks
+.db 8  ; PRG ROM banks of this asm build; the randomizer writes 16 (PRG_BANKS in dwr.h)
 .db 2  ; CHR ROM banks
 .db $12
 .db $00

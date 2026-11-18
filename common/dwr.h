@@ -211,14 +211,26 @@ void dwr_set_spoiler(BOOL enabled);
 uint16_t find_free_space(uint8_t *content, uint16_t start, uint8_t n);
 uint16_t find_free_space_in(uint8_t *content, uint16_t start, uint16_t end, uint8_t n);
 void dwr_no_room(void);
-/* Bank 6 from here to $BFFF holds far-call routines; the music's songs in bank 6 end below it. */
-uint16_t dwr_far_floor(void);
 /* The output ROM has 16 PRG banks of 16 KB (256 KB): banks 0-2 and the fixed bank (15, last) from the original
- * game, and 12 expansion banks (3-14) in rom->expansion. Bank 3 is Archipelago code, 4 and 5 music, 6 the music
- * driver and songs, 7 the far-call routines, and 8-14 are empty. */
+ * game, and 12 expansion banks (3-14) in rom->expansion.
+ *   3: a credits routine at $8000, the Archipelago code at the top, pack songs between
+ *   4: the credits code at $A000, and the built-in credits song or pack songs
+ *   5: the credits' vectors, and pack songs
+ *   6: the music driver and songs with a music pack, empty without one
+ *   7: the far-call routines
+ *   8-14: empty
+ * Every bank with room at the top gets the original reset stub at $BFD8 and vectors at $BFFA (add_reset_stubs). */
 #define PRG_BANKS 16
 #define EXPANSION_SIZE ((PRG_BANKS - 4) * 0x4000)
 int dwr_try_free_space(uint8_t *content, uint16_t start, uint8_t n);
+/* Sets dropdown values no option uses to the option's normal setting, as the site does. TRUE when it
+ * changed a byte. */
+BOOL dwr_normalize_flags(uint8_t raw[28]);
+/* TRUE when the last build repacked the game code to make room, so its checksum can differ from the same
+ * flags and seed built with other comfort or sound options. */
+BOOL dwr_last_repacked(void);
+/* TRUE when the last build had no room for the checksum on the title menu (Archipelago builds only). */
+BOOL dwr_title_checksum_left_out(void);
 void dwr_give_up(const char *why);
 BOOL dwr_packing(void);
 BOOL dwr_set_packing(BOOL best);

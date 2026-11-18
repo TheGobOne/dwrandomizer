@@ -238,7 +238,7 @@ Wings and Return send you to the last place you saved or used an inn at. You lan
 
 #### Warp Whistle ####
 
-The Fairy Flute will work as a warp whistle outside of battle, cycling between places you saved or used an inn at, and Hauksness once you have walked into it. The order is:
+The Fairy Flute will work as a warp whistle outside of battle, cycling between places you saved or used an inn at, and Hauksness once you have walked into it. Each use warps you to the stop the flute points at, then the flute points at the next visited stop in the list below. Stops you have not visited are skipped, and after the last stop the list starts again at Tantegel, so reaching a stop behind you can take several uses. The order is:
 
 - Tantegel
 - Brecconary
@@ -476,7 +476,7 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--jingles` | `on` or `off`. `on` turns on Don't Mute Jingles (jingles keep playing with Disable Music on) |
 | `--original-credits` | `on` or `off`. `off` turns on Skip Original Credits |
 | `--menu-wrap` | `on` or `off`: Menu Wrapping |
-| `--race-card` | `on` or `off`. `on` prints a card after the build to paste into a race: version, the flags without your comfort and sound options, the seed and the checksum. It is the same text as the site's Copy button |
+| `--race-card` | `on` or `off`. `on` prints a card after the build to paste into a race: version, the flags without your comfort and sound options, the seed and the checksum. It has the same flags, seed and checksum as the site's Copy text, without the link |
 | `--spoiler` | `on` or `off`: `on` writes a `.spoiler.txt` next to the ROM. It changes the checksum, so a spoiler seed never matches one without |
 
 Most of these also exist as options on the website, including the spoiler log.

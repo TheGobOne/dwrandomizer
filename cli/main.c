@@ -86,10 +86,10 @@ static void print_usage(const char *command, char *default_flags)
     printf("  --spell-flashing on|off   (off: Disable Spell Flashing)\n");
     printf("  --red-flashes on|off   (off: Disable Red Flashes)\n");
     printf("  --disable-music on|off   (on: Disable Music; a music pack is left out too)\n");
-    printf("  --jingles on|off   (on: jingles still play when Disable Music is on, Don't Mute Jingles)\n");
+    printf("  --jingles on|off   (on: Don't Mute Jingles, jingles still play with Disable Music)\n");
     printf("  --original-credits on|off   (off: Skip Original Credits)\n");
     printf("  --menu-wrap on|off\n");
-    printf("  --race-card on|off   (on: after the build, print a card to share: version, flags without comfort and sound options, seed, checksum)\n");
+    printf("  --race-card on|off   (on: print version, flags, seed and checksum to share)\n");
     printf("\n");
     printf("Sprite should be one of: ");
     for(i=0; i < sprite_count(); i++) {
@@ -102,8 +102,8 @@ static void print_usage(const char *command, char *default_flags)
     printf("\n");
 }
 
-/* The same text as the site's Copy button: the flags without the comfort and sound options (the site's
- * PERSONAL list), so every racer on the same flags and seed gets the same line. */
+/* The same lines as the site's Copy button, without the link: the flags without the comfort and sound options
+ * (the site's PERSONAL list), so every racer on the same flags and seed gets the same line. */
 static void print_race_card(const char *flags, uint64_t seed, uint64_t crc)
 {
     uint8_t raw[28] = {0};
@@ -125,7 +125,13 @@ static void print_race_card(const char *flags, uint64_t seed, uint64_t crc)
     printf("\nDWR - %s\n", VERSION);
     printf("Flags: %s\n", code);
     printf("Seed: %"PRIu64"\n", seed);
-    printf("Checksum: %016"PRIX64" (the title screen shows %06"PRIX64")\n", crc, crc >> 40);
+    if (dwr_title_checksum_left_out())
+        printf("Checksum: %016"PRIX64" (this ROM had no room to show it on the title screen)\n", crc);
+    else
+        printf("Checksum: %016"PRIX64" (the title screen shows %06"PRIX64")\n", crc, crc >> 40);
+    if (dwr_last_repacked())
+        printf("This build repacked the game code to make room, so its checksum can differ from racers with "
+                "other comfort or sound options.\n");
     printf("Your comfort and sound options are not in these flags.\n");
 }
 
@@ -284,9 +290,14 @@ int main(int argc, char **argv)
     uint8_t raw[28] = {0};
     strncpy(encoded, flags, 44);
     base32_decode((uint8_t *)encoded, raw);
+    /* Dropdown values no option uses get their normal setting here, as on the site, so the file name and the
+     * race card show the code the ROM is built from. dwr_randomize then finds nothing left to change. */
+    const BOOL odd_flags = dwr_normalize_flags(raw);
+    if (odd_flags)
+        printf("Some flag values are not recognized, so those options use their normal setting.\n");
     /* A cap or level with Run Bank off is cleared below even when no option is given, so a code gives the
      * same flags and file name with or without other options. */
-    if (bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || quick_swap >= 0 || no_blink >= 0 || fast_hills >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0 || responsive >= 0 || auto_stairs >= 0 || biome >= 0 ||
+    if (odd_flags || bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || quick_swap >= 0 || no_blink >= 0 || fast_hills >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0 || responsive >= 0 || auto_stairs >= 0 || biome >= 0 ||
             run_bank >= 0 || safe_start >= 0 || fast_flute >= 0 || discard_flute >= 0 || no_shake >= 0 ||
             no_spell_flash >= 0 || no_red_flash >= 0 || no_music >= 0 || dont_mute_jingles >= 0 || skip_credits >= 0 || menu_wrap >= 0 ||
             (!(raw[11] & 0x0c) && (raw[12] || (raw[14] & 0x01)))) {

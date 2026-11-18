@@ -16,9 +16,12 @@ def main():
     expansion = None
     with open(argv[2], 'rb') as changed_file:
         changed = changed_file.read()
+        # The expansion banks sit between bank 2 and the fixed bank, which is followed by the 16 KB of CHR,
+        # so the last 0x8000 bytes are the fixed bank and CHR whatever the expansion's size.
         if len(changed) > 0x14010:
-            expansion = changed[0xc010:0x1c010]
-            changed = changed[:0xc010] + changed[0x1c010:]
+            tail = len(changed) - 0x8000
+            expansion = changed[0xc010:tail]
+            changed = changed[:0xc010] + changed[tail:]
 
     p = Patch.create(original, changed)
     for r in p.records:

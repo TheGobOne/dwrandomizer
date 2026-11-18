@@ -86,6 +86,10 @@ class DWRWorld(World):
                                 f"with Archipelago, so they are off: {', '.join(turned_off)}")
             self.flags_text = text
             self.flags_turned_off = list(turned_off)
+            unknown = dwr_flags.unknown_values(text)
+            if unknown:
+                logging.warning(f"{self.player_name}: these DWR flag values are not recognized, so the game "
+                                f"uses each option's normal setting: {', '.join(unknown)}")
             bad = dwr_flags.unsupported(text)
             self.free_charlock = dwr_flags.free_charlock(text)
         except ValueError as error:

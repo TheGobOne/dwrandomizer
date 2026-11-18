@@ -77,5 +77,44 @@ class RandomOff(unittest.TestCase):
         self.assertIn('default = "' + GOB_STANDARD + '"', text)
 
 
+
+def _with(code, byte, clear, value):
+    """The flag string with the bits in `clear` of one byte replaced by `value`."""
+    data = flags.decode(code)
+    data[byte] = (data[byte] & ~clear & 0xFF) | value
+    bits = "".join(f"{b:08b}" for b in data)
+    bits += "0" * (-len(bits) % 5)
+    return "".join(flags.BASE32[int(bits[i:i + 5], 2)] for i in range(0, len(bits), 5))
+
+
+class UnknownValues(unittest.TestCase):
+    GOB = "IVIAAV2EKADEAMAAAADYKEBWAAAJACAAAAIBQAAM75QA"
+
+    def test_a_normal_code_has_none(self):
+        self.assertEqual(flags.unknown_values(self.GOB), [])
+
+    def test_each_unknown_dropdown_value_is_named(self):
+        cases = [("Build Options", 24, 0x1C, 6 << 2), ("Run Mechanics", 21, 0xE0, 5 << 5),
+                 ("Run Mechanics", 21, 0xE0, 6 << 5), ("Gold Chest", 21, 0x1C, 7 << 2),
+                 ("Leveling Speed", 13, 0x30, 0x30), ("Crit Chance", 17, 0x70, 7 << 4)]
+        for name, byte, clear, value in cases:
+            found = flags.unknown_values(_with(self.GOB, byte, clear, value))
+            self.assertEqual(len(found), 1, name)
+            self.assertTrue(found[0].startswith(name), found)
+
+    def test_known_values_are_not_named(self):
+        for byte, clear, value in ((24, 0x1C, 4 << 2), (21, 0xE0, 4 << 5), (21, 0x1C, 5 << 2), (17, 0x70, 6 << 4)):
+            self.assertEqual(flags.unknown_values(_with(self.GOB, byte, clear, value)), [])
+
+    def test_unknown_biome_pattern_counts_only_without_byte_25(self):
+        odd = _with(_with(self.GOB, 25, 0xFF, 0), 2, 0x33, 0x12)
+        data = flags.decode(odd)
+        self.assertEqual(data[25], 0)
+        self.assertEqual(len(flags.unknown_values(odd)), 1)
+        self.assertTrue(flags.unknown_values(odd)[0].startswith("Biome"))
+        self.assertEqual(flags.unknown_values(_with(odd, 25, 0xFF, 1)), [])
+        self.assertEqual(flags.unknown_values(self.GOB), [])   # the Gob preset has a biome in byte 25
+
+
 if __name__ == "__main__":
     unittest.main()

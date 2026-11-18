@@ -75,6 +75,26 @@ def random_off(flags: str) -> Tuple[str, List[str]]:
     return out, names
 
 
+def unknown_values(flags: str) -> List[str]:
+    """Names of the dropdown options whose value no option uses. The game builds them with the option's
+    normal setting instead (the same as common/dwr.c update_flags and the site), so the ROM differs
+    from what the code seems to say. Build Options 5 to 7, Run Mechanics 5 and 6, Gold Chest 6 and 7,
+    Leveling Speed 3, Crit Chance 7, and a Biome pattern the site has no choice for (only checked
+    when byte 25 is 0, because a Biome past Riverlands is kept there)."""
+    data = decode(flags)
+    byte = lambda i: data[i] if i < len(data) else 0
+    biome = byte(2) & 0x33
+    checks = [
+        ("Build Options", (byte(24) & 0x1C) >> 2 >= 5, "Original"),
+        ("Run Mechanics", (byte(21) & 0xE0) >> 5 in (5, 6), "Vanilla"),
+        ("Gold Chest", (byte(21) & 0x1C) >> 2 >= 6, "the normal 500 to 755 G"),
+        ("Leveling Speed", byte(13) & 0x30 == 0x30, "Normal"),
+        ("Crit Chance", (byte(17) & 0x70) >> 4 == 7, "Vanilla"),
+        ("Biome", not byte(25) and biome not in (0x00, 0x01, 0x10, 0x11, 0x22), "Continent"),
+    ]
+    return [f"{name} (used as {normal})" for name, odd, normal in checks if odd]
+
+
 def free_charlock(flags: str) -> bool:
     index, mask = FREE_CHARLOCK
     return bool(decode(flags)[index] & mask)

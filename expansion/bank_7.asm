@@ -1,4 +1,5 @@
 
+; The fixed bank. It is bank 7 of this 8-bank asm build and bank 15 of the 16-bank output ROM.
 .base $c000
 
 set_first_bank:

@@ -22,7 +22,7 @@ import worlds._bizhawk as bizhawk
 from worlds._bizhawk.client import BizHawkClient
 
 from .data import BASE, GAME, GWAELIN, LOCATION_NAME_TO_ID, SLOT_FLAGS_OFF
-from .text import received_text
+from .text import TEXT_LEN, fold, received_text
 
 if TYPE_CHECKING:
     from worlds._bizhawk.context import BizHawkClientContext
@@ -65,6 +65,18 @@ def dw_text(name: str, sender: str = "", player: int = 0) -> bytes:
     """The item name as DW tiles, ended by $FA, for the mailbox. A sender's name is added: "Herb from Alex"."""
     codes = [DW_FONT.index(c) if c in DW_FONT else DW_FONT.index(" ") for c in received_text(name, sender, player)]
     return bytes(codes + [0xFA])
+
+def batch_text(count: int, sender: str = "") -> str:
+    """The mailbox text for a batch of 2 or more. The game's line holds 22 characters, and a first word
+    of 3 or more letters starts the next line, so "items." never sits alone: "N items from Alex" when
+    that fits the 16 character mailbox, otherwise "pile of N items" (or "N items" for 100 or more)."""
+    if sender:
+        text = f"{count} items from {fold(sender) or '?'}"
+        if len(text) <= TEXT_LEN:
+            return text
+    text = f"pile of {count} items"
+    return text if len(text) <= TEXT_LEN else f"{count} items"
+
 
 MAP = 0x45          # 0 until a game is running
 GOLD = 0xBC         # 2 bytes
@@ -288,8 +300,8 @@ class DWRClient(BizHawkClient):
         # The game already said "Thou hast found" for your own opened chests and search spots
         # (unless it gives something else), and an item that was not given gets no message at all.
         found_here = item.player == ctx.slot and opened_in_game(item.location, block)
-        # Player 0 is the Archipelago server (starting items, !getitem, release), named "Archipelago" in the
-        # client library. "Server" is shorter, so it leaves room for the item name in the mailbox.
+        # Player 0 is the Archipelago server (starting items, !getitem), named "Archipelago" in the client
+        # library. A release or !collect keeps the slot that found the item, so those name that player. "Server" is shorter, so it leaves room for the item name in the mailbox.
         sender = "Server" if item.player == 0 else ctx.player_names.get(item.player, "?")
         if given and (not found_here or self.shown != name):
             # Another player's item names them in the message. Your own items do not.
@@ -319,7 +331,8 @@ class DWRClient(BizHawkClient):
         sim = bytearray(ram)
         final: dict = {}   # address -> last bytes written
         self.notes = []
-        shown_from = []    # players of the items that get a mention in the message
+        mentions = []      # (item, shown name, sender) of the items that get a mention in the message
+        arrived = []       # (shown text, sender) of every item given, for the log
         given = 0
         n = received
         while n < len(ctx.items_received):
@@ -334,8 +347,10 @@ class DWRClient(BizHawkClient):
                 final[addr] = data
             if writes:
                 given += 1
+                sender = "Server" if item.player == 0 else ctx.player_names.get(item.player, "?")
+                arrived.append((name if self.shown == name else f"{self.shown} (for {name})", sender))
                 if not (item.player == ctx.slot and opened_in_game(item.location, block)) or self.shown != name:
-                    shown_from.append(item.player)
+                    mentions.append((item, self.shown, sender))
             n += 1
         if n == received:
             if self.waiting_noted != received:
@@ -345,16 +360,15 @@ class DWRClient(BizHawkClient):
             return
         writes = [(addr, data, "RAM") for addr, data in final.items()]
         writes.append((AP_RECV, bytes([n & 0xFF, n >> 8]), "System Bus"))
-        if shown_from:
-            # One sender: name them. Mixed senders, or your own items only: just the count.
-            players = set(shown_from)
-            only = players.pop() if len(players) == 1 else None
-            sender = ""
-            if only is not None and only != ctx.slot:
-                sender = "Server" if only == 0 else ctx.player_names.get(only, "?")
-            text = f"{len(shown_from)} item{'s' if len(shown_from) != 1 else ''}"
-            writes.append((MAIL_TEXT, dw_text(text, sender, only or 0), "System Bus"))
-            writes.append((MAIL_FLAG, b"\x01", "System Bus"))
+        if len(mentions) == 1:
+            # One item to mention: the same text the one-at-a-time path shows.
+            item, shown, sender = mentions[0]
+            from_other = item.player != ctx.slot
+            writes.append((MAIL_TEXT, dw_text(shown, sender if from_other else "", item.player), "System Bus"))
+            writes.append((MAIL_FLAG, b"", "System Bus"))
+        elif mentions:
+            writes.append((MAIL_TEXT, dw_text(batch_text(len(mentions), self._batch_sender(ctx, mentions))), "System Bus"))
+            writes.append((MAIL_FLAG, b"", "System Bus"))
         guards = [(AP_RECV, bytes(block[0:2]), "System Bus")]
         for addr, data, domain in writes:
             if domain == "RAM":
@@ -363,7 +377,19 @@ class DWRClient(BizHawkClient):
         if ok:
             for note in self.notes:
                 logger.warning(note)
+            for text, sender in arrived:
+                logger.info("Received %s from %s.", text, sender)
             logger.info("Received %d items at once (%d given).", n - received, given)
+
+    @staticmethod
+    def _batch_sender(ctx, mentions) -> str:
+        """The one other player all mentioned items came from, or "" (mixed senders, or your own items)."""
+        players = {item.player for item, _shown, _sender in mentions}
+        if len(players) == 1:
+            only = players.pop()
+            if only != ctx.slot:
+                return mentions[0][2]
+        return ""
 
     def _effect(self, name: str, ram: bytes):
         """RAM writes that give the item: [] when it is not given (dropped or already held),

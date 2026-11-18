@@ -18,6 +18,9 @@ TIMERS_ADDR  EQU $d0
 ; .ende
 
 ; *** PRG ROM ***
+; This asm build has 8 banks. The randomizer takes banks 3-6 of it for the start of rom->expansion and
+; adds banks 7-14 itself, so bank_7.asm below is the fixed bank, which is bank 15 in the output ROM
+; ("bank 7" in the C code is the far-call bank).
 .include bank_0.asm
 .include empty.asm
 .include empty.asm
