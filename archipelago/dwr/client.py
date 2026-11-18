@@ -40,6 +40,7 @@ MAIL_FLAG = 0x682E  # 1 while a received item's message is waiting to be shown. 
 SEED_HASH = 0x6842  # 4 bytes: the seed hash of the ROM this game was started with
 SLOT_TAGS = 0x6846  # 6 bytes: the tag of each save slot, 2 bytes each
 SAVE_SLOT = 0x6039  # the save slot in use (0-2)
+BATCH_AT = 4  # this many items waiting at once (a release, a reconnect) are given together, with one message
 MAIL_TEXT = 0x6850  # the item name in DW tiles, ended by $FA
 
 # DW's font order (common/dwr.c alphabet): a DW tile code is the index in this string.
@@ -268,6 +269,9 @@ class DWRClient(BizHawkClient):
                            received, len(ctx.items_received))
         if received >= len(ctx.items_received):
             return
+        if len(ctx.items_received) - received >= BATCH_AT:
+            await self._give_batch(ctx, ram, block, received)
+            return
         item = ctx.items_received[received]
         name = ctx.item_names.lookup_in_game(item.item)
         self.notes = []
@@ -305,6 +309,61 @@ class DWRClient(BizHawkClient):
         if ok and given:
             logger.info("Received %s from %s.", name if self.shown == name else
                         f"{self.shown} (for {name})", sender)
+
+    async def _give_batch(self, ctx, ram: bytes, block: bytes, received: int) -> None:
+        """Gives every waiting item at once and shows one message, "5 items from Alex".
+
+        One mailbox window per item is 20 windows after a release. The items are applied one after
+        another to a copy of the RAM, so the herb cap, the inventory slots and the gold add up the
+        same as if they came one by one. The batch stops at an item that has to wait for room."""
+        sim = bytearray(ram)
+        final: dict = {}   # address -> last bytes written
+        self.notes = []
+        shown_from = []    # players of the items that get a mention in the message
+        given = 0
+        n = received
+        while n < len(ctx.items_received):
+            item = ctx.items_received[n]
+            name = ctx.item_names.lookup_in_game(item.item)
+            self.shown = name
+            writes = self._effect(name, sim)
+            if writes is None:
+                break
+            for addr, data, _domain in writes:
+                sim[addr:addr + len(data)] = data
+                final[addr] = data
+            if writes:
+                given += 1
+                if not (item.player == ctx.slot and opened_in_game(item.location, block)) or self.shown != name:
+                    shown_from.append(item.player)
+            n += 1
+        if n == received:
+            if self.waiting_noted != received:
+                self.waiting_noted = received
+                logger.info("No room for %s yet. Make space in the inventory to receive it.",
+                            ctx.item_names.lookup_in_game(ctx.items_received[received].item))
+            return
+        writes = [(addr, data, "RAM") for addr, data in final.items()]
+        writes.append((AP_RECV, bytes([n & 0xFF, n >> 8]), "System Bus"))
+        if shown_from:
+            # One sender: name them. Mixed senders, or your own items only: just the count.
+            players = set(shown_from)
+            only = players.pop() if len(players) == 1 else None
+            sender = ""
+            if only is not None and only != ctx.slot:
+                sender = "Server" if only == 0 else ctx.player_names.get(only, "?")
+            text = f"{len(shown_from)} item{'s' if len(shown_from) != 1 else ''}"
+            writes.append((MAIL_TEXT, dw_text(text, sender, only or 0), "System Bus"))
+            writes.append((MAIL_FLAG, b"\x01", "System Bus"))
+        guards = [(AP_RECV, bytes(block[0:2]), "System Bus")]
+        for addr, data, domain in writes:
+            if domain == "RAM":
+                guards.append((addr, bytes(ram[addr:addr + len(data)]), "RAM"))
+        ok = await bizhawk.guarded_write(ctx.bizhawk_ctx, writes, guards)
+        if ok:
+            for note in self.notes:
+                logger.warning(note)
+            logger.info("Received %d items at once (%d given).", n - received, given)
 
     def _effect(self, name: str, ram: bytes):
         """RAM writes that give the item: [] when it is not given (dropped or already held),

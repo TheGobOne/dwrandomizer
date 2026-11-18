@@ -160,6 +160,36 @@ class GiveItem(unittest.TestCase):
         self.assertIn((C.MAIL_TEXT, C.dw_text("100 Gold", "Friend", 2), "System Bus"), writes)  # "100 Gold from F."
         self.assertNotIn(C.HERBS, addrs(writes))
 
+    def test_four_waiting_items_come_with_one_message(self):
+        calls = give(["Herb"] * 5, self.ram)
+        self.assertEqual(len(calls), 1)
+        writes, guards = calls[0]
+        self.assertIn((C.HERBS, bytes([5]), "RAM"), writes)
+        self.assertIn((C.AP_RECV, (5).to_bytes(2, "little"), "System Bus"), writes)
+        self.assertEqual([w for w in writes if w[0] == C.MAIL_TEXT], [(C.MAIL_TEXT, C.dw_text("5 items", "Friend", 2), "System Bus")])
+        self.assertEqual(len([w for w in writes if w[0] == C.MAIL_FLAG]), 1)
+
+    def test_three_waiting_items_still_come_one_at_a_time(self):
+        writes, guards = give(["Herb"] * 3, self.ram)[0]
+        self.assertIn((C.AP_RECV, (1).to_bytes(2, "little"), "System Bus"), writes)
+
+    def test_batch_adds_up_the_herb_cap_and_gold(self):
+        with self.assertLogs("Client", level="WARNING"):
+            writes, guards = give(["Herb"] * 8, self.ram)[0]
+        self.assertIn((C.HERBS, bytes([6]), "RAM"), writes)
+        self.assertIn((C.GOLD, (200).to_bytes(2, "little"), "RAM"), writes)   # the two herbs past the cap
+        self.assertIn((C.AP_RECV, (8).to_bytes(2, "little"), "System Bus"), writes)
+
+    def test_batch_from_two_players_shows_only_the_count(self):
+        client = C.DWRClient()
+        ctx = FakeCtx(["Herb"] * 4)
+        ctx.items_received[0].player = 0   # the server
+        BH.calls.clear(); BH.guard_result = True
+        block = bytes(7)
+        asyncio.run(client._give_item(ctx, bytes(self.ram), block, 0))
+        writes, _ = BH.calls[0]
+        self.assertIn((C.MAIL_TEXT, C.dw_text("4 items", "", 0), "System Bus"), writes)
+
     def test_server_item_is_from_server_not_archipelago(self):
         # Player 0 is the server (starting items, !getitem). The client library names it "Archipelago".
         self.ram[C.HERBS] = 2
