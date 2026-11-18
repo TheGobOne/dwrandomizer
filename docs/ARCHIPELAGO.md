@@ -8,7 +8,7 @@ One exists, and it is built on the same randomizer code DWR is.
 
 - Repo: [Serpikmin/Archipelago-DragonWarrior](https://github.com/Serpikmin/Archipelago-DragonWarrior), world code on the `dragon_warrior` branch under `worlds/dragon_warrior/`.
 - Latest release: v1.0.5, 2026-06-01 (v1.0.1 was 2025-11-15). Listed as "Custom" (unofficial, not in Archipelago's main repo) on the [Archipelago wiki](https://archipelago.miraheze.org/wiki/Dragon_Warrior). It has Death Link and a PopTracker pack by Quinian.
-- ROM patcher: [Serpikmin/dwrandomizer](https://github.com/Serpikmin/dwrandomizer), a fork of juef17's `All-the-new-things-and-more`. Merge base is `6d0fc164` (2025-03-15). The fork is 32 commits ahead and 37 behind juef17. DWR is 103 commits ahead of juef17, so the patcher lacks everything DWR added.
+- ROM patcher: [Serpikmin/dwrandomizer](https://github.com/Serpikmin/dwrandomizer), a fork of juef17's `All-the-new-things-and-more`. Merge base is `6d0fc164` (2025-03-15). The fork is 32 commits ahead and 37 behind juef17. DWR is 103 commits ahead of juef17 (counted 2026-11-14, not rechecked), so the patcher lacks everything DWR added.
 - Nothing else turned up: no Dragon Warrior world in ArchipelagoMW/Archipelago, and GitHub search only finds Dragon Quest III HD-2D and Rocket Slime worlds.
 
 ### How it works
@@ -115,7 +115,7 @@ First concrete step (about 30 minutes): build a DWR ROM with Serpikmin's default
 
 ## Phase 1 status (2026-11-15)
 
-Correction: the first hook check read the wrong offsets. DWR's output ROM puts the 64 KB expansion before the fixed bank, so fixed-bank address `A` is at file offset `A + 0x10010`. With the right mapping, 17 of Serpikmin's 26 hook sites still hold vanilla bytes. The ones that changed are DWR's search code (`0xE11D-0xE188`), the chest TAKE code (`0xE35C`), the Rainbow Drop call (`0xD385`) and the randomized chest contents.
+Correction: the first hook check read the wrong offsets. DWR's output ROM puts the 64 KB expansion before the fixed bank, so fixed-bank address `A` is at file offset `A + 0x10010`. With the right mapping, 17 of Serpikmin's 26 hook sites held vanilla bytes (counted 2026-11-14, not rechecked). The ones that changed are DWR's search code (`0xE11D-0xE188`), the chest TAKE code (`0xE35C`), the Rainbow Drop call (`0xD385`) and the randomized chest contents.
 
 Built on branch `feature/archipelago`, with its own hooks on DWR's code:
 
@@ -203,6 +203,7 @@ How the mailbox works: the client writes the item name in DW tiles to `$6850` an
 - Round 3: the ROM itself takes the seed hash back at Continue when it tagged the slot, clearing the other seed's location bits. Only New Game tags a slot, so a slot keeps the seed that started it (Change Message Speed on the title menu also saves, and must not retag). New Quest zeroes the counter before it saves the new hero. The Dragon's Scale and Fighter's Ring wait for room like quest items. The client sends nothing on the poll that takes the hash back.
 - Round 4: slot tags are 2 bytes (seed hash bytes 0 and 1), ROM version `004`. A Herb or Magic Key at the carry cap becomes 100 Gold. An owner name with no DW font characters shows as P and the player number. In AP ROMs the music hooks go in the fixed-bank gaps, cut into pieces joined by jmp when they do not fit whole.
 - Round 5: in a build with a full fixed bank, the vertical bridge code goes in pieces (45, 13, 10, 7 and 5 bytes), the run bank and danger meter game-start code runs from a 40-byte slot in bank 3 (inside the 200 bytes of AP code), and the Responsive Controls read hook runs from bank 6 through the BRK far call. The title checksum window is left out when no gap is left. Copy Quest is no longer changed for Archipelago. The stat build code runs in place and the Nintendo header area is cleared, which changes every checksum.
+- Round 6 (2026-11-18): the fixed-bank routines that do not fit move to bank 6 behind a far call in every build, not only Archipelago builds, and the title checksum window tries bank 1 before it is left out. The slot data lists the Random flags that were turned off (`dwr_flags_off`), and the client logs them at connect.
 - PopTracker: gray items you do not have, area labels with counts, a legend, and hint highlights by hint status.
 - The DWR site names any flag Archipelago rejects under the flag string.
 

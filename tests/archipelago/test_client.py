@@ -28,7 +28,25 @@ def _stub_archipelago():
         progression_skip_balancing = 9
 
     base.ItemClassification = ItemClassification
+    base.Item = type("Item", (), {})
+    base.Location = type("Location", (), {})
+    base.Region = type("Region", (), {})
     sys.modules["BaseClasses"] = base
+
+    # What the world (archipelago/dwr/__init__.py) imports, so SlotData can load it.
+    options = types.ModuleType("Options")
+    options.OptionError = type("OptionError", (Exception,), {})
+    options.FreeText = type("FreeText", (), {})
+    options.PerGameCommonOptions = type("PerGameCommonOptions", (), {})
+    sys.modules["Options"] = options
+    host = types.ModuleType("settings")
+    host.Group = type("Group", (), {})
+    host.UserFilePath = type("UserFilePath", (str,), {})
+    sys.modules["settings"] = host
+    auto_world = types.ModuleType("worlds.AutoWorld")
+    auto_world.World = type("World", (), {})
+    files = types.ModuleType("worlds.Files")
+    files.APAutoPatchInterface = type("APAutoPatchInterface", (), {})
 
     net = types.ModuleType("NetUtils")
     net.ClientStatus = types.SimpleNamespace(CLIENT_GOAL=30)
@@ -44,6 +62,12 @@ def _stub_archipelago():
         return bh.guard_result
 
     bh.guarded_write = guarded_write
+    bh.reads = []   # what each bizhawk.read call returns, in order
+
+    async def read(ctx, requests):
+        return bh.reads.pop(0)
+
+    bh.read = read
     client_mod = types.ModuleType("worlds._bizhawk.client")
     client_mod.BizHawkClient = type("BizHawkClient", (), {"__init__": lambda self: None})
     worlds = types.ModuleType("worlds")
@@ -51,6 +75,8 @@ def _stub_archipelago():
     sys.modules["worlds"] = worlds
     sys.modules["worlds._bizhawk"] = bh
     sys.modules["worlds._bizhawk.client"] = client_mod
+    sys.modules["worlds.AutoWorld"] = auto_world
+    sys.modules["worlds.Files"] = files
     return bh
 
 
@@ -338,6 +364,84 @@ class SeedCheck(unittest.TestCase):
         self.assertEqual(C.slot_tag(b"\x00\x01\x02\x03"), b"\x5a\x01")
         self.assertEqual(C.slot_tag(b"\xff\x01\x02\x03"), b"\x5a\x01")
         self.assertEqual(C.slot_tag(b"\x4c\x8b\x6f\x66", 1), b"\x4c")   # ROM version 003
+
+
+def _load_world():
+    spec = importlib.util.spec_from_file_location("dwrworld", os.path.join(DWR_DIR, "__init__.py"),
+                                                  submodule_search_locations=[DWR_DIR])
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["dwrworld"] = mod
+    spec.loader.exec_module(mod)
+    return mod
+
+
+class SlotData(unittest.TestCase):
+    """The world's slot data and the client's log line use the same key."""
+    GOB_STANDARD = "IVIAAV2EKADEAMAAAADYKEBWAAAJACAAAAIBQAAM75QA"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.W = _load_world()
+
+    def world(self, code):
+        world = self.W.DWRWorld.__new__(self.W.DWRWorld)
+        world.player_name = "Tester"
+        world.options = types.SimpleNamespace(dwr_flags=types.SimpleNamespace(value=code))
+        world.generate_early()
+        return world
+
+    def with_random(self):
+        """Gob Standard with the first unsupported flag set to Random, and that flag's name."""
+        flags = self.W.dwr_flags
+        name, byte, mask, *_ = flags.UNSUPPORTED[0]
+        data = flags.decode(self.GOB_STANDARD) + [0] * 2
+        data[byte] = (data[byte] & ~mask) | (mask & 0xAA)
+        bits = "".join(format(b, "08b") for b in data)[:len(self.GOB_STANDARD) * 5]
+        return "".join(flags.BASE32[int(bits[i:i + 5], 2)] for i in range(0, len(bits), 5)), name
+
+    def test_nothing_turned_off_sends_no_slot_data(self):
+        self.assertEqual(self.world(self.GOB_STANDARD).fill_slot_data(), {})
+
+    def test_turned_off_flags_go_in_slot_data(self):
+        code, name = self.with_random()
+        with self.assertLogs(level="WARNING"):
+            data = self.world(code).fill_slot_data()
+        self.assertEqual(data, {"dwr_flags_off": [name]})
+        self.assertEqual(sys.modules["dwrworld.data"].SLOT_FLAGS_OFF, C.SLOT_FLAGS_OFF)
+
+    def test_worlds_do_not_share_the_list(self):
+        code, _ = self.with_random()
+        with self.assertLogs(level="WARNING"):
+            first = self.world(code)
+        second = self.world(self.GOB_STANDARD)
+        self.assertEqual(second.fill_slot_data(), {})
+        self.assertIsNot(first.flags_turned_off, second.flags_turned_off)
+
+
+def _sig(seed_hash):
+    """A version 004 ROM signature, with its slot name at $8000."""
+    return C.MAGIC + b"004" + b"\x00\x80" + b"\x00" + seed_hash + b"\x66"
+
+
+class FlagsOffNote(unittest.TestCase):
+    def ctx(self):
+        return types.SimpleNamespace(slot_data={C.SLOT_FLAGS_OFF: ["Stair Shuffle"]}, bizhawk_ctx=None)
+
+    def validate(self, client, ctx, seed_hash):
+        BH.reads[:] = [[_sig(seed_hash)], [b"Tester" + bytes(26)]]
+        self.assertTrue(asyncio.run(client.validate_rom(ctx)))
+
+    def test_logged_once_per_rom(self):
+        client, ctx = C.DWRClient(), self.ctx()
+        with self.assertLogs("Client", level="WARNING") as log:
+            self.validate(client, ctx, b"\x01\x02\x03\x04")
+            client.note_flags_off(ctx)
+            self.validate(client, ctx, b"\x01\x02\x03\x04")
+            client.note_flags_off(ctx)
+            self.validate(client, ctx, b"\x05\x06\x07\x08")   # another ROM: its note is new
+            client.note_flags_off(ctx)
+        notes = [line for line in log.output if "Stair Shuffle" in line]
+        self.assertEqual(len(notes), 2)
 
 
 if __name__ == "__main__":

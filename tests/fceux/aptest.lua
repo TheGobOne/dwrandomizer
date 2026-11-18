@@ -72,7 +72,12 @@ local tgt_x, tgt_y = 0, 0
 
 -- FCEUX is Lua 5.1: no | or // operators. Bits use FCEUX's OR(). registerbefore can run more
 -- than once per frame, so the test steps run once per emu.framecount() and repeats only re-send input.
-local last_frame, last_pad = -1, {}
+-- All eight buttons released. joypad.set leaves any button missing from the table to the real
+-- keyboard or pad, so every frame sets all eight.
+local function no_buttons()
+  return {A = false, B = false, select = false, start = false, up = false, down = false, left = false, right = false}
+end
+local last_frame, last_pad = -1, no_buttons()
 local deliver_t0, last_count, last_change = 0, -1, 0
 local function driver()
   local fc = emu.framecount()
@@ -195,7 +200,7 @@ local function driver()
   end
 
   -- inputs
-  local pad = {}
+  local pad = no_buttons()
   for i = #queue, 1, -1 do
     if queue[i].at == frame then press[queue[i].key] = 4; table.remove(queue, i) end
   end

@@ -210,6 +210,8 @@ void dwr_set_spoiler(BOOL enabled);
 uint16_t find_free_space(uint8_t *content, uint16_t start, uint8_t n);
 uint16_t find_free_space_in(uint8_t *content, uint16_t start, uint16_t end, uint8_t n);
 void dwr_no_room(void);
+/* Bank 6 from here to $BFFF holds far-call routines; the music's songs in bank 6 end below it. */
+uint16_t dwr_far_floor(void);
 int dwr_try_free_space(uint8_t *content, uint16_t start, uint8_t n);
 void dwr_give_up(const char *why);
 BOOL dwr_packing(void);

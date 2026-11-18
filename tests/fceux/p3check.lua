@@ -64,7 +64,13 @@ local function moved_tantegel_chest()
   end
 end
 local TGT_I, TGT_X, TGT_Y = moved_tantegel_chest()
-local last_frame, last_pad = -1, {}
+-- All eight buttons released. joypad.set leaves any button missing from the table to the real
+-- keyboard or pad, so every frame sets all eight.
+local function no_buttons()
+  return {A = false, B = false, select = false, start = false, up = false, down = false, left = false, right = false}
+end
+local last_frame, last_pad = -1, no_buttons()
+local done = false   -- the result is logged: stop driving, so the log stops growing if emu.exit does not close FCEUX
 local last_block = ""
 local DIRS = { "down", "left", "right", "up" }
 local mail_dir, mail_seen, mail_x, mail_y = 1, nil, 0, 0
@@ -73,10 +79,12 @@ local started = os.clock()
 local function finish()
   local secs = math.max(os.clock() - started, 0.01)
   log(string.format("done, %.1f s, %.0f frames per second", secs, frame / secs)); set_step("idle")
+  done = true
   if emu.exit then emu.exit() else log("no emu.exit") end
 end
 
 local function driver()
+  if done then joypad.set(1, no_buttons()); return end
   local fc = emu.framecount()
   if fc == last_frame then joypad.set(1, last_pad); return end
   last_frame = fc
@@ -228,7 +236,7 @@ local function driver()
     if age() == 60 then log("exiting so the .sav is written"); finish() end
   end
 
-  local pad = {}
+  local pad = no_buttons()
   for i = #queue, 1, -1 do
     if queue[i].at == frame then press[queue[i].key] = 4; table.remove(queue, i) end
   end

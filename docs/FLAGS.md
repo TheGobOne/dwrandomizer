@@ -1,6 +1,6 @@
 # Flag and feature reference
 
-Detail for the features in the [README](../README.md). Seed numbers and flags are **not** compatible with mcgrew's official randomizer or with juef17's fork. Names match the labels on the website, whose tabs are World, Treasure, Hero & Magic, Monsters, Battle, Shops & Inns, Quest, Speed & Info, Visual and Sound.
+Detail for the features in the [README](../README.md). Seed numbers and flags are not compatible with mcgrew's official randomizer or with juef17's fork. Names match the labels on the website, whose tabs are World, Treasure, Hero & Magic, Monsters, Battle, Shops & Inns, Quest, Speed & Info, Visual and Sound.
 
 The first part covers what this remix added. The second part is inherited from juef17's fork and was kept because it is still accurate.
 
@@ -26,7 +26,7 @@ Stronger monsters earn more. Kills per run, from the weakest tier of monster to 
 | Strict | 24, 16, 12, 8, 6, 4, 3 |
 | Very Strict | 32, 24, 16, 12, 8, 6, 4 |
 
-The bank holds 9 runs unless a cap of 1 to 99 is chosen. Command line: `--run-bank on`, `off` or `random`, with `--bank-cap` and `--bank-level`.
+The bank holds 9 runs unless a cap of 1 to 99 is chosen. Command line: `--run-bank on`, `off` or `random`, with `--bank-cap` and `--bank-level`. With Run Bank off, the cap and level are cleared from the flag code, and giving either option prints a warning.
 
 
 #### Quick Spell ####
@@ -43,14 +43,14 @@ Needs Quick Spell. Puts SPELL in the top right slot of the battle window and the
 
 Needs Random Map. Chooses the shape of the generated overworld. The choice is part of the flags, so it is part of the checksum.
 
-- **Continent**: the usual random map.
-- **Caldera**: a mountain ring with two passes. Charlock sits in the middle of the basin and Tantegel is always outside the ring.
-- **Wasteland**: mostly desert and swamp, with few forests. Pair it with a lower Encounter Rate.
-- **Riverlands**: one large land cut up by rivers, joined by bridges.
-- **Lake**: a ring of land around a lake. Charlock sits on an island in the middle, reached by 2 to 4 long bridges. You still need the Rainbow Drop to cross from the island to the castle. Tantegel is never on the island.
-- **Earth**: a map of the world. Europe, Asia and Africa are one continent, joined by bridges (straight or bent once) to Australia, Japan, the Arctic and Antarctica. North and South America are reached only by raft: each has a pier (a single bridge tile out on the water, next to the coast) that takes you to a pier in Europe, Asia or Africa, a different one for each, and back. Step from the land onto the pier to cross; you arrive on the land beside the other pier. Always normal size.
-- **Westeros**: one long continent. The Wall, a line of mountains across the North, has a single pass, and Charlock is always beyond it while Tantegel is always south of it. The Neck, partway down, is swamp. Always normal size.
-- **Random**: picks one of the seven.
+- Continent: the usual random map.
+- Caldera: a mountain ring with two passes. Charlock sits in the middle of the basin and Tantegel is always outside the ring.
+- Wasteland: mostly desert and swamp, with few forests. Pair it with a lower Encounter Rate.
+- Riverlands: one large land cut up by rivers, joined by bridges.
+- Lake: a ring of land around a lake. Charlock sits on an island in the middle, reached by 2 to 4 long bridges. You still need the Rainbow Drop to cross from the island to the castle. Tantegel is never on the island.
+- Earth: a map of the world. Europe, Asia and Africa are one continent, joined by bridges (straight or bent once) to Australia, Japan, the Arctic and Antarctica. North and South America are reached only by raft: each has a pier (a single bridge tile out on the water, next to the coast) that takes you to a pier in Europe, Asia or Africa, a different one for each, and back. Step from the land onto the pier to cross; you arrive on the land beside the other pier. Always normal size.
+- Westeros: one long continent. The Wall, a line of mountains across the North, has a single pass, and Charlock is always beyond it while Tantegel is always south of it. The Neck, partway down, is swamp. Always normal size.
+- Random: picks one of the seven.
 
 Random, Lake, Earth, Westeros and later biomes are stored in a 26th flag byte, so their flag codes are at least 42 characters, or 44 with Fast Hills on. Codes for the first four biomes stay 40 characters. A 40 letter code with Biome set to Random still picks from the first four when run from the command line. The website reads it as the new Random and writes a 42 letter code that picks from all seven, so the map can differ.
 
@@ -80,7 +80,7 @@ When the Dragonlord's second form dies, Return is cast for you and you arrive in
 
 #### Responsive Controls ####
 
-On the overworld, walking, the command window and pause answer a press at once instead of waiting up to 15 frames. In towns and dungeons a short press is kept until the game can act on it, because NPCs move in time with that wait. A button newly pressed during a step is kept for the next step. It is dropped only when that step starts a battle, a warp or stairs, or the hero dies on it, so the hero no longer walks by himself after a fight. A step onto a damage tile such as swamp keeps it, so a double tap in a swamp moves two tiles. Very full ROMs may not build with it on. Archipelago builds run its read hook from bank 6 when the main program bank is too full. It is part of the checksum. Command line: `--responsive-controls on`.
+On the overworld, walking, the command window and pause answer a press at once instead of waiting up to 15 frames. In towns and dungeons a short press is kept until the game can act on it, because NPCs move in time with that wait. A button newly pressed during a step is kept for the next step. It is dropped only when that step starts a battle, a warp or stairs, or the hero dies on it, so the hero no longer walks by himself after a fight. A step onto a damage tile such as swamp keeps it, so a double tap in a swamp moves two tiles. Very full ROMs may not build with it on. When the spare end of the map in bank 0 is too small, its read hook runs from bank 6 behind a far call: always in an Archipelago build, and in other builds when the main program bank has no room. Its frame hook does the same when the main bank is full. It is part of the checksum. Command line: `--responsive-controls on`.
 
 
 #### Fast Hills ####
@@ -163,7 +163,7 @@ This shuffles every weapon, tool, fairy water and key vendor, as well as the rad
 
 #### Charlock Inn ####
 
-There is now an innkeeper in Charlock, near the treasury. Why an inn in Charlock? Why not?
+There is an innkeeper in Charlock, near the treasury.
 
 
 #### Only Healmore ####
@@ -198,7 +198,7 @@ Walking into walls can deal damage to the player. The amount is chosen on the we
 
 #### Disable Spell Flashing ####
 
-Prevents the screen from flashing when you cast spells.
+Prevents the screen from flashing when you cast spells. Command line: `--spell-flashing off`.
 
 
 #### Disable Cursor Blink ####
@@ -208,7 +208,17 @@ The menu cursor arrow stays on all the time instead of blinking. It is the secon
 
 #### Disable Red Flashes ####
 
-Prevents the screen from flashing when walking on damage tiles. If bonk damage is on, the usual swamp damage sound is used instead of the bonking sound.
+Prevents the screen from flashing when walking on damage tiles. If bonk damage is on, the usual swamp damage sound is used instead of the bonking sound. Command line: `--red-flashes off`.
+
+
+#### Menu Wrapping ####
+
+The menu cursor wraps from the last choice to the first. Command line: `--menu-wrap on`.
+
+
+#### Skip Original Credits ####
+
+Skips the original credits and goes straight to the stat scroll. Command line: `--original-credits off`.
 
 
 #### Discard Flute ####
@@ -275,7 +285,12 @@ Thanks to Cyberdark86, Angel_FM and friends, you can now save a very wintery-loo
 
 #### Radish Finish ####
 
-A new way to win the game: talk to the radish vendor while carrying Gwaelin so you can share those sweet, sweet radishes with her.
+A new way to win the game: talk to the radish vendor while carrying Gwaelin so you can share radishes with her.
+
+
+#### Alternate Running Algorithm ####
+
+The chance to run away depends on which map you are on. It needs Run Mechanics on `Vanilla`.
 
 
 #### Run Mechanics ####
@@ -285,9 +300,9 @@ Make the game use alternate mechanics for running away from an enemy from anothe
 - On your third run attempt in a battle, you have a 75% chance to get away.
 - On your fourth run attempt, or if the enemy's asleep, you're guaranteed to get away.
 
-For `Costs XP`, you are guaranteed to run away if your XP is at least 1/8th of the enemy's XP drop: in that case, that amount is deducted from your XP. Yes, this means you can lose levels! Also, note that running from sleeping enemies won't cost you XP, nor will running from either Dragonlord form (as they don't give experience).
+For `Costs XP`, you are guaranteed to run away if your XP is at least 1/8th of the enemy's XP drop: in that case, that amount is deducted from your XP. You can lose levels this way. Running from sleeping enemies won't cost you XP, nor will running from either Dragonlord form (as they don't give experience).
 
-This flag overrides `Alternate Running Algorithm`. `Easy Charlock` (Quest tab, Route section) is turned off and disabled while any Run Mechanics option is on, including Random.
+`Alternate Running Algorithm` only has an effect with Run Mechanics on `Vanilla`. With `Random` it applies only if the seed picks Vanilla (1 time in 5). Any other Run Mechanics option replaces it. `Easy Charlock` (Quest tab, Route section) is turned off and disabled while any Run Mechanics option is on, including Random.
 
 
 #### Unbreakable Keys ####
@@ -337,7 +352,7 @@ The Fairy Flute plays only the climb up the scale from its song, at its original
 
 #### Hints ####
 
-In the vanilla game, some NPCs give directions that become just plain wrong when randomizing the map. `Hints` set to `Corrected` (the other choice is `Original text`) is an attempt at fixing them, making the detour to some NPCs somehow worth it.
+In the vanilla game, some NPCs give directions that become just plain wrong when randomizing the map. `Hints` set to `Corrected` (the other choice is `Original text`) is an attempt at fixing them, so that the detour to those NPCs is not wasted.
 
 Here's a list of changed dialog:
 * NPC in Tantegel: `East of this castle is a town…` (this is a throne room guard's dialogue about Brecconary... but only before you leave it the first time!)
@@ -367,12 +382,12 @@ XP and Gold gained from monsters will be randomized, but within [pre-set, hardco
 
 #### Disable Music / Don't Mute Jingles ####
 
-While `Disable Music` exists in mcgrew's official version, it has been improved such that input from two seeds differing only by that flag will sync, and will not affect checksum anymore. It now mutes more things as well, so for some players' convenience, a new flag allows to not mute the Silver Harp, Fairy Flute and Gwaelin's music jingles. With `Disable Music` on, the jingles are muted too unless `Don't Mute Jingles` is on. A custom music pack is left out of the ROM as well (the build log says "Disable Music is on, so the music pack is left out.").
+While `Disable Music` exists in mcgrew's official version, it has been improved such that input from two seeds differing only by that flag will sync, and will not affect checksum anymore. It now mutes more things as well, so for some players' convenience, a new flag allows to not mute the Silver Harp, Fairy Flute and Gwaelin's music jingles. With `Disable Music` on, the jingles are muted too unless `Don't Mute Jingles` is on. Command line: `--disable-music on`, and `--jingles on` for Don't Mute Jingles. A custom music pack is left out of the ROM as well (the build log says "Disable Music is on, so the music pack is left out.").
 
 
 #### Don't let Lorik or the Dragonlord end your game ####
 
-Unfortunate accidents have happened before! Courtesy of mcgrew, the king doesn't ask the player if they want to continue playing when they talk to him. Also, accepting the Dragonlord offer is not possible anymore unless `Three's Company` is on and you're carrying the princess.
+The king doesn't ask the player if they want to continue playing when they talk to him (by mcgrew). Also, accepting the Dragonlord offer is not possible anymore unless `Three's Company` is on and you're carrying the princess.
 
 
 #### Speed Hacks & jingles ####
@@ -404,12 +419,12 @@ The player's location upon entering a town will be randomized. Note: Garinham ha
 
 #### Forfeit Trigger ####
 
-When on your status screen, hold Start and Select to warp to the end of the game. Huge thanks to Crump's Brother for this one!
+When on your status screen, hold Start and Select to warp to the end of the game. By Crump's Brother.
 
 
 #### Build Options ####
 
-Which stats the hero grows best in. Set on the Hero & Magic tab. Another huge piece of work from Crump's Brother! When it is not `Original`, the title menu line for message speed reads `CHANGE BUILD (EXP 0)` and opens the build window.
+Which stats the hero grows best in. Set on the Hero & Magic tab. By Crump's Brother. When it is not `Original`, the title menu line for message speed reads `CHANGE BUILD (EXP 0)` and opens the build window.
 
 * `Original`: the name impacts your stat build. All builds are -3/+10% for the selected stats.
 * `Free Selection`: stat builds are freely chosen on a menu at the start and are not tied to name length. Text speed is set to `Fast` automatically.
@@ -457,7 +472,7 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--spell-flashing` | `on` or `off`. `off` turns on Disable Spell Flashing |
 | `--red-flashes` | `on` or `off`. `off` turns on Disable Red Flashes |
 | `--disable-music` | `on` or `off`. `on` turns on Disable Music, and a music pack is left out too |
-| `--mute-jingles` | `on` or `off`. `on` turns on Don't Mute Jingles (jingles play with Disable Music on) |
+| `--jingles` | `on` or `off`. `on` turns on Don't Mute Jingles (jingles keep playing with Disable Music on) |
 | `--original-credits` | `on` or `off`. `off` turns on Skip Original Credits |
 | `--menu-wrap` | `on` or `off`: Menu Wrapping |
 | `--spoiler` | `on` or `off`: `on` writes a `.spoiler.txt` next to the ROM. It changes the checksum, so a spoiler seed never matches one without |
@@ -468,8 +483,8 @@ Most of these also exist as options on the website, including the spoiler log.
 ## Known issues ##
 
 - In mcgrew's official DWR version, when a vendor is missing in Rimuldar (e.g. key vendor), the very top left tile of the town is an invisible wall. It doesn't matter then because there is no point in going there if there is no vendor. But since vendors can now be shuffled, it can be a valid check, and notably, coupling this with bonk damage could ruin a player's day. The block has been replaced with a water tile to avoid player frustration. Something similar happens with Cantlin.
-- `NPC Guillotine` can also trigger the above problem, but if that happens, the block won't be replaced with a water tile. That's the penalty for murder.
+- `NPC Guillotine` can also trigger the above problem, but if that happens, the block is not replaced with a water tile.
 - With the `Disguised Dragonlord` flag, there will likely be some graphical glitches in both Dragonlord fights, depending on his location. They are purely cosmetic and do not affect the ability to run away or to complete the game.
 - The village music plays after spending the night at the `Charlock Inn`, but it fixes itself as the music changes to something else (e.g. enemy encounter, death necklace use, …).
 - Copying a save does not copy its `Warp Whistle` list. Continuing a game at 0 XP is treated as a new game and clears the list and the `Run Bank`.
-- If too many flags that require ROM space are active at the same time, it might not be possible to generate a seed. Biggest offenders are `Build Options`, `Hurtmore Doors` and `Warp Whistle`, so turn one of those off if you run into that problem.
+- If too many flags that require ROM space are active at the same time, it might not be possible to generate a seed. Flags that add a lot of code are Free Charlock, Run Bank, Warp Whistle, Hurtmore Doors and Build Options (not measured since the bank 6 fallbacks), so turn one of those off if you run into that problem.

@@ -86,7 +86,7 @@ static void print_usage(const char *command, char *default_flags)
     printf("  --spell-flashing on|off   (off: Disable Spell Flashing)\n");
     printf("  --red-flashes on|off   (off: Disable Red Flashes)\n");
     printf("  --disable-music on|off   (on: Disable Music; a music pack is left out too)\n");
-    printf("  --mute-jingles on|off   (on: Don't Mute Jingles, which keeps jingles when Disable Music is on)\n");
+    printf("  --jingles on|off   (on: jingles still play when Disable Music is on, Don't Mute Jingles)\n");
     printf("  --original-credits on|off   (off: Skip Original Credits)\n");
     printf("  --menu-wrap on|off\n");
     printf("\n");
@@ -195,7 +195,8 @@ int main(int argc, char **argv)
             no_red_flash = !on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--disable-music")) {
             no_music = on_off(argv[1], argv[2]);
-        } else if (!strcmp(argv[1], "--mute-jingles")) {
+        } else if (!strcmp(argv[1], "--jingles") || !strcmp(argv[1], "--mute-jingles")) {
+            /* --mute-jingles is the old name, kept for scripts: on also means Don't Mute Jingles. */
             dont_mute_jingles = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--original-credits")) {
             skip_credits = !on_off(argv[1], argv[2]);
@@ -249,14 +250,17 @@ int main(int argc, char **argv)
         sprite = "Random";
     }
 
+    /* 27 bytes plus room for the 4 spare bits a 44 character code decodes into. */
+    uint8_t raw[28] = {0};
+    strncpy(encoded, flags, 44);
+    base32_decode((uint8_t *)encoded, raw);
+    /* A cap or level with Run Bank off is cleared below even when no option is given, so a code gives the
+     * same flags and file name with or without other options. */
     if (bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || quick_swap >= 0 || no_blink >= 0 || fast_hills >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0 || responsive >= 0 || auto_stairs >= 0 || biome >= 0 ||
             run_bank >= 0 || safe_start >= 0 || fast_flute >= 0 || discard_flute >= 0 || no_shake >= 0 ||
-            no_spell_flash >= 0 || no_red_flash >= 0 || no_music >= 0 || dont_mute_jingles >= 0 || skip_credits >= 0 || menu_wrap >= 0) {
-        /* 27 bytes plus room for the 4 spare bits a 44 character code decodes into. */
-        uint8_t raw[28] = {0};
+            no_spell_flash >= 0 || no_red_flash >= 0 || no_music >= 0 || dont_mute_jingles >= 0 || skip_credits >= 0 || menu_wrap >= 0 ||
+            (!(raw[11] & 0x0c) && (raw[12] || (raw[14] & 0x01)))) {
         int length;
-        strncpy(encoded, flags, 44);
-        base32_decode((uint8_t *)encoded, raw);
         if (bank_cap)
             raw[12] = (uint8_t)((raw[12] & 0x80) | (bank_cap == 9 ? 0 : bank_cap));   /* 9 is the default, written as 0 like the site */
         if (bank_level >= 0) {
@@ -281,6 +285,8 @@ int main(int argc, char **argv)
         if (run_bank >= 0)
             raw[11] = (uint8_t)((raw[11] & 0xf3) | (run_bank << 2));
         if (!(raw[11] & 0x0c)) {   /* no cap or level without Run Bank, as on the site */
+            if (bank_cap || bank_level >= 0)
+                fprintf(stderr, "Run Bank is off, so --bank-cap and --bank-level are ignored.\n");
             raw[12] = 0;
             raw[14] &= 0xfe;
         }

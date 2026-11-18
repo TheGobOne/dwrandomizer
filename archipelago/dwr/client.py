@@ -21,7 +21,7 @@ from NetUtils import ClientStatus
 import worlds._bizhawk as bizhawk
 from worlds._bizhawk.client import BizHawkClient
 
-from .data import BASE, GAME, GWAELIN, LOCATION_NAME_TO_ID
+from .data import BASE, GAME, GWAELIN, LOCATION_NAME_TO_ID, SLOT_FLAGS_OFF
 from .text import received_text
 
 if TYPE_CHECKING:
@@ -136,6 +136,7 @@ class DWRClient(BizHawkClient):
             self.stale_noted = False
             self.waiting_noted = -1
             self.ahead_noted = False
+            self.off_noted = False
             self.last_received = -1
             if sig[5:8] not in ROM_VERSIONS:
                 logger.warning("This ROM is DWR AP version %s, the client knows %s. Rebuild the ROM "
@@ -158,7 +159,7 @@ class DWRClient(BizHawkClient):
         self.herb_cap, self.key_cap = (caps >> 4, caps & 0x0F) if caps else (6, 6)
         ctx.game = self.game
         ctx.items_handling = 0b111  # receive everything, own items included
-        ctx.want_slot_data = True  # for dwr_flags_off
+        ctx.want_slot_data = True  # for SLOT_FLAGS_OFF
         return True
 
     async def set_auth(self, ctx: "BizHawkClientContext") -> None:
@@ -168,11 +169,7 @@ class DWRClient(BizHawkClient):
     async def game_watcher(self, ctx: "BizHawkClientContext") -> None:
         if ctx.server is None or ctx.slot is None:
             return
-        slot_data = getattr(ctx, "slot_data", None) or {}
-        if not self.off_noted and slot_data.get("dwr_flags_off"):
-            self.off_noted = True
-            logger.warning("These DWR flags were set to Random and are off, because Archipelago does not "
-                           "support them: %s", ", ".join(slot_data["dwr_flags_off"]))
+        self.note_flags_off(ctx)
         try:
             ram, block, mail, saved_hash, slot, tags = await bizhawk.read(ctx.bizhawk_ctx, [
                 (0x0000, 0x100, "RAM"),
@@ -192,6 +189,14 @@ class DWRClient(BizHawkClient):
 
         await self._send_checks(ctx, ram, block)
         await self._give_item(ctx, ram, block, mail[0])
+
+    def note_flags_off(self, ctx) -> None:
+        """Logs the Random flags generation turned off, once per ROM."""
+        slot_data = getattr(ctx, "slot_data", None) or {}
+        if not self.off_noted and slot_data.get(SLOT_FLAGS_OFF):
+            self.off_noted = True
+            logger.warning("These DWR flags were set to Random and are off, because Archipelago does not "
+                           "support them: %s", ", ".join(slot_data[SLOT_FLAGS_OFF]))
 
     def tag_is_ours(self, tag: bytes) -> bool:
         """The slot was saved by this seed. A save from ROM version 003 has one tag byte, and

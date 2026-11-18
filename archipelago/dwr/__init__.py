@@ -32,7 +32,7 @@ from .host_settings import DWRSettings
 from .options import DWROptions
 from .patch import DWRPatch
 from .data import (CHARLOCK_CHESTS, FILLER, GAME, GOAL, ITEM_NAME_TO_ID, ITEMS,
-                   LOCATION_NAME_TO_ID)
+                   LOCATION_NAME_TO_ID, SLOT_FLAGS_OFF)
 
 
 class DWRItem(Item):
@@ -56,13 +56,15 @@ class DWRWorld(World):
 
     free_charlock: bool = False
     flags_text: str = ""   # the DWR flags this slot is built with, after random_off
-    flags_turned_off: list = []   # flags the player set to Random that Archipelago turns off
+    flags_turned_off: list   # flags the player set to Random that Archipelago turns off; set in generate_early
 
     def fill_slot_data(self) -> Dict[str, Any]:
         # The client shows these once the player connects. Empty when nothing was turned off.
-        return {"dwr_flags_off": self.flags_turned_off} if self.flags_turned_off else {}
+        turned_off = getattr(self, "flags_turned_off", [])
+        return {SLOT_FLAGS_OFF: list(turned_off)} if turned_off else {}
 
     def generate_early(self) -> None:
+        self.flags_turned_off = []
         # The ROM keeps the slot name in 32 bytes of UTF-8 for the client to log in with.
         if len(self.player_name.encode("utf-8")) > 32:
             raise OptionError(f"{self.player_name}: the slot name is "

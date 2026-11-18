@@ -125,16 +125,17 @@ body *{font-size:inherit!important}
 .opt .tog{min-height:2rem;min-width:2.6rem}
 .main{grid-template-columns:17rem minmax(0,1fr) 17rem;gap:1rem}
 .leftcol,.rightcol{display:grid;gap:1rem;align-content:start;min-height:0;min-width:0}
-@media (min-width:1000px) and (min-height:760px){
- html,body{height:100%;overflow:hidden}
- #app{height:100%}
- .screen{height:100vh;max-width:1500px;grid-template-rows:auto auto auto minmax(0,1fr);gap:.8rem;padding-bottom:.6rem}
- .main{min-height:0;height:100%;align-items:stretch}
- .panel{min-height:0;display:flex;flex-direction:column}
+@media (min-width:1000px){
+ /* The page is one screen tall when the windows fit. The left column sets the least height of the main row
+    (the options and Status do not count toward it, so they scroll inside their windows), and when the screen is
+    shorter than that the whole page scrolls. */
+ .screen{min-height:100vh;max-width:1500px;grid-template-rows:auto auto auto minmax(0,1fr);gap:.8rem;padding-bottom:.6rem}
+ .main{min-height:0;align-items:stretch}
+ .panel{min-height:22rem;contain:size;display:flex;flex-direction:column}
  .panel>*{min-height:0}
  .panel .opts{flex:1 1 auto;overflow:auto}
  .leftcol,.rightcol{height:100%;grid-template-rows:minmax(0,auto) auto}
- .rightcol{grid-template-rows:minmax(0,1fr) auto}
+ .rightcol{grid-template-rows:minmax(0,1fr) auto;contain:size;min-height:22rem}
  .sumwin{min-height:0;display:flex;flex-direction:column}
  .sumwin .sumlist{overflow:auto;columns:1}
 }
@@ -145,7 +146,7 @@ body *{font-size:inherit!important}
 .row input[type=text]{flex:0 0 auto}
 .title{padding:.3rem}
 .sumwin .sumlist{columns:1!important}
-@media (min-width:1000px) and (min-height:760px){
+@media (min-width:1000px){
  .leftcol{grid-template-rows:minmax(0,1fr) auto}
  nav.cmd{min-height:0;display:flex;flex-direction:column}
  nav.cmd>.cmd{flex:1 1 auto;min-height:0;overflow:auto}
@@ -154,9 +155,9 @@ body *{font-size:inherit!important}
 .idfields .row label{flex:0 0 4rem;min-width:0}
 .idbtns{margin-left:calc(4rem + .4rem)}
 .sumwin .sumlist{column-count:1!important;overflow-x:hidden}
-@media (min-width:1000px) and (min-height:760px){.sumwin .sumlist{height:100%;display:block}}
+@media (min-width:1000px){.sumwin .sumlist{height:100%;display:block}}
 @media (max-width:720px){.idfields .row label{flex:1 1 100%}.idbtns{margin-left:0}.cmd .tab{padding-left:1.2rem}}
-@media (min-width:1000px) and (min-height:760px){
+@media (min-width:1000px){
  .main{grid-template-columns:13.5rem minmax(0,1fr) 17rem}
  .leftcol,.rightcol{grid-template-rows:minmax(0,max-content) auto!important;align-content:start}
  .sumwin .sumlist{height:auto;flex:1 1 auto;min-height:0;overflow-y:auto}
@@ -178,6 +179,7 @@ body *{font-size:inherit!important}
 .trackrow{display:grid;grid-template-columns:10rem minmax(0,1fr) 5.5rem;gap:.4rem;align-items:center}
 .trackrow select{width:100%;min-width:0;min-height:1.7rem;background:var(--blue);color:#fff;border:2px solid #fff}
 .trackrow select:disabled{opacity:.55}
+.trackbox.off .trackcols,.trackbox.off .onlyrow,.trackbox.off .packall{opacity:.6}
 .tagn{color:var(--muted);text-align:right}
 .trackrow{grid-template-columns:9rem minmax(0,1fr) 2rem}
 .trackcols{grid-template-columns:repeat(auto-fit,minmax(min(100%,30rem),1fr))}
@@ -215,7 +217,7 @@ body *{font-size:inherit!important}
 .cmd .tab{flex:none;white-space:nowrap}
 .menuhead{flex:none;white-space:nowrap}
 .idfields .row label{min-width:7.4rem}
-@media (min-width:1000px) and (min-height:760px){.main{grid-template-columns:17rem minmax(0,1fr) 18rem}}
+@media (min-width:1000px){.main{grid-template-columns:17rem minmax(0,1fr) 18rem}}
 .title h1{white-space:nowrap;font-size:min(24px,calc((100vw - 4rem) / 53))!important}
 .btn.go,.btn.go:hover{background:#fff!important;color:var(--blue)!important;border-color:#fff!important}
 .opt[data-remix]>.name::after{content:'REMIX';display:inline-block;margin-left:.6em;padding:0 .3em;background:none;border:2px solid #8ff5b0;color:#8ff5b0;font-size:1em;line-height:1.1;white-space:nowrap}
@@ -232,7 +234,7 @@ body *{font-size:inherit!important}
 .idfields .result:empty{display:none}
 .btn.go,.idfields .row .btn{white-space:nowrap;min-width:max-content!important}
 @media (min-width:721px){.idfields .row .btn.go{padding-left:.1rem!important;padding-right:.1rem!important}}
-@media (min-width:1000px) and (min-height:760px){
+@media (min-width:1000px){
  .leftcol{height:100%;min-height:0;grid-template-rows:minmax(0,1fr) auto auto!important;gap:.65rem}
  .leftcol>:first-child{min-height:0;overflow:hidden}
  .rightcol{height:100%;grid-template-rows:minmax(0,1fr)!important}
@@ -261,15 +263,18 @@ body *{font-size:inherit!important}
 /* The title sits outside the menu window, so only the list inside it scrolls. */
 .legend{margin:0 0 .3rem;color:var(--muted);font-weight:400;flex:none;white-space:pre-wrap}
 ::placeholder{color:var(--soft);opacity:1}
-@media (min-width:1000px) and (min-height:760px){.cmd .tab{min-height:1.45rem;padding-top:.05rem;padding-bottom:.05rem}}
+@media (min-width:1000px){.cmd .tab{min-height:1.45rem;padding-top:.05rem;padding-bottom:.05rem}}
 .cmd .tab:focus-visible{outline-offset:-3px}
-@media (min-width:1000px) and (min-height:760px){
+@media (min-width:1000px){
  .screen{grid-template-rows:auto auto minmax(0,1fr)}
  .leftcol{grid-template-rows:minmax(0,max-content) auto auto!important;align-content:start}
  .leftcol>:first-child{overflow:visible}
 }
 .opt.needsoff{opacity:.7}
-.needtag{margin-left:.5rem;padding:0 .3rem;border:1px solid currentColor;font-weight:400}
+.needtag{margin-left:.3rem;padding:0 .3rem;border:1px solid currentColor;font-weight:400}
+/* A control that is switched off by another flag does not look clickable. Others get a hover color. */
+.opt .tog:disabled,.opt .tog:disabled~.name{cursor:not-allowed}
+.mini:not(:disabled):hover,.btn:not(:disabled):hover,.opt .tog:not(:disabled):hover{background:var(--soft);color:var(--blue)}
 .spaceline{margin:.1rem .3rem .3rem;color:var(--muted);flex:none}
 .spaceline:empty{display:none}
 /* Options shrink to their column, so long labels can't push the panel sideways. */
@@ -280,7 +285,7 @@ body *{font-size:inherit!important}
 .bankbox,.packbox{grid-template-columns:minmax(0,1fr)}
 input[type=file]{min-width:0;max-width:100%}
 /* Every command always shows. The hero picture gives up the space on short screens. */
-@media (min-width:1000px) and (min-height:760px){
+@media (min-width:1000px){
  .leftcol{display:flex;flex-direction:column;overflow:hidden auto;padding-top:.7rem;margin-top:-.7rem;height:calc(100% + .7rem)!important}
  .leftcol>*{flex:none}
  .leftcol>.herostack{flex:none;display:flex;flex-direction:column;min-height:0}
@@ -288,14 +293,26 @@ input[type=file]{min-width:0;max-width:100%}
  .herostack>.colorwin{flex:none}
  .leftcol>nav.cmd{overflow:visible}
  nav.cmd>.cmd{flex:none;overflow:visible}
- /* The window layout holds from 760px high. Shorter screens scroll the page once instead. */
- .heropic{--hero:clamp(40px,calc(100vh - 890px),190px)}
+ /* The hero picture takes what the screen height leaves. */
+ .heropic{--hero:clamp(40px,calc(100vh - 960px),190px)}
+}
+/* Under 940px high the picture sits beside the sprite choices, so the Sprite window is only a few lines tall. */
+@media (min-width:1000px) and (max-height:939px){
+ .herowin{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.25rem .5rem;align-items:center}
+ .herowin .heropic{--hero:3.4rem;grid-row:1/3;margin:0}
+ .herowin .herosel,.herowin .animrow{grid-column:2;margin-top:0}
 }
 .skipopts{position:absolute;left:-9999px}
 .skipopts:focus{position:static;display:block;width:100%;margin-top:.2rem}
 .romstat.romneed{color:#ffd23f}
-.apcheck{font-size:.9em;min-height:2.7em;align-items:flex-start}
-.apcheck.apbad{color:#ffd23f;opacity:1}
+/* Four lines are kept under the Flags box: two for the Archipelago line or the flag error, two for the note about
+   which code to share. Setup keeps its height when a message shows. */
+.apcheck{font-size:.9em;align-items:flex-start}
+.apbody{flex:1 1 0;min-width:0}
+.apline{display:flex;min-height:3em}
+.apnote{margin:0;color:var(--muted);font-weight:400;line-height:1.5}
+.apnote .mini{min-height:0;padding:0 .5rem;margin-left:.2rem}
+.apcheck.apbad .apline{color:#ffd23f;opacity:1}
 .packstatus{color:#ffd23f}
 dialog.resultwin{width:min(36rem,calc(100vw - 4rem));max-height:80vh;overflow:auto;background:var(--blue);color:#fff;margin:auto}
 dialog.resultwin h2{position:static;background:none;margin:0 0 .5rem;padding:0}
@@ -319,26 +336,31 @@ dialog.resultwin::backdrop{background:rgba(0,0,0,.65)}
 .packall{display:flex;gap:.4rem}
 .presetsaved{display:flex;flex-direction:column;gap:.2rem}
 .presetsaved[hidden]{display:none}
-/* Built-in presets stack on the left, saved ones and the name box on the right. */
-.presetarea{display:grid!important;grid-template-columns:max-content minmax(0,1fr);grid-template-rows:auto 1fr;gap:.4rem 1rem;align-items:start}
-.presetleft{display:flex;flex-direction:column;gap:.2rem;grid-column:1;grid-row:1/3}
+/* Presets, with the name box under them. The message comes right after the preset buttons in the page, so Undo is
+   the next Tab stop, and it keeps three lines so Setup does not jump when it shows. The saved presets scroll
+   inside a box two rows tall, so many of them cannot push the options off the screen. */
+.presetarea{display:grid!important;grid-template-columns:max-content minmax(0,1fr);grid-template-areas:"left msg" "left saved" "save saved";gap:.3rem 1rem;align-items:start}
+.presetleft{grid-area:left;display:flex;flex-direction:column;gap:.2rem}
 .presetleft .presetgrid{flex-direction:column;flex-wrap:nowrap;align-items:stretch;margin-top:0}
-.presetarea .presetsaved{grid-column:2;grid-row:1}
-.presetarea .presetsave{grid-column:2;grid-row:2;align-self:end;justify-self:start;justify-content:flex-start;margin-top:0;max-width:100%}
-.presetarea .presetsaved .presetgrid{margin-top:0}
+.presetarea .presetmsg{grid-area:msg;display:block;min-height:4.5em;min-width:0}
+.presetarea .presetsaved{grid-area:saved}
+.presetarea .presetsave{grid-area:save;display:flex;flex-wrap:nowrap;gap:.4rem;margin:0;align-items:center;min-width:0}
+.presetarea .presetsaved .presetgrid{margin-top:0;max-height:5.6rem;overflow-y:auto;align-content:flex-start}
 .presetarea .presetsaved .savedpreset{max-width:100%}
-.presetarea .presetsaved .savedpreset .preset{overflow:hidden;text-overflow:ellipsis}
-.presetarea .presetsave{flex-wrap:nowrap}
-.presetarea .presetsave .presetname{flex:0 1 auto;min-width:0;width:calc(20em + 1.5rem)}
-.presetarea .presetmsg:empty{display:none}
-@media (max-width:1279px){.presetarea .presetsave{flex-wrap:wrap}}
-.presetarea .presetsave{flex-wrap:wrap}
-.presetarea .presetsave .presetname{min-width:9rem}
-/* When the preset box is narrow, the built-in presets run in a row and the saved presets and the name box go under them.
-   This follows the width of the box itself, not the window, so it holds at any screen size. */
+.presetarea .presetsaved .savedpreset .preset{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:14rem}
+.presetarea .presetsave .presetname{flex:1 1 auto;min-width:0;width:calc(10ch + 1.2rem)}
+/* The layout follows the width of the preset box itself, not the window. Narrow boxes put the presets in a 2x2 grid with
+   everything else under them. */
 .idpresets{container-type:inline-size;container-name:presets}
-@container presets (min-width:901px){.idpresets .presetleft .presetgrid{flex-direction:row;flex-wrap:wrap}}
-@container presets (max-width:600px){.idpresets .presetarea{grid-template-columns:minmax(0,1fr);grid-template-rows:auto}.idpresets .presetleft,.idpresets .presetarea .presetsaved,.idpresets .presetarea .presetsave{grid-column:1;grid-row:auto}.idpresets .presetarea .presetsave{justify-self:start;margin-top:.1rem}.idpresets .presetleft .presetgrid{flex-direction:row;flex-wrap:wrap}}
+@container presets (min-width:901px){.idpresets .presetleft .presetgrid{display:grid;grid-template-columns:repeat(2,max-content)}}
+@container presets (max-width:600px){
+ .idpresets .presetarea{grid-template-columns:minmax(0,1fr);grid-template-areas:"left" "msg" "save" "saved"}
+ .idpresets .presetleft .presetgrid{display:grid;grid-template-columns:1fr 1fr;gap:.25rem}
+ .idpresets .presetarea .presetsave .presetname{flex:0 1 14rem}
+}
+@container presets (max-width:430px){
+ .idpresets .presetleft .presetgrid .mini{white-space:normal;line-height:1.2;padding:.15rem .3rem}
+}
 input[type=file]{color:transparent}
 input[type=file]::file-selector-button{color:buttontext}
 .herostack{display:grid;gap:.65rem;min-width:0}
@@ -367,20 +389,19 @@ body.compact .opt .tog{min-height:1.5rem}
 /* The Flags error sits in the Archipelago line, in the warning color. */
 #flagerr{flex:1 1 0;min-width:0;color:#ffd23f}
 #apmsg[hidden]{display:none}
-/* Under 760px high, or under 1000px wide, the page scrolls once. The left column stays in view while it does. */
+/* Under 1000px wide the page scrolls once. The left column stays in view while it does. */
 @media (min-width:721px){
  .leftcol{position:sticky;top:.8rem;align-self:start;max-height:calc(100vh - 1.2rem);overflow:hidden auto;padding-top:.7rem;margin-top:-.7rem}
 }
-@media (min-width:1000px) and (min-height:760px){
+@media (min-width:1000px){
  .leftcol{position:static;align-self:stretch;max-height:none}
  /* Status fades out at the bottom edge, so a cut line does not look like a glitch. */
- .sumwin .sumlist{padding-bottom:1rem;-webkit-mask-image:linear-gradient(#000 calc(100% - 1rem),transparent);mask-image:linear-gradient(#000 calc(100% - 1rem),transparent)}
+ .sumwin .sumlist{padding-bottom:2.4rem;-webkit-mask-image:linear-gradient(#000 calc(100% - 2.4rem),transparent);mask-image:linear-gradient(#000 calc(100% - 2.4rem),transparent)}
  .rightcol>.colorwin{flex:none}
 }
-/* On screens 760 to 939px high the Setup window gives up some padding, so the options keep their room. */
-@media (min-width:1000px) and (min-height:760px) and (max-height:939px){
+/* On screens under 940px high the Setup window gives up some padding, so the options keep their room. */
+@media (min-width:1000px) and (max-height:939px){
  .idfields .row input[type=text],.idpresets .presetsave .presetname{padding-top:.1rem;padding-bottom:.1rem;min-height:0}
- .apcheck{min-height:1.5em}
  .idpresets .presetarea .mini{min-height:0;padding-top:.1rem;padding-bottom:.1rem}
  .idpresets .presetgrid{gap:.25rem}
 }
@@ -407,7 +428,7 @@ var Module={onRuntimeInitialized(){ wasmReady=true; wasmError=''; const S=pageSt
 window.MARKS=["[ ]","[x]","[?]"];
 /* Option list, state and controls. */
 const T = 't', C = 'c', S = 's';
-const TABS = [{"id":"world","label":"World","long":"World","blurb":"The land and the caves. How you get across them.","sections":[{"title":"Land","note":"","ids":["map","mapsize","biome","safestart","swamp","masked","townentr","bonk"]},{"title":"Dungeons","note":"","ids":["stairs","autostairs","rotate","permtorch"]},{"title":"Travel","note":"","ids":["permrepel","repeldun","encounters","returntown"]}],"items":[["map","Random Map","The overworld map will be randomly generated. Off: the original land, with towns and caves shuffled.","t"],["mapsize","Random Map Size","Size of a generated overworld. Needs Random Map.","s",["Normal","Small","Very Small","Random"]],["biome","Biome","The shape of a generated overworld. Needs Random Map.","s",["Continent (Original)","Caldera","Wasteland","Riverlands","Lake","Earth","Westeros","Random"]],["safestart","Safe Start","A swamp within 3 tiles of Tantegel becomes grass, so your first steps are safe. On the original land that almost never happens, so this matters most with Random Map.","c"],["swamp","Big Swamp","Approximately 60% of the overworld will be poisonous swamp.","t"],["masked","Masked Overworld Locations","Is it a cave, or is it a town? Enter to find out!","t"],["townentr","Random Town Entrances","The player's location upon entering a town will be changed.","t"],["bonk","Bonk Damage","Damage taken when walking into walls.","s",["None","1 HP","2 HP","20 HP","Instakill","Random (0-80)","Current HP / 2","Random (any of the above)"]],["stairs","Stair Shuffle","Where stairs take you inside dungeons will be randomized.","t"],["autostairs","Auto Stairs","Stepping onto stairs takes them right away. No STAIRS command needed.","c"],["rotate","Randomly Rotate/Mirror Dungeons","All dungeons will be rotated at random angles and/or mirrored.","t"],["permtorch","Permanent Torch","At least a 3x3 area will always be lit in dungeons.","t"],["permrepel","Permanent Repel","Repel will always be active.","t"],["repeldun","Repel in Dungeons","Repel also works in dungeons.","t"],["returntown","Return to Town","Wings and Return send you to the last place you saved or used an inn at.","t"],["encounters","Encounter Rate","Default keeps the original random rolls. Low, Medium and High use a danger meter: steps add points by terrain until a hidden target starts a fight.","s",["Default","Low","Medium","High"]]]},{"id":"treasure","label":"Treasure","long":"Treasure & Keys","blurb":"What is in the chests, and what opens the doors.","sections":[{"title":"Chests","note":"","ids":["chests","chestloc","guards","unguarded","goldchest","noarmor"]},{"title":"Keys & Doors","note":"","ids":["nokeys","unbreakable","keycarry","hurtdoors"]}],"items":[["chests","Shuffle Chests & Searches","The items in chests and search locations will be randomized.","t"],["chestloc","Random Chest Locations","Chests will be at a random set of predetermined locations.","t"],["guards","Treasure Guards","Important items will have a mid-level monster guarding them.","t"],["unguarded","Unguarded Overworld Search Spot","With Treasure Guards on, the overworld search spot is not guarded.","c"],["goldchest","Gold Chest Contents","Gold found in gold chests.","s",["5-20 G","120 G","500-755 G","560-815 G","Random (1-2000 G)","Random (any of the above)"]],["noarmor","No Armor in Charlock","Prevent Erdrick's Armor from being in a chest in Charlock Castle.","t"],["nokeys","Don't Require Magic Keys","All of the doors are unlocked. Just open them.","t"],["unbreakable","Unbreakable Keys","Using a key outside of the throne room will not remove it from your inventory.","t"],["keycarry","Random Key Carry","The maximum number of keys you can carry is random, between 2 and 9. Some flags make 4 the minimum.","t"],["hurtdoors","Hurtmore Doors","Blast doors open with a cast of Hurtmore.","t"]]},{"id":"hero","label":"Hero & Magic","long":"Hero & Magic","blurb":"How the hero grows. What he carries and what he casts.","sections":[{"title":"Growth","note":"","ids":["build","growth","xp","levelspeed","lvlrefill"]},{"title":"Body & Bag","note":"","ids":["necklace","herbcarry","magicherbs","ascetic"]},{"title":"Spells","note":"Most of these need Random Spell Learning.","ids":["spells","healbefore","nohurtmore","onlyhealmore","l1radiant","l1repel","spellcost"]},{"title":"Fairy Flute","note":"","ids":["warp","discardflute","flutefor","flutefast"]}],"items":[["build","Build Options","Original: your name picks your stat build. Every build is -3/+10% on its stats.\nFree Selection: you choose the build, and name length does not matter.\nFree Selection Plus: Free Selection with two more builds.\nFree Selection Unified: one build with the best of all of them and no Str/MP penalties.","s",["Original","Free Selection","Free Selection Plus","Free Selection Unified","Random"]],["growth","Random Growth","Stat growth at each level will be randomized.","t"],["xp","Random XP Requirements","Experience requirements for each level will be randomized.","t"],["levelspeed","Leveling Speed","How fast the hero levels.","s",["Normal","Fast","Very Fast"]],["lvlrefill","Level-Up Refill","Have HP and MP refilled after leveling up.","t"],["necklace","Death Necklace","Equipping the death necklace will cause +10 AP and -25% HP.","t"],["herbcarry","Random Herb Carry","The maximum number of herbs you can carry is random, between 0 and 9.","t"],["magicherbs","Magic Herbs","Herbs refill MP instead of HP.","t"],["ascetic","Ascetic King","King Lorik will let the player keep their hard-earned gold upon dying.","t"],["spells","Random Spell Learning","The order and level you learn spells will be random.","t"],["healbefore","Heal/Hurt Before \"More\"","Heal must come before Healmore; Hurt before Hurtmore. Needs Random Spell Learning.","t"],["nohurtmore","No Hurtmore","You will never learn Hurtmore. Monsters can still have it. Needs Random Spell Learning.","t"],["onlyhealmore","Only Healmore","Never learn any spell other than this. Needs Random Spell Learning.","t"],["l1radiant","Level 1 Radiant","Needs Random Spell Learning. The hero always knows Radiant.","c"],["l1repel","Level 1 Repel","Needs Random Spell Learning. The hero always knows Repel.","c"],["spellcost","Random Spell Costs","All spells have a random MP cost between 1 and 8.","t"],["discardflute","Discard Flute","Lets you drop the flute when you find a new item with a full inventory, or sell it to a shop for 1 G.","t"],["warp","Warp Whistle","The Fairy Flute works as a warp whistle outside of battle, cycling between places you saved or used an inn at.","t"],["flutefor","Flute Is For","Which enemies the Fairy Flute works on.","s",["Golem","All but DL2","All","Random (any of the above)"]],["flutefast","Fast Flute","The Fairy Flute plays only the climb up the scale from its song (about 0.8 seconds), with or without Speed Hacks. With Randomize Flute Music, the random song is sped up note by note.","c"]]},{"id":"monsters","label":"Monsters","long":"Monsters","blurb":"Who you fight and what they are worth.","sections":[{"title":"Monsters","note":"","ids":["mabil","mzones","mstats","mxp","consistent","normxp"]},{"title":"Metal Slimes","note":"","ids":["scared","scaledms"]}],"items":[["mabil","Random Monster Abilities","Monster spells and abilities will be randomized.","t"],["mzones","Random Monster Zones","Monster encounters in each zone will be randomized.","t"],["mstats","Random Monster Stats","Monster strength, agility, and HP will be randomized.","t"],["mxp","Random Monster XP & Gold","The XP and Gold gained from monsters will be randomized.","t"],["consistent","Make Random Stats Consistent","Keeps random stats, XP, and Gold consistent with one another.","t"],["normxp","Normalized Monster XP/Gold","XP and Gold gained from monsters will be randomized, but within pre-set limits.","t"],["scared","Scared Metal Slimes","Metal Slimes will always have a chance to run.","t"],["scaledms","Scaled Metal Slime XP","Metal Slime XP will depend on your current level.","t"]]},{"id":"battle","label":"Battle","long":"Battle","blurb":"What happens once the fight starts.","sections":[{"title":"Hits","note":"","ids":["crit","dl1crit","dl2crit"]},{"title":"Escapes","note":"Alternate Running Algorithm only works with Run Mechanics on Vanilla. With Random it only applies if the seed picks Vanilla.","ids":["runmech","altrun","returnesc","bank"]},{"title":"Commands","note":"","ids":["quickspell","quickswap","torches"]}],"items":[["crit","Crit Chance","Chance of an excellent move.","s",["Never (0%)","Vanilla (1/32)","Double (1/16)","Always (100%)","Random (1-32)/32","AG/256","Random (any of the above)"]],["dl1crit","DL1 Crits","Allow excellent moves against the Dragonlord's 1st form.","t"],["dl2crit","DL2 Crits","Allow excellent moves against the Dragonlord's 2nd form.","t"],["runmech","Run Mechanics","How escaping from battle is decided.","s",["Vanilla","Safer Vanilla - 100% on 4th run","DW2 - Always flat 2/3 chance","DW4 - 50% first 2, 75% 3rd, 100% 4th","Costs XP","Random"]],["altrun","Alternate Running Algorithm","The run-blocking multiplier will depend on where you are. Needs Run Mechanics on Vanilla. With Random it only applies if the seed picks Vanilla.","t"],["returnesc","Return Escapes","Return can be used in battle for a guaranteed escape.","t"],["bank","Run Bank","Kills earn banked escapes, faster for tougher monsters. Spend one with the BANK battle command. The number beside BANK is how many escapes you have. A dot after it means a third of the way to the next escape, and two dots mean two thirds. Not usable on the Dragonlord. Recommended with Run Mechanics set to Vanilla.","t","bank"],["quickspell","Quick Spell","Adds a battle command that casts your last spell again.","c"],["quickswap","Swap Quick Spell","Puts SPELL in the top right slot and the quick spell command under it. Needs Quick Spell.","c"],["torches","Torches in Battle","Torches and Fairy Water can be thrown at monsters.","t"]]},{"id":"shops","label":"Shops & Inns","long":"Shops & Inns","blurb":"Who sells what, and for how much.","sections":[{"title":"Shops","note":"","ids":["wshops","vendor"]},{"title":"Prices","note":"","ids":["sale","sumsalechance","wprices","innprice","keyprice"]}],"items":[["wshops","Random Weapon Shops","The weapons available in each shop will be randomized.","t"],["wprices","Random Weapon Prices","Weapon and armor prices will be randomized.","t"],["vendor","Vendor Shuffle","Weapon, fairy water, item, radish and key vendors are shuffled.","t"],["sale","Summer Sale","All weapons and armor 35-65% off!","t"],["sumsalechance","Summer Sale Chance","Chance the sale applies when set to random.","s",["12.5%","25%","50%","75%"]],["innprice","Inn Prices","How inn prices are set.","s",["Vanilla","Shuffled","Random (1-255 G)","Random (any of the above)"]],["keyprice","Key Prices","How key prices are set.","s",["Vanilla","Shuffled","Random (1-255 G)","Random (any of the above)"]]]},{"id":"quest","label":"Quest","long":"Quest","blurb":"The route to the end, how you win and who helps you find it.","sections":[{"title":"Route","note":"Free Charlock turns off the Charlock flags it cannot work with. Easy Charlock is turned off while Run Mechanics is anything but Vanilla, Random included.","ids":["opencharlock","shortcharlock","easycharlock","freecharlock","charlockinn","autoreturn","princessloc"]},{"title":"How You Win","note":"","ids":["disguised","cursed","three","radish"]},{"title":"People","note":"","ids":["hints","invnpc","guillotine"]}],"items":[["opencharlock","Open Charlock","No need to create a bridge to enter Charlock Castle.","t"],["shortcharlock","Short Charlock","Charlock Dungeon will be much shorter.","t"],["freecharlock","Free Charlock","Entering Charlock puts you beside the Dragonlord. Talk to him when you are ready to fight. Erdrick's Sword and Armor are never in a Charlock chest. Turns off Short Charlock, Easy Charlock, No Armor in Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord.","c"],["autoreturn","Auto Return","When the Dragonlord's second form falls, Return is cast for you, and you arrive in front of Tantegel, or at your Return to Town point.","c"],["disguised","Disguised Dragonlord","The Dragonlord roams Alefgard as a random NPC. The original location hints at where he is.","t"],["cursed","Cursed Princess","Get Gwaelin to take a Cursed Belt when you return her to win.","t"],["three","Three's Company","Bring Gwaelin to the Dragonlord and accept his offer to win.","t"],["radish","Radish Finish","Feed the princess some fresh and cheap radishes to win.","t"],["hints","Hints","Whether NPC hints are corrected. Original text still names the vanilla places, so it can be wrong once towns and caves move. On Earth, a hint gives a straight-line direction that may need a raft to follow.","s",["Original text","Corrected"]],["invnpc","Invisible NPCs","All NPCs will be invisible.","t"],["guillotine","NPC Guillotine","Getting blocked by NPCs? Talk to them and they're sure to let you pass!","c"],["princessloc","Random Princess Location","The princess may be locked in a different cave.","t"],["charlockinn","Charlock Inn","Make the final dive easier by having a comfy bed and breakfast at the Dragonlord's. With Free Charlock you start beside the Dragonlord, so you will hardly see it.","t"],["easycharlock","Easy Charlock","Make it slightly easier to run from high-level monsters. Does nothing, and is turned off, when Run Mechanics is anything but Vanilla, including Random.","t"]]},{"id":"speed","label":"Speed & Info","long":"Speed & Info","blurb":"Pace, menus and on-screen numbers.","sections":[{"title":"Pace","note":"","ids":["fasttext","speed","wrap","skipcredits","responsive","fasthills"]},{"title":"Numbers","note":"","ids":["deathctr","keyherb","nonumbers"]}],"items":[["fasttext","Fast Text","All text will progress much faster.","c"],["speed","Speed Hacks","Various aspects of the game will be much faster.","c"],["wrap","Menu Wrapping","The menu cursor wraps from the last choice to the first.","c"],["skipcredits","Skip Original Credits","Skip the original credits and go straight to the stat scroll.","c"],["deathctr","Show Death Counter","The stats window will also have a death counter. It shows D and the number of deaths.","c"],["keyherb","Show Key & Herb Counter","The stats window will also show your keys and herbs on its bottom row. The letters are K for keys and H for herbs, so K0 H0 means no keys and no herbs.","c"],["nonumbers","No Numbers","No numbers will be visible until the Dragonlord fight.","c"],["responsive","Responsive Controls","Short presses are no longer missed. On the overworld, walking and the command window answer at once. Hill speed is a separate flag, Fast Hills.","c"],["fasthills","Fast Hills","On the overworld, a step onto a hill takes as long as a step onto grass. Encounter rates do not change.","c"]]},{"id":"visual","label":"Visual","long":"Visual","blurb":"How the game looks, and how much it flashes and shakes.","sections":[{"title":"Comfort","note":"Turn these on if flashing, blinking or shaking bothers you.","ids":["noflash","nocursorblink","nored","noshake"]},{"title":"Look","note":"","ids":["customspell","modernspells","noir","winter","invhero"]}],"items":[["noflash","Disable Spell Flashing","Prevents the screen from flashing when you cast spells.","c"],["nocursorblink","Disable Cursor Blink","The menu cursor arrow stays on instead of blinking.","c"],["nored","Disable Red Flashes","Prevents the screen from flashing when walking on damage tiles.","c"],["noshake","Disable Screen Shake","Keeps the screen still when you take damage.","c"],["sprite","Player Sprite","Pick a hero sprite, or leave on Random.","s",["Random","Arkista's Ring Christine","Barry Sanders","Blaster Master Jason","Blinky","Bo Jackson","Bomberman","Clyde","DW2 Prince of Cannock","DW2 Prince of Midenhall","DW2 Princess of Moonbrooke","DW3 Female Fighter","DW3 Female Goof-off","DW3 Female Merchant","DW3 Female Pilgrim","DW3 Female Sage","DW3 Female Soldier","DW3 Female Wizard","DW3 Ghost","DW3 Hero","DW3 Male Fighter","DW3 Male Goof-off","DW3 Male Merchant","DW3 Male Pilgrim","DW3 Male Sage","DW3 Male Soldier","DW3 Male Wizard","DW4 Alena","DW4 Brey","DW4 Celia","DW4 Cristo","DW4 Doran","DW4 Healie","DW4 Hero","DW4 Heroine","DW4 Mara","DW4 Nara","DW4 Ragnar","DW4 Taloon","DW4 Tov (The Dog)","DW4 Yeti","DoaE Guan Yu","DoaE Huang Zhong","DoaE Jiang Wei","DoaE Lu Bu","DoaE Ma Chao","DoaE Zhang Fei","DoaE Zhao Yun","DoaE Zhuge Liang","Dragonlord","FF Black Belt","FF Black Mage","FF Black Wizard","FF Fighter","FF Knight","FF Master","FF Ninja","FF Red Mage","FF Red Wizard","FF Thief","FF White Mage","FF White Wizard","FF4 DK Cecil","FF4 Edge","Gwaelin","Inky","Jerry Rice","Kirby","Lala","Link","Lolo","Loto","Luigi","Mario","Metal Slime","Mina the Hollower","Ms. Pac-Man","Pac-Man","Pinky","Plumplim","Red Slime","Slime","StarTropics Mike","Sue","Waluigi","Wario","Yoshi"]],["customspell","Custom Spell Names","Allow spell names to be changed based on the chosen sprite.","c"],["modernspells","Modern Spell Names","Use spell names from more recent DQ releases.","c"],["noir","Noir Mode","It's all black and white, baby!","c"],["winter","Winter Theme","Sometimes, saving Alefgard cannot wait until summer.","c"],["invhero","Invisible Hero","Your sprite will be invisible.","t"]]},{"id":"sound","label":"Sound","long":"Sound","blurb":"Music and custom music packs.","sections":[{"title":"","note":"The other Fairy Flute settings are on Hero & Magic.","ids":["shufflemusic","nomusic","jingles","flutemusic","pack"]}],"items":[["shufflemusic","Shuffle Music","Music in each area will be randomized.","c"],["nomusic","Disable Music","Turns off the game music, including a music pack. The jingles are muted too, unless Don't Mute Jingles is on.","c"],["jingles","Don't Mute Jingles","The Harp, Flute and Gwaelin jingles can be heard even if the Disable Music flag is on.","c"],["flutemusic","Randomize Flute Music","Change the Fairy Flute sound to a new random tune.","c"],["pack","Custom Music Pack","Load a JSON5 music pack (FamiTracker modules). Songs play via the Dn-FamiTracker driver; tagged scenes use their own song.","pack"]]}];
+const TABS = [{"id":"world","label":"World","long":"World","blurb":"The land and the caves. How you get across them.","sections":[{"title":"Land","note":"","ids":["map","mapsize","biome","safestart","swamp","masked","townentr","bonk"]},{"title":"Dungeons","note":"","ids":["stairs","autostairs","rotate","permtorch"]},{"title":"Travel","note":"","ids":["permrepel","repeldun","encounters","returntown"]}],"items":[["map","Random Map","The overworld map will be randomly generated. Off: the original land, with towns and caves shuffled.","t"],["mapsize","Random Map Size","Size of a generated overworld. Needs Random Map.","s",["Normal","Small","Very Small","Random"]],["biome","Biome","The shape of a generated overworld. Needs Random Map.","s",["Continent (Original)","Caldera","Wasteland","Riverlands","Lake","Earth","Westeros","Random"]],["safestart","Safe Start","A swamp within 3 tiles of Tantegel becomes grass, so your first steps are safe. On the original land that almost never happens, so this matters most with Random Map.","c"],["swamp","Big Swamp","Approximately 60% of the overworld will be poisonous swamp.","t"],["masked","Masked Overworld Locations","Is it a cave, or is it a town? Enter to find out!","t"],["townentr","Random Town Entrances","The player's location upon entering a town will be changed.","t"],["bonk","Bonk Damage","Damage taken when walking into walls.","s",["None","1 HP","2 HP","20 HP","Instakill","Random (0-80)","Current HP / 2","Random (any of the above)"]],["stairs","Stair Shuffle","Where stairs take you inside dungeons will be randomized.","t"],["autostairs","Auto Stairs","Stepping onto stairs takes them right away. No STAIRS command needed.","c"],["rotate","Randomly Rotate/Mirror Dungeons","All dungeons will be rotated at random angles and/or mirrored.","t"],["permtorch","Permanent Torch","At least a 3x3 area will always be lit in dungeons.","t"],["permrepel","Permanent Repel","Repel will always be active.","t"],["repeldun","Repel in Dungeons","Repel also works in dungeons.","t"],["returntown","Return to Town","Wings and Return send you to the last place you saved or used an inn at. You land beside it, on grass, desert, hills or trees if one of the four tiles around it is such a tile (south first). Otherwise you land on a swamp or bridge tile, and a swamp hurts on your next step.","t"],["encounters","Encounter Rate","Default keeps the original random rolls. Low, Medium and High use a danger meter: steps add points by terrain until a hidden target starts a fight.","s",["Default","Low","Medium","High"]]]},{"id":"treasure","label":"Treasure","long":"Treasure & Keys","blurb":"What is in the chests, and what opens the doors.","sections":[{"title":"Chests","note":"","ids":["chests","chestloc","guards","unguarded","goldchest","noarmor"]},{"title":"Keys & Doors","note":"","ids":["nokeys","unbreakable","keycarry","hurtdoors"]}],"items":[["chests","Shuffle Chests & Searches","The items in chests and search locations will be randomized.","t"],["chestloc","Random Chest Locations","Chests will be at a random set of predetermined locations.","t"],["guards","Treasure Guards","Important items will have a mid-level monster guarding them.","t"],["unguarded","Unguarded Overworld Search Spot","With Treasure Guards on, the overworld search spot is not guarded.","c"],["goldchest","Gold Chest Contents","Gold found in gold chests.","s",["5-20 G","120 G","500-755 G","560-815 G","Random (1-2000 G)","Random (any of the above)"]],["noarmor","No Armor in Charlock","Prevent Erdrick's Armor from being in a chest in Charlock Castle.","t"],["nokeys","Don't Require Magic Keys","All of the doors are unlocked. Just open them.","t"],["unbreakable","Unbreakable Keys","Using a key outside of the throne room will not remove it from your inventory.","t"],["keycarry","Random Key Carry","The maximum number of keys you can carry is random, between 2 and 9. Some flags make 4 the minimum.","t"],["hurtdoors","Hurtmore Doors","Blast doors open with a cast of Hurtmore.","t"]]},{"id":"hero","label":"Hero & Magic","long":"Hero & Magic","blurb":"How the hero grows. What he carries and what he casts.","sections":[{"title":"Growth","note":"","ids":["build","growth","xp","levelspeed","lvlrefill"]},{"title":"Body & Bag","note":"","ids":["necklace","herbcarry","magicherbs","ascetic"]},{"title":"Spells","note":"Most of these need Random Spell Learning.","ids":["spells","healbefore","nohurtmore","onlyhealmore","l1radiant","l1repel","spellcost"]},{"title":"Fairy Flute","note":"","ids":["warp","discardflute","flutefor","flutefast"]}],"items":[["build","Build Options","Original: your name picks your stat build. Every build is -3/+10% on its stats.\nFree Selection: you choose the build, and name length does not matter.\nFree Selection Plus: Free Selection with two more builds.\nFree Selection Unified: one build with the best of all of them and no Str/MP penalties.","s",["Original","Free Selection","Free Selection Plus","Free Selection Unified","Random"]],["growth","Random Growth","Stat growth at each level will be randomized.","t"],["xp","Random XP Requirements","Experience requirements for each level will be randomized.","t"],["levelspeed","Leveling Speed","How fast the hero levels.","s",["Normal","Fast","Very Fast"]],["lvlrefill","Level-Up Refill","Have HP and MP refilled after leveling up.","t"],["necklace","Death Necklace","Equipping the death necklace will cause +10 AP and -25% HP.","t"],["herbcarry","Random Herb Carry","The maximum number of herbs you can carry is random, between 0 and 9.","t"],["magicherbs","Magic Herbs","Herbs refill MP instead of HP.","t"],["ascetic","Ascetic King","King Lorik will let the player keep their hard-earned gold upon dying.","t"],["spells","Random Spell Learning","The order and level you learn spells will be random.","t"],["healbefore","Heal/Hurt Before \"More\"","Heal must come before Healmore; Hurt before Hurtmore. Needs Random Spell Learning.","t"],["nohurtmore","No Hurtmore","You will never learn Hurtmore. Monsters can still have it. Needs Random Spell Learning.","t"],["onlyhealmore","Only Healmore","Never learn any spell other than this. Needs Random Spell Learning.","t"],["l1radiant","Level 1 Radiant","Needs Random Spell Learning. The hero always knows Radiant.","c"],["l1repel","Level 1 Repel","Needs Random Spell Learning. The hero always knows Repel.","c"],["spellcost","Random Spell Costs","All spells have a random MP cost between 1 and 8.","t"],["discardflute","Discard Flute","Lets you drop the flute when you find a new item with a full inventory, or sell it to a shop for 1 G.","t"],["warp","Warp Whistle","The Fairy Flute works as a warp whistle outside of battle, cycling between places you saved or used an inn at. You land the same way as with Return to Town.","t"],["flutefor","Flute Is For","Which enemies the Fairy Flute works on.","s",["Golem","All but DL2","All","Random (any of the above)"]],["flutefast","Fast Flute","The Fairy Flute plays only the climb up the scale from its song (about 0.8 seconds), with or without Speed Hacks. With Randomize Flute Music, the random song is sped up note by note.","c"]]},{"id":"monsters","label":"Monsters","long":"Monsters","blurb":"Who you fight and what they are worth.","sections":[{"title":"Monsters","note":"","ids":["mabil","mzones","mstats","mxp","consistent","normxp"]},{"title":"Metal Slimes","note":"","ids":["scared","scaledms"]}],"items":[["mabil","Random Monster Abilities","Monster spells and abilities will be randomized.","t"],["mzones","Random Monster Zones","Monster encounters in each zone will be randomized.","t"],["mstats","Random Monster Stats","Monster strength, agility, and HP will be randomized.","t"],["mxp","Random Monster XP & Gold","The XP and Gold gained from monsters will be randomized.","t"],["consistent","Make Random Stats Consistent","Keeps random stats, XP, and Gold consistent with one another.","t"],["normxp","Normalized Monster XP/Gold","XP and Gold gained from monsters will be randomized, but within pre-set limits.","t"],["scared","Scared Metal Slimes","Metal Slimes will always have a chance to run.","t"],["scaledms","Scaled Metal Slime XP","Metal Slime XP will depend on your current level.","t"]]},{"id":"battle","label":"Battle","long":"Battle","blurb":"What happens once the fight starts.","sections":[{"title":"Hits","note":"","ids":["crit","dl1crit","dl2crit"]},{"title":"Escapes","note":"Alternate Running Algorithm only works with Run Mechanics on Vanilla. With Random it only applies if the seed picks Vanilla.","ids":["runmech","altrun","returnesc","bank"]},{"title":"Commands","note":"","ids":["quickspell","quickswap","torches"]}],"items":[["crit","Crit Chance","Chance of an excellent move.","s",["Never (0%)","Vanilla (1/32)","Double (1/16)","Always (100%)","Random (1-32)/32","AG/256","Random (any of the above)"]],["dl1crit","DL1 Crits","Allow excellent moves against the Dragonlord's 1st form.","t"],["dl2crit","DL2 Crits","Allow excellent moves against the Dragonlord's 2nd form.","t"],["runmech","Run Mechanics","How escaping from battle is decided.","s",["Vanilla","Safer Vanilla - 100% on 4th run","DW2 - Always flat 2/3 chance","DW4 - 50% first 2, 75% 3rd, 100% 4th","Costs XP","Random"]],["altrun","Alternate Running Algorithm","The run-blocking multiplier will depend on where you are. Needs Run Mechanics on Vanilla. Random Monster Stats turns it on by itself.","t"],["returnesc","Return Escapes","Return can be used in battle for a guaranteed escape.","t"],["bank","Run Bank","Kills earn banked escapes, faster for tougher monsters. Spend one with the BANK battle command. The number beside BANK is how many escapes you have. A dot after it means a third of the way to the next escape, and two dots mean two thirds. Not usable on the Dragonlord. Recommended with Run Mechanics set to Vanilla.","t","bank"],["quickspell","Quick Spell","Adds a battle command that casts your last spell again.","c"],["quickswap","Swap Quick Spell","Puts SPELL in the top right slot and the quick spell command under it. Needs Quick Spell.","c"],["torches","Torches in Battle","Torches and Fairy Water can be thrown at monsters.","t"]]},{"id":"shops","label":"Shops & Inns","long":"Shops & Inns","blurb":"Who sells what, and for how much.","sections":[{"title":"Shops","note":"","ids":["wshops","vendor"]},{"title":"Prices","note":"","ids":["sale","sumsalechance","wprices","innprice","keyprice"]}],"items":[["wshops","Random Weapon Shops","The weapons available in each shop will be randomized.","t"],["wprices","Random Weapon Prices","Weapon and armor prices will be randomized.","t"],["vendor","Vendor Shuffle","Weapon, fairy water, item, radish and key vendors are shuffled.","t"],["sale","Summer Sale","All weapons and armor 35-65% off!","t"],["sumsalechance","Summer Sale Chance","Chance the sale applies when set to random.","s",["12.5%","25%","50%","75%"]],["innprice","Inn Prices","How inn prices are set.","s",["Vanilla","Shuffled","Random (1-255 G)","Random (any of the above)"]],["keyprice","Key Prices","How key prices are set.","s",["Vanilla","Shuffled","Random (1-255 G)","Random (any of the above)"]]]},{"id":"quest","label":"Quest","long":"Quest","blurb":"The route to the end, how you win and who helps you find it.","sections":[{"title":"Route","note":"Free Charlock turns off the Charlock flags it cannot work with. Easy Charlock is turned off while Run Mechanics is anything but Vanilla, Random included.","ids":["opencharlock","shortcharlock","easycharlock","freecharlock","charlockinn","autoreturn","princessloc"]},{"title":"How You Win","note":"","ids":["disguised","cursed","three","radish"]},{"title":"People","note":"","ids":["hints","invnpc","guillotine"]}],"items":[["opencharlock","Open Charlock","No need to create a bridge to enter Charlock Castle.","t"],["shortcharlock","Short Charlock","Charlock Dungeon will be much shorter.","t"],["freecharlock","Free Charlock","Entering Charlock puts you beside the Dragonlord. Talk to him when you are ready to fight. Erdrick's Sword and Armor are never in a Charlock chest. Turns off Short Charlock, Easy Charlock, No Armor in Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord.","c"],["autoreturn","Auto Return","When the Dragonlord's second form falls, Return is cast for you, and you arrive in front of Tantegel, or at your Return to Town point.","c"],["disguised","Disguised Dragonlord","The Dragonlord roams Alefgard as a random NPC. The original location hints at where he is.","t"],["cursed","Cursed Princess","Get Gwaelin to take a Cursed Belt when you return her to win.","t"],["three","Three's Company","Bring Gwaelin to the Dragonlord and accept his offer to win.","t"],["radish","Radish Finish","Feed the princess some fresh and cheap radishes to win.","t"],["hints","Hints","Whether NPC hints are corrected. Original text still names the vanilla places, so it can be wrong once towns and caves move. On Earth, a hint gives a straight-line direction that may need a raft to follow.","s",["Original text","Corrected"]],["invnpc","Invisible NPCs","All NPCs will be invisible.","t"],["guillotine","NPC Guillotine","Getting blocked by NPCs? Talk to them and they're sure to let you pass!","c"],["princessloc","Random Princess Location","The princess may be locked in a different cave.","t"],["charlockinn","Charlock Inn","Make the final dive easier by having a comfy bed and breakfast at the Dragonlord's. With Free Charlock you start beside the Dragonlord, so you will hardly see it.","t"],["easycharlock","Easy Charlock","Make it slightly easier to run from high-level monsters. Does nothing, and is turned off, when Run Mechanics is anything but Vanilla, including Random.","t"]]},{"id":"speed","label":"Speed & Info","long":"Speed & Info","blurb":"Pace, menus and on-screen numbers.","sections":[{"title":"Pace","note":"","ids":["fasttext","speed","wrap","skipcredits","responsive","fasthills"]},{"title":"Numbers","note":"","ids":["deathctr","keyherb","nonumbers"]}],"items":[["fasttext","Fast Text","All text will progress much faster.","c"],["speed","Speed Hacks","Various aspects of the game will be much faster.","c"],["wrap","Menu Wrapping","The menu cursor wraps from the last choice to the first.","c"],["skipcredits","Skip Original Credits","Skip the original credits and go straight to the stat scroll.","c"],["deathctr","Show Death Counter","The stats window will also have a death counter. It shows D and the number of deaths.","c"],["keyherb","Show Key & Herb Counter","The stats window will also show your keys and herbs on its bottom row. The letters are K for keys and H for herbs, so K0 H0 means no keys and no herbs.","c"],["nonumbers","No Numbers","No numbers will be visible until the Dragonlord fight.","c"],["responsive","Responsive Controls","Short presses are no longer missed. On the overworld, walking and the command window answer at once. Hill speed is a separate flag, Fast Hills.","c"],["fasthills","Fast Hills","On the overworld, a step onto a hill takes as long as a step onto grass. Encounter rates do not change.","c"]]},{"id":"visual","label":"Visual","long":"Visual","blurb":"How the game looks, and how much it flashes and shakes.","sections":[{"title":"Comfort","note":"Turn these on if flashing, blinking or shaking bothers you.","ids":["noflash","nocursorblink","nored","noshake"]},{"title":"Look","note":"","ids":["customspell","modernspells","noir","winter","invhero"]}],"items":[["noflash","Disable Spell Flashing","Prevents the screen from flashing when you cast spells.","c"],["nocursorblink","Disable Cursor Blink","The menu cursor arrow stays on instead of blinking.","c"],["nored","Disable Red Flashes","Prevents the screen from flashing when walking on damage tiles.","c"],["noshake","Disable Screen Shake","Keeps the screen still when you take damage.","c"],["sprite","Player Sprite","Pick a hero sprite, or leave on Random.","s",["Random","Arkista's Ring Christine","Barry Sanders","Blaster Master Jason","Blinky","Bo Jackson","Bomberman","Clyde","DW2 Prince of Cannock","DW2 Prince of Midenhall","DW2 Princess of Moonbrooke","DW3 Female Fighter","DW3 Female Goof-off","DW3 Female Merchant","DW3 Female Pilgrim","DW3 Female Sage","DW3 Female Soldier","DW3 Female Wizard","DW3 Ghost","DW3 Hero","DW3 Male Fighter","DW3 Male Goof-off","DW3 Male Merchant","DW3 Male Pilgrim","DW3 Male Sage","DW3 Male Soldier","DW3 Male Wizard","DW4 Alena","DW4 Brey","DW4 Celia","DW4 Cristo","DW4 Doran","DW4 Healie","DW4 Hero","DW4 Heroine","DW4 Mara","DW4 Nara","DW4 Ragnar","DW4 Taloon","DW4 Tov (The Dog)","DW4 Yeti","DoaE Guan Yu","DoaE Huang Zhong","DoaE Jiang Wei","DoaE Lu Bu","DoaE Ma Chao","DoaE Zhang Fei","DoaE Zhao Yun","DoaE Zhuge Liang","Dragonlord","FF Black Belt","FF Black Mage","FF Black Wizard","FF Fighter","FF Knight","FF Master","FF Ninja","FF Red Mage","FF Red Wizard","FF Thief","FF White Mage","FF White Wizard","FF4 DK Cecil","FF4 Edge","Gwaelin","Inky","Jerry Rice","Kirby","Lala","Link","Lolo","Loto","Luigi","Mario","Metal Slime","Mina the Hollower","Ms. Pac-Man","Pac-Man","Pinky","Plumplim","Red Slime","Slime","StarTropics Mike","Sue","Waluigi","Wario","Yoshi"]],["customspell","Custom Spell Names","Allow spell names to be changed based on the chosen sprite.","c"],["modernspells","Modern Spell Names","Use spell names from more recent DQ releases.","c"],["noir","Noir Mode","It's all black and white, baby!","c"],["winter","Winter Theme","Sometimes, saving Alefgard cannot wait until summer.","c"],["invhero","Invisible Hero","Your sprite will be invisible.","t"]]},{"id":"sound","label":"Sound","long":"Sound","blurb":"Music and custom music packs.","sections":[{"title":"","note":"The other Fairy Flute settings are on Hero & Magic.","ids":["shufflemusic","nomusic","jingles","flutemusic","pack"]}],"items":[["shufflemusic","Shuffle Music","Music in each area will be randomized.","c"],["nomusic","Disable Music","Turns off the game music, including a music pack. The jingles are muted too, unless Don't Mute Jingles is on.","c"],["jingles","Don't Mute Jingles","The Harp, Flute and Gwaelin jingles can be heard even if the Disable Music flag is on.","c"],["flutemusic","Randomize Flute Music","Change the Fairy Flute sound to a new random tune.","c"],["pack","Custom Music Pack","Load a JSON5 music pack (FamiTracker modules). Songs play via the Dn-FamiTracker driver; tagged scenes use their own song.","pack"]]}];
 const BANK_LEVELS = [
  {v:'normal',name:'Normal',tiers:[16,12,8,6,4,3,2],note:'Escapes come at a steady pace.'},
  {v:'easy',name:'Easy',tiers:[12,8,6,4,3,2,1],note:'Escapes come fastest. A big monster is worth a full escape.'},
@@ -438,14 +459,14 @@ function showTier(chip,i){
 function hideTier(){ tierTip().hidden=true; }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') hideTier(); });
 const PRESETS = [
- {id:'gob',name:'Gob Standard',blurb:"Gob's Standard flags. Random Map with a random biome, Free Charlock, Run Bank, Quick Spell, Fast Text, Responsive Controls, the Free Selection Plus build, Medium encounters, shuffled chests, random growth, spells and monsters, and the comfort options.",flags:'IVIAAV2EKADEAMAAAADYKEBWAAAJACAAAAIBQAAM75QA'},
- {id:'standard',name:'Standard',blurb:"juef's Standard flags. Random Map, shuffled chests, random growth, spells, monster abilities and zones, Fast leveling, Death Necklace, Safer Vanilla runs, Permanent Torch, Repel in Dungeons, Menu Wrapping, random flute music.",flags:'IVIAAVCEKACAAAAAAAAAAEAUAAQBAAAAABYCAAAA'},
- {id:'fast',name:'Fast Standard',blurb:"juef's Fast Standard flags. Standard with Very Fast leveling, Fast Text and Speed Hacks.",flags:'IVIAAVCEKACFAAAAAAAAAIAUAAQBAAAAABYCAAAA'},
- {id:'easy',name:'Easy Standard',blurb:"juef's Easy Standard flags. Standard with a Small map, Short Charlock, Alternate Running, Summer Sale, no Magic Keys and no Armor in Charlock. The published code also has Easy Charlock on, but Safer Vanilla runs switch it off in the game, so this code leaves it off and differs from the published one by one letter. The checksum is the same.",flags:'IVIAAVCFKACACQAACAAAAZAUAAQBAAAAABYCAAAA'},
+ {id:'gob',name:'Gob Standard',blurb:"Gob's Standard flags. Random Map with a random biome, Free Charlock, Run Bank, Quick Spell, Fast Text, Responsive Controls, the Free Selection Plus build, Medium encounters, shuffled chests, random growth, spells and monsters. Your own comfort and sound options stay as they are.",flags:'IVIAAV2EKADEAMAAAADYKEBWAAAJACAAAAIBQAAM75QA'},
+ {id:'standard',name:'Standard',blurb:"juef's Standard flags. Random Map, shuffled chests, random growth, spells, monster abilities and zones, Fast leveling, Death Necklace, Safer Vanilla runs, Permanent Torch, Repel in Dungeons, Menu Wrapping, random flute music. The published code also has Skip Original Credits on. That is a personal option, so the code the page shows leaves it out and differs from the published one by one letter.",flags:'IVIAAVCEKACAAAAAAAAAAEAUAAQBAAAAABYCAAAA'},
+ {id:'fast',name:'Fast Standard',blurb:"juef's Fast Standard flags. Standard with Very Fast leveling, Fast Text and Speed Hacks. Like Standard, the code the page shows leaves out Skip Original Credits and differs from the published one by one letter.",flags:'IVIAAVCEKACFAAAAAAAAAIAUAAQBAAAAABYCAAAA'},
+ {id:'easy',name:'Easy Standard',blurb:"juef's Easy Standard flags. Standard with a Small map, Short Charlock, Alternate Running, Summer Sale, no Magic Keys and no Armor in Charlock. The published code also has Easy Charlock on, but Safer Vanilla runs switch it off in the game, so this code leaves it off. The code the page shows also leaves out Skip Original Credits, a personal option, so it differs from the published one by two letters. Alternate Running is in the code too, but it only works with Vanilla runs, so it does nothing here. The checksum is the same.",flags:'IVIAAVCFKACACQAACAAAAZAUAAQBAAAAABYCAAAA'},
 ];
 
 /* ---------- state ---------- */
-const PERSONAL = ['nomusic','noflash','nocursorblink','nored','noshake','customspell','skipcredits','winter','jingles'];
+const PERSONAL = ['nomusic','noflash','nocursorblink','nored','noshake','customspell','skipcredits','winter','jingles','wrap'];
 const FLAG_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
 /* Where each option lives in the flag bytes (matches common/dwr.h). */
 const FLAG_MAP = {"safestart": {"byte": 8, "shift": 5, "mask": 1}, "biome": {"byte": 2, "shift": 0, "mask": 51, "values": {"Continent (Original)": 0, "Caldera": 1, "Wasteland": 16, "Riverlands": 17, "Random": 34}}, "keyherb": {"byte": 8, "shift": 4, "mask": 1}, "chests": {"byte": 0, "shift": 6, "mask": 3}, "chestloc": {"byte": 0, "shift": 4, "mask": 3}, "growth": {"byte": 0, "shift": 2, "mask": 3}, "map": {"byte": 0, "shift": 0, "mask": 3}, "spells": {"byte": 1, "shift": 6, "mask": 3}, "wshops": {"byte": 1, "shift": 4, "mask": 3}, "wprices": {"byte": 1, "shift": 2, "mask": 3}, "xp": {"byte": 1, "shift": 0, "mask": 3}, "healbefore": {"byte": 2, "shift": 6, "mask": 3}, "stairs": {"byte": 2, "shift": 2, "mask": 3}, "wrap": {"byte": 3, "shift": 6, "mask": 3}, "necklace": {"byte": 3, "shift": 4, "mask": 3}, "torches": {"byte": 3, "shift": 2, "mask": 3}, "repeldun": {"byte": 4, "shift": 6, "mask": 3}, "permrepel": {"byte": 4, "shift": 4, "mask": 3}, "permtorch": {"byte": 4, "shift": 2, "mask": 3}, "altrun": {"byte": 4, "shift": 0, "mask": 3}, "mabil": {"byte": 5, "shift": 6, "mask": 3}, "mzones": {"byte": 5, "shift": 4, "mask": 3}, "mstats": {"byte": 5, "shift": 2, "mask": 3}, "mxp": {"byte": 5, "shift": 0, "mask": 3}, "consistent": {"byte": 6, "shift": 6, "mask": 3}, "scared": {"byte": 6, "shift": 4, "mask": 3}, "scaledms": {"byte": 6, "shift": 2, "mask": 3}, "fasttext": {"byte": 7, "shift": 6, "mask": 3}, "speed": {"byte": 7, "shift": 4, "mask": 3}, "opencharlock": {"byte": 7, "shift": 2, "mask": 3}, "shortcharlock": {"byte": 7, "shift": 0, "mask": 3}, "nokeys": {"byte": 8, "shift": 6, "mask": 3}, "sale": {"byte": 13, "shift": 2, "mask": 3}, "cursed": {"byte": 8, "shift": 2, "mask": 3}, "three": {"byte": 8, "shift": 0, "mask": 3}, "levelspeed": {"byte": 13, "shift": 4, "mask": 3, "values": {"Normal": 0, "Fast": 1, "Very Fast": 2}}, "mapsize": {"byte": 13, "shift": 6, "mask": 3, "values": {"Normal": 0, "Small": 1, "Very Small": 2, "Random": 3}}, "nohurtmore": {"byte": 9, "shift": 6, "mask": 3}, "nonumbers": {"byte": 9, "shift": 4, "mask": 3}, "invhero": {"byte": 9, "shift": 2, "mask": 3}, "invnpc": {"byte": 9, "shift": 0, "mask": 3}, "guards": {"byte": 13, "shift": 0, "mask": 3}, "swamp": {"byte": 10, "shift": 0, "mask": 3}, "rotate": {"byte": 10, "shift": 2, "mask": 3}, "noarmor": {"byte": 10, "shift": 4, "mask": 3}, "easycharlock": {"byte": 10, "shift": 6, "mask": 3}, "modernspells": {"byte": 11, "shift": 6, "mask": 3}, "noir": {"byte": 11, "shift": 4, "mask": 3}, "shufflemusic": {"byte": 14, "shift": 7, "mask": 1}, "nomusic": {"byte": 14, "shift": 6, "mask": 1}, "noflash": {"byte": 14, "shift": 5, "mask": 1}, "deathctr": {"byte": 14, "shift": 4, "mask": 1}, "customspell": {"byte": 14, "shift": 3, "mask": 1}, "noshake": {"byte": 14, "shift": 1, "mask": 1}, "skipcredits": {"byte": 14, "shift": 2, "mask": 1}, "vendor": {"byte": 16, "shift": 6, "mask": 3}, "disguised": {"byte": 16, "shift": 2, "mask": 3}, "radish": {"byte": 20, "shift": 6, "mask": 3}, "returnesc": {"byte": 19, "shift": 6, "mask": 3}, "returntown": {"byte": 23, "shift": 6, "mask": 3}, "warp": {"byte": 19, "shift": 4, "mask": 3}, "hurtdoors": {"byte": 23, "shift": 4, "mask": 3}, "unbreakable": {"byte": 20, "shift": 2, "mask": 3}, "ascetic": {"byte": 20, "shift": 0, "mask": 3}, "lvlrefill": {"byte": 19, "shift": 2, "mask": 3}, "runmech": {"byte": 21, "shift": 5, "mask": 7, "values": {"Vanilla": 0, "Safer Vanilla - 100% on 4th run": 3, "DW2 - Always flat 2/3 chance": 1, "DW4 - 50% first 2, 75% 3rd, 100% 4th": 2, "Costs XP": 4, "Random": 7}}, "bonk": {"byte": 18, "shift": 5, "mask": 7, "values": {"None": 0, "1 HP": 1, "2 HP": 2, "20 HP": 3, "Instakill": 4, "Random (0-80)": 5, "Current HP / 2": 6, "Random (any of the above)": 7}}, "bank": {"byte": 11, "shift": 2, "mask": 3}, "charlockinn": {"byte": 15, "shift": 6, "mask": 3}, "keycarry": {"byte": 19, "shift": 0, "mask": 3}, "herbcarry": {"byte": 23, "shift": 2, "mask": 3}, "crit": {"byte": 17, "shift": 4, "mask": 7, "values": {"Never (0%)": 0, "Vanilla (1/32)": 1, "Double (1/16)": 2, "Always (100%)": 3, "Random (1-32)/32": 4, "AG/256": 5, "Random (any of the above)": 6}}, "dl1crit": {"byte": 17, "shift": 2, "mask": 3}, "dl2crit": {"byte": 17, "shift": 0, "mask": 3}, "innprice": {"byte": 15, "shift": 2, "mask": 3, "values": {"Vanilla": 0, "Shuffled": 1, "Random (1-255 G)": 2, "Random (any of the above)": 3}}, "keyprice": {"byte": 15, "shift": 0, "mask": 3, "values": {"Vanilla": 0, "Shuffled": 1, "Random (1-255 G)": 2, "Random (any of the above)": 3}}, "magicherbs": {"byte": 16, "shift": 0, "mask": 3}, "flutefor": {"byte": 18, "shift": 1, "mask": 3, "values": {"Golem": 0, "All but DL2": 1, "All": 2, "Random (any of the above)": 3}}, "princessloc": {"byte": 21, "shift": 0, "mask": 3}, "goldchest": {"byte": 21, "shift": 2, "mask": 7, "values": {"5-20 G": 1, "120 G": 2, "500-755 G": 0, "560-815 G": 4, "Random (1-2000 G)": 3, "Random (any of the above)": 5}}, "winter": {"byte": 22, "shift": 0, "mask": 1}, "flutefast": {"byte": 22, "shift": 5, "mask": 1, "invert": 1}, "flutemusic": {"byte": 16, "shift": 5, "mask": 1}, "discardflute": {"byte": 18, "shift": 3, "mask": 3}, "hints": {"byte": 22, "shift": 3, "mask": 1, "values": {"Original text": 0, "Corrected": 1}}, "sumsalechance": {"byte": 20, "shift": 4, "mask": 3, "values": {"12.5%": 1, "25%": 2, "50%": 0, "75%": 3}}, "nored": {"byte": 17, "shift": 7, "mask": 1}, "onlyhealmore": {"byte": 15, "shift": 4, "mask": 3}, "l1radiant": {"byte": 18, "shift": 0, "mask": 1}, "l1repel": {"byte": 22, "shift": 6, "mask": 1}, "unguarded": {"byte": 22, "shift": 7, "mask": 1}, "normxp": {"byte": 22, "shift": 1, "mask": 3}, "jingles": {"byte": 16, "shift": 4, "mask": 1}, "guillotine": {"byte": 24, "shift": 7, "mask": 1}, "masked": {"byte": 24, "shift": 5, "mask": 3}, "build": {"byte": 24, "shift": 2, "mask": 7, "values": {"Original": 0, "Free Selection": 1, "Free Selection Plus": 3, "Free Selection Unified": 2, "Random": 4}}, "spellcost": {"byte": 23, "shift": 0, "mask": 3}, "townentr": {"byte": 24, "shift": 0, "mask": 3}, "quickspell": {"byte": 11, "shift": 0, "mask": 1}, "freecharlock": {"byte": 11, "shift": 1, "mask": 1}, "autoreturn": {"byte": 3, "shift": 1, "mask": 1}, "responsive": {"byte": 6, "shift": 1, "mask": 1}, "autostairs": {"byte": 22, "shift": 4, "mask": 1}, "nocursorblink": {"byte": 26, "shift": 6, "mask": 1}, "fasthills": {"byte": 26, "shift": 5, "mask": 1}};
@@ -461,14 +482,15 @@ const State = {
   all(){ return TABS.flatMap(t=>t.items); },
   find(id){ return this.all().find(i=>i[0]===id); },
   flagNote(){ const a=this.oddFlags?'Some values in those flags were not recognized, so those options went back to their normal setting.':'', b=this.oddBits?'Those flags have settings this version of DWR does not use, so they were left out.':'',
-      k=this.kept&&this.kept.length?'The code also turns on '+joinNames(this.kept.map(itemLabel))+'. Those are comfort or sound options, so your own settings were kept. They do not change the checksum.':''; return (a+' '+b+' '+k).replace(/\s+/g,' ').trim(); },
+      k=this.kept&&this.kept.length?'The code also turns on '+joinNames(this.kept.map(itemLabel))+'. Those are comfort or sound options, so your own settings were kept. They do not change the checksum.':'',
+      alt=(this.v.altrun|0)&&needsOff('altrun')?'Alternate Running is on in those flags, but it only works with Run Mechanics on Vanilla, so it is ignored.':''; return (a+' '+b+' '+alt+' '+k).replace(/\s+/g,' ').trim(); },
   set(id,val){ this.v[id]=val; if(id==='quickspell'&&!val&&this.v.quickswap){ this.v.quickswap=0; this.emit('quickswap'); if(this.say) this.say('Swap Quick Spell is off too, since it needs Quick Spell.'); } this.emit(id); },
   /* Personal settings, on or off, stay as the player had them through presets, links and pasted codes.
    * They don't change the checksum. this.kept lists the ones a code turned on that the player had off. */
   keepPersonal(fn){
     const own={}, sprite=this.v.sprite; PERSONAL.forEach(id=>{ own[id]=this.v[id]|0; });
     /* fn returns false when nothing was changed (a bad code), and then nothing is redrawn. */
-    this.kept=[]; const done=fn()!==false;
+    this.kept=[]; const done=fn()!==false; this.lastOk=done;
     PERSONAL.forEach(id=>{ if(done&&(this.v[id]|0)===1&&!own[id]) this.kept.push(id); this.v[id]=own[id]; });
     this.v.sprite=sprite; if(done) this.emit('*'); return this.kept;
   },
@@ -522,8 +544,9 @@ const State = {
         /* An unknown value goes to the option's normal setting, which is not always the first choice (Crit Chance). */
         const i=it[4].indexOf(name); if(i<0) this.oddFlags=true; this.v[it[0]]=i<0?(SELECT_NORMAL[it[0]]||0):i; }
       else { let raw=(bytes[m.byte]>>m.shift)&m.mask; if(raw===3&&m.mask===3) raw=1; /* the game reads 3 as on */ this.v[it[0]]=m.invert?1-raw:raw; } });
-    if(bytes[25]){ const list=this.find('biome')[4], i=bytes[25]===0xff?list.indexOf('Random'):bytes[25];
-      if(i>0&&i<list.length) this.v.biome=i; else this.oddFlags=true; }
+    /* Byte 25 holds a real biome number, or 0xff for Random. Anything else is a biome this version does not have. */
+    if(bytes[25]){ const list=this.find('biome')[4], rnd=list.indexOf('Random'), i=bytes[25]===0xff?rnd:bytes[25];
+      if(i>0&&i<=rnd&&(i<rnd||bytes[25]===0xff)) this.v.biome=i; else this.oddFlags=true; }
     this.v.encounters=((bytes[3]&1)<<1)|(bytes[6]&1);
     this.v.quickswap=(bytes[26]&0x80)&&(this.v.quickspell|0)?1:0;
     if((bytes[26]&0x80)&&!this.v.quickswap) this.oddBits=true;
@@ -551,8 +574,9 @@ let UID=0;
 const MARKS = window.MARKS || ['OFF','ON','RND'];
 const STATE_WORDS = ['off','on','random'];
 
-/* Whether an option differs from its normal setting. For a dropdown that's its first choice, except Crit Chance. */
-const SELECT_NORMAL={crit:1};
+/* Whether an option differs from its normal setting. For a dropdown that's its first choice, except Crit Chance
+   (Vanilla), Gold Chest Contents (500-755 G, which the game leaves alone) and Summer Sale Chance (50%). */
+const SELECT_NORMAL={crit:1,goldchest:2,sumsalechance:2};
 function isChanged(it){ const x=State.v[it[0]]|0; if(it[3]==='pack') return !!State.pack;
   if(it[3]!==S) return !!x;
   if(it[0]==='sumsalechance'&&State.v.sale!==2) return false;
@@ -628,6 +652,9 @@ function songsFromPack(text){
    the song with only that slot's tag. A slot with no copy keeps the game's music.
    The same seed makes the same random choices. */
 /* Room per music bank, from gen_driver.py's output (FT_SONGS), and the randomizer's song limit. */
+/* These room figures are a guess for picking songs. Bank 6 can end sooner when far-called routines spill past $80FF
+   (dwr_far_floor in the C code), so the build is the truth: songs it could not place are read from its log and
+   shown in the result window and the space line, and the picks are only a plan. */
 const BANK_ROOM=8627, MAX_MUSIC_SONGS=24;
 /* Bank 5 ends below the reset vectors; bank 4 holds songs below and above the credits code
    (pick_room in custom_music.c). */
@@ -765,7 +792,7 @@ function trackBox(){
     if(State.taggedOnly!==false){ tagged.forEach(i=>sel.append(opt(i)));
       if(cur!==''&&cur!=='random'&&other.includes(+cur)) sel.append(el('option',{value:cur,text:songs[+cur].name+' (not tagged)'})); }
     else { if(tagged.length) sel.append(el('optgroup',{label:'Tagged'},tagged.map(opt))); if(other.length) sel.append(el('optgroup',{label:'Other tracks'},other.map(opt))); }
-    sel.value=cur; sel.disabled=!songs.length;
+    sel.value=cur; sel.disabled=!songs.length||!!(State.v.nomusic|0);
     return tagged.length; }
   function paint(){ cols.innerHTML='';
     Object.entries(MUSIC_SLOTS).forEach(([group,slots])=>{ const col=el('div',{class:'trackcol'},el('span',{class:'sublab'},group,el('small',{class:'tagn',text:'tagged songs'})));
@@ -782,12 +809,13 @@ function trackBox(){
     savePicks(); paint(); State.emit('assign'); }
   const allRandom=el('button',{type:'button',class:'mini',text:'All Random',title:'Every slot with tagged songs picks one at random. With Only show tagged tracks unticked, locations and battles with none tagged pick any song.',onclick:()=>setAll(true)});
   const allDefault=el('button',{type:'button',class:'mini',text:'All Default',title:'Every slot goes back to the default game music',onclick:()=>setAll(false)});
-  const paintAll=()=>{ allRandom.disabled=allDefault.disabled=!State.pack; };
-  State.on(i=>{ if(i==='pack'||i==='*') paintAll(); }); paintAll();
+  /* With Disable Music on the pack is left out of the ROM, so the choices do nothing. They are kept for when it goes off. */
+  const paintAll=()=>{ allRandom.disabled=allDefault.disabled=!State.pack||!!(State.v.nomusic|0); box.classList.toggle('off',!!(State.v.nomusic|0)); };
+  State.on(i=>{ if(i==='pack'||i==='nomusic'||i==='*') paintAll(); });
   State.on(i=>{ if(i==='skipcredits'||i==='assign'||i==='*') paint(); });
   box.append(el('div',{class:'onlyrow'},el('label',{class:'onlytag',for:'taggedonly'},only,' Only show tagged tracks')),el('div',{class:'packall'},allRandom,allDefault),cols,
     el('p',{class:'packstat',text:'A slot with no tagged tracks only offers Default. Untick Only show tagged tracks to use any track there.'}));
-  State.on(i=>{ if(i==='pack'||i==='speed'||i==='flutefast'||i==='*') paint(); }); paint(); return box;
+  State.on(i=>{ if(i==='pack'||i==='nomusic'||i==='speed'||i==='flutefast'||i==='*') paint(); }); paint(); paintAll(); return box;
 }
 function packControls(){
   const uid='p'+(++UID);
@@ -802,9 +830,8 @@ function packControls(){
   function paint(){ const p=State.pack;
     if(!p){ status.textContent='No pack loaded. Game music plays as normal.'; return; }
     const all=unknownTags(p), gone=all.filter(u=>OLD_TAGS[u]==='(removed)'), bad=all.filter(u=>OLD_TAGS[u]!=='(removed)'), old=bad.filter(u=>OLD_TAGS[u]);
-    status.textContent='Loaded '+p.songs.length+' tracks from "'+p.name+'".'+(bad.length?' Tags this version does not use, so they match nothing: '+bad.join(', ')+'.'+(old.length?' Rename: '+old.map(u=>u+' to '+OLD_TAGS[u]).join(', ')+'.':''):'')
-      +(gone.length?' Removed tags, now ignored: '+gone.join(', ')+'.':'')
-      +(State.v.nomusic?' Disable Music is on, so the pack is left out of the ROM.':''); }
+    status.textContent=(State.v.nomusic?'Disable Music is on, so the pack is left out of the ROM. ':'')+'Loaded '+p.songs.length+' tracks from "'+p.name+'".'+(bad.length?' Tags this version does not use, so they match nothing: '+bad.join(', ')+'.'+(old.length?' Rename: '+old.map(u=>u+' to '+OLD_TAGS[u]).join(', ')+'.':''):'')
+      +(gone.length?' Removed tags, now ignored: '+gone.join(', ')+'.':''); }
   inp.addEventListener('change',async()=>{ const f=inp.files[0]; if(!f) return;
     try{ const songs=songsFromPack(await f.text()); if(!songs.length) throw 0; const pk={name:f.name,songs,text:await f.text()}; setPack(pk); rememberPack(pk); }
     catch(e){ inp.value=''; status.textContent='"'+f.name+'" could not be read as a music pack.'+(State.pack?' Your pack "'+State.pack.name+'" is still loaded.':''); } });
@@ -830,7 +857,7 @@ const DEPENDS={
   onlyhealmore:{needs:'spells'}, healbefore:{needs:'spells'}, nohurtmore:{needs:'spells'},
   l1radiant:{needs:'spells'}, l1repel:{needs:'spells'},
   quickswap:{needs:'quickspell'},
-  altrun:{needs:'runmech', ok:v=>v===0||v===5, label:'Run Mechanics Vanilla', maybe:v=>v===5, maybeText:'Only if Run Mechanics picks Vanilla (1 in 5)'},
+  altrun:{needs:'runmech', ok:v=>v===0||v===5, label:'Run Mechanics: Vanilla', maybe:v=>v===5, maybeText:'If Random: 1 in 5', maybeTitle:'With Run Mechanics on Random, this only applies if the seed picks Vanilla (1 in 5).'},
   shortcharlock:{blockedBy:['freecharlock']}, easycharlock:{blockedBy:['freecharlock','runmech']},
   three:{blockedBy:['freecharlock']}, cursed:{blockedBy:['freecharlock']},
   radish:{blockedBy:['freecharlock']}, disguised:{blockedBy:['freecharlock']},
@@ -873,20 +900,22 @@ function control(it, opts){
     State.on(i=>{ if(i==='biome'||i==='*') upd(); }); upd(); root.append(bh,h); }
   if(REMIX_IDS.includes(id)) root.setAttribute('data-remix','');
   root.title = REMIX_IDS.includes(id) ? 'REMIX: added in this version, so these flags only work here.' : opts.tip ? desc : '';
-  if(DEPENDS[id]){ const d=DEPENDS[id]; const tag=el('span',{class:'needtag'}); root.querySelector('.name').append(tag);
+  if(DEPENDS[id]){ const d=DEPENDS[id]; const tag=el('span',{class:'needtag'}); root.querySelector('.name').append(' ',tag);
     /* Only an option another flag forces off is disabled. One that merely needs a parent stays clickable, so a stray bit in a code can be cleared. */
     const dep=()=>{ const off=needsOff(id); root.classList.toggle('needsoff',off); tag.hidden=!off; if(input) input.disabled=off&&!!d.blockedBy;
       if(off){ const by=d.blockedBy&&d.blockedBy.find(o=>State.v[o]|0);
-        tag.textContent=d.needs?'Needs '+(d.label||DEP_NAME[d.needs]):'Off while '+(DEP_PHRASE[by]||DEP_NAME[by]+' is on'); }
-      else if(d.maybe&&d.maybe(State.v[d.needs]|0)){ tag.hidden=false; tag.textContent=d.maybeText; } };
+        tag.textContent=d.needs?'Needs '+(d.label||DEP_NAME[d.needs]):'Off while '+(DEP_PHRASE[by]||DEP_NAME[by]+' is on'); tag.title=tag.textContent; }
+      /* The Random note only matters while the option is on or random. */
+      else if(d.maybe&&d.maybe(State.v[d.needs]|0)&&(State.v[id]|0)){ tag.hidden=false; tag.textContent=d.maybeText; tag.title=d.maybeTitle||''; } else tag.hidden=true; };
     const watch=[d.needs,...(d.blockedBy||[]),id];
     State.on(i=>{ if(watch.includes(i)||i==='*') dep(); }); dep(); }
   return root;
 }
 function tabById(id){ return TABS.find(t=>t.id===id); }
 /* Names the options had before they were renamed. Searched, never shown. */
-const ALIASES={necklace:'Enable Death Necklace',discardflute:'DK Flute',torches:'Enable Torches in Battle',sumsalechance:'Summer Sale Tristate Chance',wrap:'Enable Menu Wrapping',customspell:'Allow Custom Spell Names'};
-function matches(it,q){ q=q.toLowerCase(); return !q||it[1].toLowerCase().includes(q)||it[2].toLowerCase().includes(q)||(ALIASES[it[0]]||'').toLowerCase().includes(q)||(Array.isArray(it[4])&&it[4].some(o=>String(o).toLowerCase().includes(q)))||(it[0]==='biome'&&Object.values(BIOME_HELP).some(h=>h.toLowerCase().includes(q))); }
+const ALIASES={necklace:'Enable Death Necklace',discardflute:['DK Flute','Discardable Flute'],torches:'Enable Torches in Battle',sumsalechance:'Summer Sale Tristate Chance',wrap:'Enable Menu Wrapping',customspell:'Allow Custom Spell Names',
+  flutefast:'Normal Flute Speed',bonk:'Bonk Dmg',lvlrefill:'Levelup Refill',unguarded:'Unguarded OW search spot'};
+function matches(it,q){ q=q.toLowerCase(); return !q||it[1].toLowerCase().includes(q)||it[2].toLowerCase().includes(q)||[].concat(ALIASES[it[0]]||[]).some(a=>a.toLowerCase().includes(q))||(Array.isArray(it[4])&&it[4].some(o=>String(o).toLowerCase().includes(q)))||(it[0]==='biome'&&Object.values(BIOME_HELP).some(h=>h.toLowerCase().includes(q))); }
 
 /* Shared chrome pieces */
 const AP_REJECT=['chestloc','stairs','cursed','three','radish','disguised'];
@@ -896,19 +925,34 @@ function joinNames(a){ return a.length>1?a.slice(0,-1).join(', ')+' and '+a[a.le
 /* When the browser will not copy, show the text selected so Ctrl+C still works. Focus goes back to the opener when it closes. */
 function showCopyText(text,opener){ let d=document.getElementById('copydlg');
   if(!d){ d=el('dialog',{id:'copydlg',class:'win resultwin','aria-labelledby':'copytitle'}); document.body.append(d); }
-  const ta=el('textarea',{readonly:true,rows:6,'aria-label':'Text to copy',style:'width:100%'}); ta.value=text;
+  const ta=el('textarea',{readonly:true,rows:9,'aria-label':'Text to copy',style:'width:100%'}); ta.value=text;
   const ok=el('button',{type:'button',class:'btn',text:'OK',onclick:()=>d.close()});
   d.replaceChildren(el('h2',{id:'copytitle',text:'Copy this text'}),el('p',{text:'Your browser would not copy it for you. The text is selected: press Ctrl+C.'}),ta,el('div',{class:'resultbtns'},ok));
   if(opener) d.addEventListener('close',()=>{ if(opener.isConnected) opener.focus(); },{once:true});
   if(!d.open) d.showModal(); ta.focus(); ta.select(); ta.scrollTop=0; }
+/* Copies text, or shows it selected when the browser will not copy. The button says done for a moment. */
+async function copyOut(text,btn,label,done){ let ok=true;
+  try{ await navigator.clipboard.writeText(text); }catch(e){ const t=document.createElement('textarea'); t.value=text; document.body.append(t); t.select(); try{ ok=document.execCommand('copy'); }catch(x){ ok=false; } t.remove(); }
+  if(!ok){ showCopyText(text,btn); return; }
+  btn.textContent=done; setTimeout(()=>{ btn.textContent=label; },1500); }
+/* What a pasted text holds as flags: the code after a "Flags:" label, even when the whole Copy text is pasted. Without a
+   label, the first line, with a note in brackets dropped and spaces and dashes ignored. */
+function cleanFlags(raw){
+  /* A browser turns the line breaks of a pasted Copy text into spaces, so with a "Flags:" label take the first run of code characters after it. */
+  const m=/flags\s*:\s*([A-Za-z2-7-]+)/i.exec(raw);
+  if(m) return m[1].replace(/-/g,'').toUpperCase();
+  const line=raw.split(/\r?\n/).map(s=>s.trim()).find(Boolean)||'';
+  return line.replace(/^flags\s*:?/i,'').replace(/\(.*$/,'').replace(/[\s-]/g,'').toUpperCase(); }
 function flagsBlock(){
-  const fi=el('input',{id:'flags',type:'text','aria-describedby':'apmsg flagerr',value:State.flags()});
+  /* The box holds the game flags: your comfort and sound options are not in it. It is what Copy, the link and the file name carry too. */
+  const fi=el('input',{id:'flags',type:'text','aria-describedby':'apmsg apnote',value:State.flags(true)});
   /* The error takes the place of the Archipelago line under the box, so the box keeps its width and what was typed can be fixed. */
   const fe=el('span',{id:'flagerr',role:'alert'});
   const apMsg=el('span',{id:'apmsg',role:'status'});
-  const showErr=t=>{ fe.textContent=t; apMsg.hidden=!!t; };
+  /* While the error shows, the box is described by the error alone, and marked invalid. */
+  const showErr=t=>{ fe.textContent=t; apMsg.hidden=!!t; fi.setAttribute('aria-describedby',t?'flagerr':'apmsg apnote'); if(t) fi.setAttribute('aria-invalid','true'); else fi.removeAttribute('aria-invalid'); };
   fi.addEventListener('change',()=>{ let ok; State.oddFlags=false; State.oddBits=false;
-    const raw=fi.value, clean=raw.replace(/^\s*flags\s*:?/i,'').replace(/[\s-]/g,'').toUpperCase();
+    const raw=fi.value, clean=cleanFlags(raw);
     State.keepPersonal(()=>{ ok=State.setFlags(clean); return ok; });
     if(ok){ showErr(''); State.say&&State.say(State.flagNote()); }
     else showErr((/[^A-Z2-7]/.test(clean)?'Flags only use the letters A-Z and the digits 2-7.':'Flags are '+lengthText()+' letters; this has '+clean.length+'.')+' Your flags did not change.'); });
@@ -917,18 +961,20 @@ function flagsBlock(){
   const rnd=el('button',{type:'button',class:'btn',text:'Random Seed',onclick:()=>State.newSeed()});
   const sum=el('input',{id:'checksum',type:'text',readonly:true,'aria-label':'Checksum',title:'The title screen of the game shows the first 6 digits.',placeholder:'None yet'});
   /* The copy and the link carry the gameplay flags only. Comfort and sound options are the reader's own and do not change the checksum. */
-  const cp=el('button',{type:'button',class:'btn',text:'Copy',title:'Copies the link, the flags without your comfort and sound options, the seed and the checksum (once there is one)',onclick:async()=>{ const ver=dwrVersion(), text='DWR - TheGobOne Remix'+(ver?' v'+ver:'')+'\nFlags: '+State.flags(true)+' (comfort and sound options left out)\nSeed: '+State.seed+'\n'+(sum.value?'Checksum: '+sum.value+' (the title screen shows '+sum.value.slice(0,6)+')\n':'')+location.href.split('#')[0]+'#f='+State.flags(true)+'&s='+State.seed+(ver?'&v='+ver:''); let ok=true;
-    try{ await navigator.clipboard.writeText(text); }catch(e){ const t=document.createElement('textarea'); t.value=text; document.body.append(t); t.select(); try{ ok=document.execCommand('copy'); }catch(x){ ok=false; } t.remove(); }
-    if(!ok){ showCopyText(text,cp); return; }
-    cp.textContent='Copied!'; setTimeout(()=>{ cp.textContent='Copy'; },1500); }});
+  /* The note has its own line, so the Flags line can be pasted back into the Flags box as it is. */
+  const cp=el('button',{type:'button',class:'btn',text:'Copy',title:'Copies the link, the flags, the seed and the checksum (once there is one). Your comfort and sound options are not in it.',onclick:()=>{ const ver=dwrVersion(), text='DWR - TheGobOne Remix'+(ver?' v'+ver:'')+'\nFlags: '+State.flags(true)+'\nSeed: '+State.seed+'\n'+(sum.value?'Checksum: '+sum.value+' (the title screen shows '+sum.value.slice(0,6)+')\n':'')+'Your comfort and sound options are not in these flags.\n'+location.href.split('#')[0]+'#f='+State.flags(true)+'&s='+State.seed+(ver?'&v='+ver:'');
+    copyOut(text,cp,'Copy','Copied!'); }});
   /* A checksum only belongs to the flags and seed it was made from. */
   State.showChecksum=v=>{ sum.value=v; };
   /* Any change from somewhere else puts a valid code back in the box, so an old error goes too. */
-  State.on(i=>{ fi.value=State.flags(); sd.value=State.seed; showErr(''); if(i!=='pack'&&i!=='rom'){ State.showChecksum(''); State.clearDone&&State.clearDone(); } });
+  State.on(i=>{ fi.value=State.flags(true); sd.value=State.seed; showErr(''); if(i!=='pack'&&i!=='rom'){ State.showChecksum(''); State.clearDone&&State.clearDone(); } });
   /* The DWR APWorld turns these down (archipelago/dwr/flags.py UNSUPPORTED): say so before the flags are copied.
      A flag set to On is refused. One set to Random is turned off for you with a log warning. */
   /* An empty label lines the text up under the flags box. Only a change of text is announced. */
-  const ap=el('div',{class:'row apcheck'},el('label',{'aria-hidden':'true'}),apMsg,fe);
+  /* The box holds the code to share. An Archipelago YAML wants the full code, with your comfort and sound options. */
+  const fullBtn=el('button',{type:'button',class:'mini',text:'Copy full code',title:'Copies the flags with your own comfort and sound options. Use this one in an Archipelago YAML.',onclick:()=>copyOut(State.flags(),fullBtn,'Copy full code','Copied!')});
+  const apNote=el('p',{id:'apnote',class:'apnote'},'Share this code, or use Copy. Your comfort and sound options are not in it. ',fullBtn);
+  const ap=el('div',{class:'row apcheck'},el('label',{'aria-hidden':'true'}),el('div',{class:'apbody'},el('div',{class:'apline'},apMsg,fe),apNote));
   const apPaint=()=>{ const on=AP_REJECT.filter(id=>(State.v[id]|0)===1).map(itemLabel), rnd=AP_REJECT.filter(id=>(State.v[id]|0)===2).map(itemLabel);
     // At most three names fit the two lines kept for this row, so the rows below do not jump.
     // The title and the screen reader label have them all.
@@ -969,6 +1015,7 @@ function spaceMessage(){ const on=SPACE_FLAGS.filter(id=>State.v[id]).map(id=>St
   return 'Not enough ROM space for these flags. '+(on.length?'Try turning off one of: '+on.slice(0,5).join(', ')+'.':'Try turning some flags off.'); }
 /* One full build in the browser. The button downloads it, and the space check only measures it. */
 function buildOnce(spoiler){
+  /* The build writes a file named for the full flags. The download is named for the game flags, so racers with the same flags get the same name. */
   const seed=BigInt(State.seed||'0').toString(), flags=State.flags(), out_name='DWR.'+seed+'.'+flags+'.nes';
   const sprite=State.find('sprite')[4][State.v.sprite|0]||'Random';
   FS.writeFile('/input.nes',State.rom.bytes);
@@ -988,7 +1035,7 @@ function buildOnce(spoiler){
   if(sum!==0n){ data=FS.readFile('/'+out_name); FS.unlink('/'+out_name);
     const sp='/'+out_name+'.spoiler.txt';
     if(FS.analyzePath(sp).exists){ spoilerText=FS.readFile(sp,{encoding:'utf8'}); FS.unlink(sp); } }
-  return {seed,flags,out_name:'DWR.'+seed+'.'+flags+'.nes',picks,log,sum,data,spoilerText};
+  return {seed,flags,out_name:'DWR.'+seed+'.'+State.flags(true)+'.nes',picks,log,sum,data,spoilerText};
 }
 /* The space line builds the ROM for the current flags and seed. Randomize reuses that build when nothing has changed. */
 let buildCache=null, sizeCache=null;
@@ -1050,7 +1097,10 @@ function goBlock(out){
       const lines=[{text:'Checksum '+hex+'. The title screen shows the first 6 digits ('+hex.slice(0,6)+').'+(last.some(t=>t.includes('No room for the checksum on the title menu'))?' This Archipelago build had no room for it, so its title screen leaves it out.':'')}];
       if(last.some(t=>t.includes('No room for Free Charlock'))) lines.push({text:'Free Charlock did not fit in this ROM, so Charlock plays as normal.'});
       if(last.some(t=>t.includes('No room for name screen wrapping'))) lines.push({text:'Name screen wrapping did not fit in this ROM, so the name cursor stops at the edges.'});
-      if(picks.count){
+      if(picks.count&&((State.v.nomusic|0)||log.some(t=>t.includes('Disable Music is on')))){
+        /* Nothing failed to fit: the pack was never put in the ROM. */
+        lines.push({text:'Disable Music is on, so the music pack was left out of the ROM.'});
+      } else if(picks.count){
         /* Placed songs are the log lines ending in (N bytes, bank B); the title starts after the padded slot name. */
         const left={}; let bytes=0, placed=0;
         last.forEach(t=>{ const m=/\((\d+) bytes, bank \d\)\s*$/.exec(t); if(!m) return; const title=t.slice(15,m.index).trim(); left[title]=(left[title]||0)+1; bytes+=+m[1]; placed++; });
@@ -1082,21 +1132,25 @@ function savedPresets(){ try{ const v=JSON.parse(localStorage.getItem(PRESET_KEY
 function storePresets(list){ try{ localStorage.setItem(PRESET_KEY,JSON.stringify(list)); return true; }catch(e){ return false; } }
 function presetArea(){
   const grid=el('div',{class:'presetgrid'}), mine=el('div',{class:'presetgrid'}), saved=el('div',{class:'presetsaved'},el('span',{text:'Saved'}),mine);
-  const root=el('div',{class:'presetarea'},el('div',{class:'presetleft'},el('span',{text:'Presets'}),grid),saved);
-  const name=el('input',{type:'text',maxlength:20,class:'presetname','aria-label':'New preset name',placeholder:'Preset name'});
+  const name=el('input',{type:'text',maxlength:20,class:'presetname','aria-label':'New preset name',placeholder:'Name'});
   const msg=el('span',{class:'presetmsg',role:'status'});
+  /* Page order: preset buttons, then the message with Undo, then the saved presets, then the name box. */
+  const root=el('div',{class:'presetarea'},el('div',{class:'presetleft'},el('span',{text:'Presets'}),grid),msg,saved);
   /* A preset replaces every setting except the personal ones, so say so and keep a way back.
      Undo goes away at the first change you make after the preset, because it would throw that change away too. */
   msg.tabIndex=-1;
   let offUndo=null;
   const dropUndo=()=>{ if(offUndo){ offUndo(); offUndo=null; } };
-  function say(text,undo){ msg.replaceChildren(text); if(undo) msg.append(' ',undo); }
+  /* Any message here goes at the first change of settings after it, so it never says a preset is loaded after you edited it.
+     Not a change of settings: the ROM, the seed and the music pack picks. */
+  function say(text,undo){ dropUndo(); msg.replaceChildren(text); if(undo) msg.append(' ',undo);
+    offUndo=State.on(i=>{ if(['rom','seed','pack','assign'].includes(i)) return; dropUndo(); msg.replaceChildren(); }); }
   function applyPreset(name,fn,btn){ const before=State.snap(); dropUndo();
     State.keepPersonal(fn);
+    /* A saved code this version cannot read changes nothing, so there is nothing to undo. */
+    if(State.lastOk===false){ say('That saved preset has a code this version cannot read. Nothing changed.'); return; }
     const undo=el('button',{type:'button',class:'mini',text:'Undo',onclick:()=>{ dropUndo(); State.restore(before); say('Went back to your settings from before '+name+'.'); (btn&&btn.isConnected?btn:msg).focus(); }});
-    say('Loaded '+name+'. It replaced your settings, except your own comfort and sound options. ',undo);
-    /* Not a change of settings: the ROM, the seed and the music pack picks. */
-    offUndo=State.on(i=>{ if(['rom','seed','pack','assign'].includes(i)) return; dropUndo(); undo.remove(); }); }
+    say('Loaded '+name+'. Your own comfort and sound options were kept. ',undo); }
   function paint(){
     grid.replaceChildren(...presetButtons('mini',applyPreset));
     saved.hidden=!savedPresets().length;
@@ -1104,20 +1158,19 @@ function presetArea(){
       el('button',{type:'button',class:'mini preset',title:p.flags,text:p.name,onclick:e=>applyPreset(p.name,()=>State.setFlags(p.flags),e.currentTarget)}),
       el('button',{type:'button',class:'mini presetdel','aria-label':'Delete preset '+p.name,text:'X',onclick:()=>{
         if(!window.confirm('Delete preset "'+p.name+'"?')) return;
-        msg.textContent=storePresets(savedPresets().filter(x=>x.name!==p.name))?'Deleted '+p.name+'.':'Could not delete it.'; paint(); }}))));
+        say(storePresets(savedPresets().filter(x=>x.name!==p.name))?'Deleted '+p.name+'.':'Could not delete it.'); paint(); }}))));
   }
   function save(){
     const n=name.value.trim().slice(0,20);
-    if(!n){ msg.textContent='Name it first.'; return; }
-    if(PRESETS.some(p=>p.name.toLowerCase()===n.toLowerCase())){ msg.textContent='That name is built in.'; return; }
+    if(!n){ say('Name it first.'); return; }
+    if(PRESETS.some(p=>p.name.toLowerCase()===n.toLowerCase())){ say('That name is built in.'); return; }
     const list=savedPresets().filter(x=>x.name.toLowerCase()!==n.toLowerCase());
-    list.push({name:n,flags:State.flags()});
-    msg.textContent=storePresets(list)?'Saved '+n+'.':'This browser would not save it.';
+    list.push({name:n,flags:State.flags(true)});
+    say(storePresets(list)?'Saved '+n+'.':'This browser would not save it.');
     name.value=''; paint();
   }
   name.addEventListener('keydown',e=>{ if(e.key==='Enter') save(); });
-  /* The message comes first, as it is drawn, so Undo is the next Tab stop after a preset button. */
-  root.append(el('div',{class:'presetsave'},msg,name,el('button',{type:'button',class:'mini',text:'Save',onclick:save})));
+  root.append(el('div',{class:'presetsave'},name,el('button',{type:'button',class:'mini',text:'Save',onclick:save})));
   paint();
   return root;
 }
@@ -1161,10 +1214,12 @@ try{ const i=State.find('sprite')[4].indexOf(localStorage.getItem('dwrSprite'));
 /* The address carries the flags and seed, so copying it shares the setup. */
 try{ const q=new URLSearchParams(location.hash.slice(1)), f=q.get('f'), sd=q.get('s'), ver=q.get('v');
   /* A link sets the gameplay flags. The reader's own comfort and sound options are kept, and the page says so when the link asked for others. */
-  if(f){ State.oddFlags=false; State.oddBits=false; let ok=false; State.keepPersonal(()=>{ ok=State.setFlags(f.trim().toUpperCase()); return ok; });
+  let linkOk=false;
+  if(f){ State.oddFlags=false; State.oddBits=false; State.keepPersonal(()=>{ linkOk=State.setFlags(f.trim().toUpperCase()); return linkOk; });
     /* goBlock shows this once the status line exists. */
-    State.loadNote=ok?State.flagNote():'The flags in the link are not valid, so they were not changed.'; }
-  if(f&&ver&&/^[\w.\-]{1,20}$/.test(ver)) State.linkVersion=ver; else if(f) State.linkNoVersion=true;
+    State.loadNote=linkOk?State.flagNote():'The flags in the link are not valid, so they were not changed.'; }
+  /* The version note only goes with flags that loaded. A version that is not a plain version string is ignored. */
+  if(f&&linkOk&&ver&&/^[\w.\-]{1,20}$/.test(ver)) State.linkVersion=ver; else if(f&&linkOk&&!ver) State.linkNoVersion=true;
   if(sd&&/^\d{1,20}$/.test(sd)) State.seed=(BigInt(sd)>18446744073709551615n?18446744073709551615n:BigInt(sd)).toString();
   else if(sd) State.loadNote=((State.loadNote||'')+' The seed in the link is not a number of 20 digits or fewer, so a random seed is used.').trim(); }catch(e){}
 /* A link made with another version can give a different ROM, so it says which version it came from. */

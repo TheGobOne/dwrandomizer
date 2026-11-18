@@ -73,7 +73,7 @@ def received_text(item: str, sender: str = "", player: int = 0) -> str:
     """The mailbox text for an item another player sent: "Herb from Alex".
 
     The item and the sender share 16 characters. The item is never shortened to make room: a
-    long sender name is cut and ends in a period ("Staff of Rain from A."). When even a one
+    long sender name is cut and ends in a period ("Torch from Bart."). When even a one
     letter sender does not fit, the item is shown alone."""
     if not sender:
         return game_name(item)
