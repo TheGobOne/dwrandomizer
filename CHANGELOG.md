@@ -22,6 +22,10 @@
 * Site: the walking hero preview works again with the 256 KB ROM (it read the old CHR offset). The Setup row no longer jumps when "ROM downloaded." appears, and blank space under the Flags box and the presets is trimmed
 * Site: the Status line reads "ROM left: N B" on one line, the "Needs Run Mechanics: Vanilla" tag no longer wraps, the Archipelago line points to Copy full code for a YAML, the Warp Whistle help explains the Hauksness stop, and the Standard preset text no longer lists Menu Wrapping
 * Site: the downloaded ROM name gets "+comfort" when comfort or sound options are on and "+music" with a music pack, so builds of one seed with and without them can be told apart. Racers on the same flags with no such options still get the same name
+* NPC Guillotine no longer removes the NPCs the quest needs: the one who gives the Erdrick's Token coordinates, the Staff of Rain and Rainbow Drop guys and the one who lifts the curse. The routine is 11 bytes larger
+* The Key & Herb counter in the stats window shows herbs first, then keys, the same order as the item menu
+* Earth biome: a bridge no longer lands on a lone tile or a pocket of land cut off by mountains. It lands on the biggest piece of the island, and mountains that cut an island or an Americas piece off from the rest are opened to hills, so every island can be walked. In 120 test seeds every island is reachable from the main continent
+* Build Options text: Original builds are -10%/+3 on their stats, not -3/+10%. The 3 is the best result of the original game's 0 to 3 roll, which DWR locks in
 * tools/patchgen.py works on ROMs of any expansion size
 * The ROM is now 256 KB (16 PRG banks, MMC1 as before). The fixed bank is the last bank, the far-call routines have bank 7 to themselves, so music packs get all of bank 6 again, and banks 8 to 14 are empty for later features. Checked in FCEUX and Mesen 2; Nestopia and flash carts are not checked yet
 * Disable Music now keeps a music pack's songs out too

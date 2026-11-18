@@ -1829,7 +1829,7 @@ static void death_counter(dw_rom *rom)
 }
 
 /**
- * Adds a row under the deaths in the pop-up stats window: keys, then herbs.
+ * Adds a row under the deaths in the pop-up stats window: herbs, then keys, the same order as the item menu.
  * Runs after death_counter. The window moves to the fixed bank, where there is room.
  *
  * @param rom The rom struct
@@ -1856,7 +1856,7 @@ static void key_herb_counter(dw_rom *rom)
         vpatch(rom, w, 2, 0x27, 0x99);            /* D nnnnn */
         w += 2;
     }
-    vpatch(rom, w, 5, 0x2e, 0x9a, 0x82, 0x2b, 0x9b); /* K n  H n, with n under the other numbers */
+    vpatch(rom, w, 5, 0x2b, 0x9b, 0x82, 0x2e, 0x9a); /* H n  K n (herbs first, as in the item menu), with n under the other numbers */
     vpatch(rom, 0x6f6c, 2, LO(window), HI(window));
 
     /* The cleanup after a fight only clears the area under the original window.
@@ -1873,7 +1873,7 @@ static void key_herb_counter(dw_rom *rom)
         0xad, 0xdf, 0x64, 0xc9, 0x02, 0xb0, 0x03, /* gold or deaths: the old code */
         0x4c, LO(chain), HI(chain),
         0xaa, 0xa9, 0x01, 0x8d, 0xe2, 0x64,       /* one digit */
-        0xb5, 0xbd, 0x8d, 0xca, 0x64,             /* $BF keys, $C0 herbs */
+        0xb5, 0xbd, 0x8d, 0xca, 0x64,             /* code $9A prints $BF (keys), $9B prints $C0 (herbs) */
         0x60);
     vpatch(rom, 0x6378, 3, 0x20, LO(c), HI(c));
 }
@@ -4097,21 +4097,30 @@ void npc_guillotine(dw_rom *rom)
     if (!NPC_GUILLOTINE(rom))
         return;
 
-    /* The routine has 20 bytes and stays in the fixed bank. It cannot go behind a far call: $C04A goes on to bank 0
-     * code ($C0D4: JSR $B6C2) and bank 0 tables, which need bank 0 mapped. */
-    const uint16_t at = find_free_space(rom->content, 0xc82b, 20);
-    const uint8_t body[20] = {
-        0xc9, 30,           // CMP 30 — A contains NPC index at this point. Is NPC mobile?
-        0x90, 0x04,         // BCC to guillotining if yes
-        0x20, 0x4a, 0xc0, 0x60, // No → do original JSR then RTS
-        0x48,               // PHA to save NPC offset for later use by original code
-        0xaa,               // TAX to use X as offset for STA later
-        0xa9, 0x00,         // LDA 0
-        0x95, 0x51,         // STA,X 1st NPC byte to set it to zero
-        0x95, 0x52,         // STA,X 2nd NPC byte to set it to zero
-        0x95, 0x53,         // STA,X 3rd NPC byte to set it to zero
-        0x68,               // PLA to restore NPC offset for later use by original code
-        0x60                // RTS
+    /* The routine has 31 bytes and stays in the fixed bank. It cannot go behind a far call: $C04A goes on to bank 0
+     * code ($C0D4: JSR $B6C2) and bank 0 tables, which need bank 0 mapped.
+     * The NPCs whose control byte is $6B to $6E are never removed: the one who gives the Erdrick's Token coordinates
+     * ($6B), the Staff of Rain and Rainbow Drop guys ($6C, $6D) and the one who lifts the curse ($6E). */
+    const uint16_t at = find_free_space(rom->content, 0xc82b, 31);
+    const uint8_t body[31] = {
+        0xc9, 30,               // CMP 30: A is the NPC's offset in the NPC table. Is the NPC mobile?
+        0xb0, 0x17,             // BCS to the original code if not
+        0xaa,                   // TAX
+        0xb5, 0x53,             // LDA $53,X: the NPC's control byte
+        0x38, 0xe9, 0x6b,       // SEC, SBC #$6B
+        0xc9, 0x04,             // CMP #4: is it one of the four NPCs the quest needs?
+        0x90, 0x0c,             // BCC to the original code, so he stays
+        0x8a,                   // TXA: the offset again
+        0x48,                   // PHA to save the offset for the original code
+        0xa9, 0x00,             // LDA 0
+        0x95, 0x51,             // STA,X 1st NPC byte to set it to zero
+        0x95, 0x52,             // STA,X 2nd NPC byte to set it to zero
+        0x95, 0x53,             // STA,X 3rd NPC byte to set it to zero
+        0x68,                   // PLA to restore the offset
+        0x60,                   // RTS
+        0x8a,                   // TXA: the offset again (the NPC stays)
+        0x20, 0x4a, 0xc0,       // JSR $C04A: the original call
+        0x60                    // RTS
     };
 
     vpatch(rom, 0xd11f, 2, at & 0xff, (at >> 8) & 0xff); // Save original JSR to set NPC direction but point to newcode

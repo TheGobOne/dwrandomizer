@@ -427,7 +427,7 @@ When on your status screen, hold Start and Select to warp to the end of the game
 
 Which stats the hero grows best in. Set on the Hero & Magic tab. By Crump's Brother. When it is not `Original`, the title menu line for message speed reads `CHANGE BUILD (EXP 0)` and opens the build window.
 
-* `Original`: the name impacts your stat build. All builds are -3/+10% for the selected stats.
+* `Original`: the name impacts your stat build. All builds are -10%/+3 for the selected stats: the stat loses 10% and gains a flat 3, which looks like a bonus early on. The 3 is the best result of the original game's 0 to 3 roll, which DWR locks in.
 * `Free Selection`: stat builds are freely chosen on a menu at the start and are not tied to name length. Text speed is set to `Fast` automatically.
 * `Free Selection Plus`: two new stat builds are added to Free Selection (HP-Agility and Strength-MP).
 * `Free Selection Unified`: all stat builds are merged into one that has the best of all of them and no Str/MP penalties.

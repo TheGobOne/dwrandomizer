@@ -1470,6 +1470,83 @@ static void biome_template(dw_map *map, const char *const *tpl)
 
 static const int dir4[4][2] = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
+/* The region a tile belongs to for walking: Europe, Asia and Africa are one continent, and so are North and
+ * South America. */
+static char earth_group(char c)
+{
+    return EARTH_MAIN(c) ? 'E' : EARTH_AMERICAS(c) ? 'N' : c;
+}
+
+/* Labels the walkable pieces of one region (1, 2, ...) in label, with their sizes in size, and returns how
+ * many there are. */
+static int earth_label(dw_map *map, char key, int label[120][120], int *size)
+{
+    static uint8_t qx[120 * 120], qy[120 * 120];
+    int cx, cy, i, n = 0, head, tail;
+
+    memset(label, 0, sizeof(int) * 120 * 120);
+    for (cx = 0; cx < 120; cx++) {
+        for (cy = 0; cy < 120; cy++) {
+            if (label[cx][cy] || earth_group(map_region[cx][cy]) != key || !tile_is_walkable(map->tiles[cx][cy]))
+                continue;
+            n++;
+            size[n] = 0;
+            head = tail = 0;
+            label[cx][cy] = n;
+            qx[tail] = (uint8_t)cx;
+            qy[tail++] = (uint8_t)cy;
+            while (head < tail) {
+                const int px = qx[head], py = qy[head++];
+                size[n]++;
+                for (i = 0; i < 4; i++) {
+                    const int nx = px + dir4[i][0], ny = py + dir4[i][1];
+                    if (map_ob(nx) || map_ob(ny) || label[nx][ny] || earth_group(map_region[nx][ny]) != key ||
+                            !tile_is_walkable(map->tiles[nx][ny]))
+                        continue;
+                    label[nx][ny] = n;
+                    qx[tail] = (uint8_t)nx;
+                    qy[tail++] = (uint8_t)ny;
+                }
+            }
+        }
+    }
+    return n;
+}
+
+/* 1 on every tile of the biggest walkable piece of its region. A bridge lands only on these, so it never ends
+ * on a lone tile or a pocket of grass cut off by mountains or water. */
+static uint8_t earth_big[120][120];
+
+static void earth_mark_big(dw_map *map)
+{
+    static int label[120][120];
+    static int size[120 * 120 + 1];
+    static char done[256];
+    int x, y, i, n, big;
+    char key;
+
+    memset(earth_big, 0, sizeof(earth_big));
+    memset(done, 0, sizeof(done));
+    for (x = 1; x < 119; x++) {
+        for (y = 1; y < 119; y++) {
+            key = earth_group(map_region[x][y]);
+            if (key == '.' || done[(uint8_t)key])
+                continue;
+            done[(uint8_t)key] = 1;
+            n = earth_label(map, key, label, size);
+            if (!n)
+                continue;
+            big = 1;
+            for (i = 2; i <= n; i++)
+                if (size[i] > size[big])
+                    big = i;
+            for (i = 0; i < 120 * 120; i++)
+                if (label[i / 120][i % 120] == big)
+                    earth_big[i / 120][i % 120] = 1;
+        }
+    }
+}
+
 /* Whether a walkable tile of the given region touches this tile. Region 0 means the main continent
  * (Europe, Asia or Africa). */
 static BOOL earth_touches(dw_map *map, int x, int y, char region)
@@ -1480,7 +1557,7 @@ static BOOL earth_touches(dw_map *map, int x, int y, char region)
     for (i = 0; i < 4; i++) {
         nx = x + dir4[i][0];
         ny = y + dir4[i][1];
-        if (map_ob(nx) || map_ob(ny) || !tile_is_walkable(map->tiles[nx][ny]))
+        if (map_ob(nx) || map_ob(ny) || !tile_is_walkable(map->tiles[nx][ny]) || !earth_big[nx][ny])
             continue;
         c = map_region[nx][ny];
         if (region ? c == region : EARTH_MAIN(c))
@@ -1574,6 +1651,79 @@ static BOOL earth_bridge(dw_map *map, char target)
     return TRUE;
 }
 
+/* The mountains drawn with the land can cut it in pieces: a pocket of grass inside a ring of mountains, or a
+ * bridge that lands in a pocket, leaves part of an island with no way in. This opens a path through the
+ * mountains from the biggest piece of each region to every other piece, turning the mountains on it to hills.
+ * It draws no random numbers. */
+static void earth_connect(dw_map *map)
+{
+    static int label[120][120], parent[120][120];
+    static uint8_t qx[120 * 120], qy[120 * 120];
+    static int size[120 * 120 + 1];
+    static char done[256];
+    int x, y, i, n, head, tail, big, cx, cy, round;
+    char key;
+
+    memset(done, 0, sizeof(done));
+    for (x = 1; x < 119; x++) {
+        for (y = 1; y < 119; y++) {
+            key = earth_group(map_region[x][y]);
+            if (key == '.' || done[(uint8_t)key])
+                continue;
+            done[(uint8_t)key] = 1;
+            for (round = 0; round < 200; round++) {
+                n = earth_label(map, key, label, size);
+                if (n <= 1)
+                    break;
+                big = 1;
+                for (i = 2; i <= n; i++)
+                    if (size[i] > size[big])
+                        big = i;
+                /* Search outward from the biggest piece through this region's land (walkable or mountain) until
+                 * another piece is touched, then open the mountains on the way back. */
+                memset(parent, 0xff, sizeof(parent));
+                head = tail = 0;
+                for (cx = 0; cx < 120; cx++)
+                    for (cy = 0; cy < 120; cy++)
+                        if (label[cx][cy] == big) {
+                            parent[cx][cy] = -2;
+                            qx[tail] = (uint8_t)cx;
+                            qy[tail++] = (uint8_t)cy;
+                        }
+                cx = -1;
+                cy = -1;
+                while (head < tail && cx < 0) {
+                    const int px = qx[head], py = qy[head++];
+                    for (i = 0; i < 4; i++) {
+                        const int nx = px + dir4[i][0], ny = py + dir4[i][1];
+                        if (map_ob(nx) || map_ob(ny) || parent[nx][ny] != -1 || earth_group(map_region[nx][ny]) != key)
+                            continue;
+                        if (map->tiles[nx][ny] != TILE_MOUNTAIN && !tile_is_walkable(map->tiles[nx][ny]))
+                            continue;
+                        parent[nx][ny] = px * 120 + py;
+                        if (label[nx][ny] && label[nx][ny] != big) {
+                            cx = nx;
+                            cy = ny;
+                            break;
+                        }
+                        qx[tail] = (uint8_t)nx;
+                        qy[tail++] = (uint8_t)ny;
+                    }
+                }
+                if (cx < 0)
+                    break;   /* no way through the region's land */
+                while (parent[cx][cy] >= 0) {
+                    if (map->tiles[cx][cy] == TILE_MOUNTAIN)
+                        map->tiles[cx][cy] = TILE_HILL;
+                    i = parent[cx][cy];
+                    cx = i / 120;
+                    cy = i % 120;
+                }
+            }
+        }
+    }
+}
+
 /* The world: the Americas in the west, Europe, Asia and Africa as one continent in the east, and Australia,
  * Japan, the Arctic and Antarctica joined to it by bridges. The rafts to the Americas come later, once the
  * towns are placed. */
@@ -1583,12 +1733,14 @@ static BOOL biome_earth(dw_map *map)
     int i;
 
     biome_template(map, earth_template);
+    earth_mark_big(map);
     for (i = 0; islands[i]; i++) {
         if (!earth_bridge(map, islands[i])) {
             printf("No way to bridge to an island, retrying...\n");
             return FALSE;
         }
     }
+    earth_connect(map);
     return TRUE;
 }
 
