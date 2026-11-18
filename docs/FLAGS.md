@@ -238,7 +238,7 @@ Wings and Return send you to the last place you saved or used an inn at. You lan
 
 #### Warp Whistle ####
 
-The Fairy Flute will work as a warp whistle outside of battle, cycling between places you saved or used an inn at. The order is:
+The Fairy Flute will work as a warp whistle outside of battle, cycling between places you saved or used an inn at, and Hauksness once you have walked into it. The order is:
 
 - Tantegel
 - Brecconary
@@ -246,6 +246,7 @@ The Fairy Flute will work as a warp whistle outside of battle, cycling between p
 - Garinham
 - Cantlin
 - Rimuldar
+- Hauksness (it has no inn, so it counts as visited when you enter it)
 
 The list is kept for each save slot, so resetting or turning off the game no longer loses it.
 

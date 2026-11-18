@@ -3525,6 +3525,8 @@ void find_zoom_tile(dw_rom *rom, uint8_t town, uint8_t zoom_data[][3], uint8_t i
 #define SLOT_VISITED 0x6810
 #define SLOT_RETURN 0x6813
 
+static BOOL far_place(dw_rom *rom, const uint8_t *code, int n, uint8_t call[3]);
+
 /**
  * Makes Return send you to the last place you saved or used an inn at
  * and/or
@@ -3536,7 +3538,7 @@ void find_zoom_tile(dw_rom *rom, uint8_t town, uint8_t zoom_data[][3], uint8_t i
 
 void zoom_and_whistle(dw_rom *rom)
 {
-    uint8_t zoom_data[6][3]; // i is town in the below order, j is map, zoom_x, zoom_y
+    uint8_t zoom_data[7][3]; // i is town in the below order, j is map, zoom_x, zoom_y
 
 	// Just random RAM addresses I thought might be unused
     const uint16_t ram_i = 0x6800; // Index of town to warp to with Return
@@ -3560,7 +3562,7 @@ void zoom_and_whistle(dw_rom *rom)
         0xad, ram_i & 0xff, (ram_i >> 8) & 0xff, 0x9d, LO(SLOT_RETURN), HI(SLOT_RETURN),
         0x60);
 
-	newcode = find_free_space(rom->content, 0xc82b, WARP_WHISTLE(rom) ? 181 : 121); // Starting address for new code
+	newcode = find_free_space(rom->content, 0xc82b, WARP_WHISTLE(rom) ? 183 : 123); // Starting address for new code
 	address = newcode;
 
     zoom_data[0][0] = 0x05; // Tantegel throne room
@@ -3581,8 +3583,9 @@ void zoom_and_whistle(dw_rom *rom)
     zoom_data[5][0] = 0x0b; // Rimuldar
     find_zoom_tile(rom, 9, zoom_data, 5);
 
-    // zoom_data[6][0] = 0x03; // Hauksness
-    // find_zoom_tile(rom, 10, zoom_data, 6);
+    /* Hauksness has no inn, so it is "visited" when the hero walks in (see the hook on the map change below). */
+    zoom_data[6][0] = 0x03; // Hauksness
+    find_zoom_tile(rom, 10, zoom_data, 6);
 
     // Hooking into return casting code
     vpatch(rom, 0xdb04, 6,
@@ -3603,7 +3606,7 @@ void zoom_and_whistle(dw_rom *rom)
         0x48,       // PHA cause we need the index afterwards
         0xaa, 0xa8, // TAX, TAY (have the index be in both X and Y)
         0xbd, (address + code_size) & 0xff, ((address + code_size) >> 8) & 0xff, 0xaa, // LDA,X , TAX --> load the X coord and put it into X
-        0xb9, (address + code_size + 6) & 0xff, ((address + code_size + 6) >> 8) & 0xff, 0xa8, // LDA,Y , TAY --> load the Y coord and put it into Y
+        0xb9, (address + code_size + 7) & 0xff, ((address + code_size + 7) >> 8) & 0xff, 0xa8, // LDA,Y , TAY --> load the Y coord and put it into Y
 
         // Put the coords in the right places. This is original code, but with different registers
         0x86, 0x3A, // LDB06:  STX CharXPos
@@ -3617,12 +3620,12 @@ void zoom_and_whistle(dw_rom *rom)
         0x60    // RTS
     );
 
-    for(i=0; i<6; i++)
+    for(i=0; i<7; i++)
     {
         vpatch(rom, address + code_size + i, 1, zoom_data[i][1]);
-        vpatch(rom, address + code_size + 6 + i, 1, zoom_data[i][2]);
+        vpatch(rom, address + code_size + 7 + i, 1, zoom_data[i][2]);
     }
-    address += code_size + 2*6;
+    address += code_size + 2*7;
 
     // Hook to new code to update zoom index in RAM when staying at an inn
     vpatch(rom, 0xd8df, 5, 0x20, address & 0xff, (address >> 8) & 0xff, 0xea, 0xea); // JSR new code
@@ -3686,7 +3689,7 @@ void zoom_and_whistle(dw_rom *rom)
         0x60                // RTS
     );
     address += code_size;
-    if (address - newcode > 121) /* the Return to Town part alone must fit the smaller request */
+    if (address - newcode > 123) /* the Return to Town part alone must fit the smaller request */
         printf("Return to Town code is larger than reserved.\n");
 
 	if(!WARP_WHISTLE(rom))
@@ -3716,9 +3719,9 @@ void zoom_and_whistle(dw_rom *rom)
         // Start
         0x98,               // TYA (initially A is fine, but after looping it won't be, so let's restore the index backup)
         0x18, 0x69, 0x01,   // CLC, ADC 1 (increment A)
-        0xc9, 0x06,         // CMP 6 (index should be 0-5)
+        0xc9, 0x07,         // CMP 7 (index should be 0-6)
         0x90, 0x03,         // BCC to incrementing the index
-        0x38, 0xe9, 0x06,   // SEC, SBC 6 (make index back into 0-5 range)
+        0x38, 0xe9, 0x07,   // SEC, SBC 7 (make index back into 0-6 range)
         0xaa, 0xa8,         // TAX, TAY. A, X and Y now contain the possible new index. A will be left-shifted to AND with ram_v (visited towns), X will act as counter, Y as the original index value
         0xa9, 0x01,         // LDA 1 → A is now 1, preparing for the shifts
 
@@ -3739,6 +3742,32 @@ void zoom_and_whistle(dw_rom *rom)
     );
     address += code_size;
 
+    /* Hauksness counts as visited once the hero walks in. The game's map change copies the new map number
+     * from the warp table at $D961 (STA $45, LDA $F462,X); that becomes a far call to a routine that sets
+     * Hauksness' bit (map 3) and then does the LDA. A, X and Y pass through a far call. */
+    {
+        uint8_t hook[3];
+        const uint8_t visit[23] = {
+            0xc9, 0x03,                                     /* cmp #3: Hauksness            */
+            0xd0, 0x0f,                                     /* bne skip                     */
+            0x8a, 0x48,                                     /* txa, pha                     */
+            0xad, LO(ram_v), HI(ram_v),                     /* lda visited                  */
+            0x09, 0x40,                                     /* ora #$40: Hauksness' bit     */
+            0x8d, LO(ram_v), HI(ram_v),                     /* sta visited                  */
+            0x20, LO(persist), HI(persist),                 /* keep it in this save slot    */
+            0x68, 0xaa,                                     /* pla, tax                     */
+            0xbd, 0x62, 0xf4,                               /* skip: lda $f462,x            */
+            0x60                                            /* rts                          */
+        };
+
+        if (far_place(rom, visit, sizeof visit, hook)) {
+            vpatch(rom, 0xd961, 5, 0x85, 0x45, hook[0], hook[1], hook[2]);
+            printf("Hauksness is a stop on the Warp Whistle once visited.\n");
+        } else {
+            /* No room behind a far call: the vanilla map change stays, and Hauksness is never visited. */
+            printf("No room for the Hauksness whistle stop.\n");
+        }
+    }
 }
 
 /**

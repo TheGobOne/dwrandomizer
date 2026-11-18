@@ -57,7 +57,7 @@ Address         | Function                | Notes
 
 Randomizer RAM (not in the original game; vanilla use of $6900-$6BFF is unverified)
 0x6800-0x6801   | Return/Whistle index    | Return to Town and Warp Whistle: town indexes
-0x6802          | Visited towns           | Return to Town and Warp Whistle: bit per town (00RC GKBT)
+0x6802          | Visited towns           | Return to Town and Warp Whistle: bit per town (0HRC GKBT; H is Hauksness, set when the hero enters map 3)
 0x6803          | Run attempts            | Run Mechanics: run attempts in this battle minus one (2 bits used)
 0x6804-0x6805   | Step counter            | Steps since the start (kept on continue unless XP is 0)
 0x6806          | Run Bank count          | Banked runs (cap 1-99, 9 when the cap is 0). Cleared at a new game
