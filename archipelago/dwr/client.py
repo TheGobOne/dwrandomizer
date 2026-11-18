@@ -2,7 +2,8 @@
 
 ROM side (common/archipelago.c in DWR, which has the full map):
   PRG $7FE0   "DWRAP", 3 version digits, pointer to the 32 byte UTF-8 slot name, custom music
-              flag (1: with the wait loop, 2: frame music only), 4 byte seed hash, herb cap << 4 | key cap
+              flag (1: with the wait loop, 2: frame music only, 3: a pack was given but left out),
+              4 byte seed hash, herb cap << 4 | key cap
   $6820-21    items received so far (the client raises it after each item)
   $6822-25    chest bits, bit n = chest n
   $6826       search spot bits
@@ -114,6 +115,7 @@ class DWRClient(BizHawkClient):
         self.stale_noted = False
         self.waiting_noted = -1   # the received index whose "no room" was logged
         self.ahead_noted = False
+        self.last_received = -1   # the save's received count at the last poll, -1 before the first
         self.notes = []           # warnings from _effect, logged once its write succeeds
 
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
@@ -133,6 +135,7 @@ class DWRClient(BizHawkClient):
             self.stale_noted = False
             self.waiting_noted = -1
             self.ahead_noted = False
+            self.last_received = -1
             if sig[5:8] not in ROM_VERSIONS:
                 logger.warning("This ROM is DWR AP version %s, the client knows %s. Rebuild the ROM "
                                "from your .apdwr file, or update dwr.apworld.", sig[5:8].decode(errors="replace"),
@@ -142,7 +145,9 @@ class DWRClient(BizHawkClient):
         self.slot_name = name.split(b"\x00")[0].decode("utf-8", errors="replace")
         if sig[10] and not self.music_noted:
             self.music_noted = True
-            if sig[10] == 2:
+            if sig[10] == 3:
+                logger.warning("The music pack did not fit in this ROM, so it plays the original music.")
+            elif sig[10] == 2:
                 logger.info("This ROM runs its custom music from the frame only, so busy frames can be slower.")
             else:
                 logger.info("This ROM has custom music, which changes frame timing a little.")
@@ -237,9 +242,14 @@ class DWRClient(BizHawkClient):
             await ctx.send_msgs([{"cmd": "StatusUpdate", "status": ClientStatus.CLIENT_GOAL}])
 
     async def _give_item(self, ctx, ram: bytes, block: bytes, mail_flag: int) -> None:
+        received = block[0] | block[1] << 8
+        if 0 <= received < self.last_received:
+            # A New Game clears the count; loading another save can lower it.
+            logger.info("The save's received count went from %d to %d (a New Game or another save), "
+                        "so items from number %d on are given again.", self.last_received, received, received + 1)
+        self.last_received = received
         if mail_flag:
             return  # the last item's message is still open: wait for it to close
-        received = block[0] | block[1] << 8
         if received > len(ctx.items_received) and ctx.items_received and not self.ahead_noted:
             self.ahead_noted = True
             logger.warning("This save has received %d items, but the server has sent %d. It belongs to "

@@ -1042,8 +1042,7 @@ static void text_scroller_extras(dw_rom *rom)
 
 static void build_extras(dw_rom *rom, uint16_t new_window_data)
 {
-    uint16_t newcode_exp_check = find_free_space(rom->content, FIXED_FREE_START, 25);
-    uint16_t newcode_stats_calc;
+    uint16_t newcode_exp_check = find_free_space(rom->content, FIXED_FREE_START, 23);
     int stat_modifier = 3;
 
     /* Lock the stat build modifier at the selected value */
@@ -1058,13 +1057,11 @@ static void build_extras(dw_rom *rom, uint16_t new_window_data)
     0x4c, newcode_exp_check & 0xff, (newcode_exp_check >> 8) & 0xff);  // jmp
 
     /* Checks if the selected save slot exp is 0 and saves the new stat build if it is. */
-    vpatch(rom, newcode_exp_check, 25, // -> 0xc8ff
+    vpatch(rom, newcode_exp_check, 23,
     0x08,                  /*   php          */
     0x48,                  /*   pha          */
     0xa5, 0xbb,            /*   lda $bb      */
-    0xd0, 0x0e,            /*   bne 0e       */
-
-    0xa5, 0xba,            /*   lda $ba      */
+    0x05, 0xba,            /*   ora $ba      */
     0xd0, 0x0a,            /*   bne 0a       */
 
     0x68,                  /*   pla          */
@@ -1078,10 +1075,9 @@ static void build_extras(dw_rom *rom, uint16_t new_window_data)
     0x4c, 0x6a, 0xf9);     /*   jmp $f96a    */
 
     //Alters main menu
-    set_text(rom, 0x7224, " CHG BUILD IF EXP 0  ");
-    set_text(rom, 0x7262, " CHG BUILD IF EXP 0  ");
+    set_text(rom, 0x7224, " CHANGE BUILD (EXP 0)");
+    set_text(rom, 0x7262, " CHANGE BUILD (EXP 0)");
 
-    (void)newcode_stats_calc;
     /* In place over the dead vanilla stat penalty code $F09E-$F0CC (47 bytes), falls into $F0CD. */
     vpatch(rom, 0xf09e, 47,
         0xa4, 0xe5, 0xbe, 0xbb, 0xf0, 0x20, 0xad, 0xf0,   /* ldy $e5 : ldx tA,y : jsr red */
@@ -2715,23 +2711,37 @@ static void begin_quest_checksum(dw_rom *rom, uint64_t crc)
  * counts water and bridge tiles as water (no foam beside them); it now counts tile $D too. The tiles are 2 blank,
  * unused slots ($55 and $56) of the background pattern table; the block repeats them top and bottom.
  */
+static int search_free_space(uint8_t *content, uint16_t start, uint16_t end, uint8_t n);
+/* The spare end of the overworld map in bank 0 ($9D5D-$A652), for code that only bank 0 code calls.
+ * Returns a content index, or -1 when it is full. Its CPU address is the index plus $8000. */
+static int map_tail_space(dw_rom *rom, uint8_t n)
+{
+    return search_free_space(rom->content, 0x1d5d, 0x2653, n);
+}
+
 static void vertical_bridges(dw_rom *rom)
 {
     const uint16_t flag = 0x6816;
     const uint8_t tile_left = 0x55, tile_right = 0x56;
     uint16_t clear, lookup, draw, entry, shore;
+    uint16_t cpu = 0;   /* added to a content index for its CPU address: $8000 in bank 0, 0 in the fixed bank */
 
     if (!rom->map.vertical_bridges)
         return;
     {
-        /* One 80-byte block when there is one, as every earlier build did. A full fixed bank (Archipelago
-         * builds) may only have small gaps left: the 5 pieces are reached by jsr, jmp or address, never by
-         * falling through, so each can go in a gap of its own. Largest first, each held while the next is
-         * looked up. */
+        /* One 80-byte block when there is one, as every earlier build did: first in the spare end of the map
+         * (every hook is in bank 0 code, so bank 0 is mapped), then in the fixed bank. A full fixed bank
+         * (Archipelago builds) may only have small gaps left: the 5 pieces are reached by jsr, jmp or address,
+         * never by falling through, so each can go in a gap of its own. Largest first, each held while the
+         * next is looked up. */
         static const uint8_t sizes[5] = {45, 13, 10, 7, 5};
-        int whole = dwr_try_free_space(rom->content, FIXED_FREE_START, 80);
+        int whole = map_tail_space(rom, 80);
         int at[5], k;
 
+        if (whole >= 0)
+            cpu = 0x8000;
+        else
+            whole = dwr_try_free_space(rom->content, FIXED_FREE_START, 80);
         if (whole >= 0) {
             clear = (uint16_t)whole;
             lookup = clear + 10;
@@ -2773,8 +2783,8 @@ static void vertical_bridges(dw_rom *rom)
         0xa5, 0x3c, 0xc9, 0x0a, 0xd0, 0x14,       /* lda $3c : cmp #$0a : bne normal */
         0xad, LO(flag), HI(flag), 0xf0, 0x0f,     /* lda flag : beq normal */
         0xa5, 0x45, 0xc9, 0x01, 0xd0, 0x09,       /* lda $45 : cmp #1 : bne normal */
-        0xa9, LO(entry), 0x85, 0x40,              /* the vertical bridge's tiles */
-        0xa9, HI(entry), 0x85, 0x41, 0x60,
+        0xa9, LO(entry + cpu), 0x85, 0x40,        /* the vertical bridge's tiles */
+        0xa9, HI(entry + cpu), 0x85, 0x41, 0x60,
         0xa5, 0x3c, 0x0a, 0x0a, 0x65, 0x3c,       /* normal: the original lookup */
         0x6d, 0xb3, 0xf5, 0x85, 0x40,
         0xad, 0xb4, 0xf5, 0x69, 0x00, 0x85, 0x41,
@@ -2785,11 +2795,11 @@ static void vertical_bridges(dw_rom *rom)
         0xc9, 0xd0,                               /* cmp #$d0 */
         0x60);                                    /* done: rts */
 
-    vpatch(rom, 0x2c17, 4, 0x20, LO(clear), HI(clear), 0xea);
-    vpatch(rom, 0x2c90, 3, 0x20, LO(lookup), HI(lookup));
-    vpatch(rom, 0x29e6, 6, 0x20, LO(draw), HI(draw), 0x4c, 0xf8, 0xa9);
-    vpatch(rom, 0x2e2b, 6, 0x20, LO(draw), HI(draw), 0x4c, 0x3d, 0xae);
-    vpatch(rom, 0x2c14, 3, 0x4c, LO(shore), HI(shore));
+    vpatch(rom, 0x2c17, 4, 0x20, LO(clear + cpu), HI(clear + cpu), 0xea);
+    vpatch(rom, 0x2c90, 3, 0x20, LO(lookup + cpu), HI(lookup + cpu));
+    vpatch(rom, 0x29e6, 6, 0x20, LO(draw + cpu), HI(draw + cpu), 0x4c, 0xf8, 0xa9);
+    vpatch(rom, 0x2e2b, 6, 0x20, LO(draw + cpu), HI(draw + cpu), 0x4c, 0x3d, 0xae);
+    vpatch(rom, 0x2c14, 3, 0x4c, LO(shore + cpu), HI(shore + cpu));
 
     /* Rails down both sides with the deck between them, in the bridge's palette. */
     vpatch(rom, 0x11000 + tile_left * 16, 16,
@@ -3431,24 +3441,6 @@ void return_escapes(dw_rom *rom)
     );
 }
 
-/**
- * Determines whether or not an overworld tile can be walked on.
- *
- * @param tile The tile type to check
- * @return A boolean indicating whether the tile can be walked on
- */
-static BOOL tile_is_walkable(dw_tile tile)
-{
-    switch(tile) {
-        case TILE_WATER:
-        case TILE_MOUNTAIN:
-        case TILE_BLOCK:
-            return FALSE;
-        default:
-            return TRUE;
-    }
-}
-
 static BOOL tile_is_plain_land(dw_tile tile)
 {
     return tile == TILE_GRASS || tile == TILE_DESERT || tile == TILE_HILL || tile == TILE_TREES;
@@ -3908,24 +3900,28 @@ void ascetic_king(dw_rom *rom)
 }
 
 /**
- * Implements a step counter
+ * Implements a step counter. The four hooks are in the bank 0 step routines, so the code goes in the spare end
+ * of the map in bank 0 when there is room, and in the fixed bank when not. It runs after Responsive Controls,
+ * which needs more of that room.
  *
  * @param rom The rom struct
  */
 void step_counter(dw_rom *rom)
 {
 	const uint16_t ram_s = 0x6804; // and 0x6805! Just random RAM addresses I thought might be unused
-	const uint16_t newcode = find_free_space(rom->content, 0xc82b, 13); // Starting address for new code
+	const int in_map = map_tail_space(rom, 13);
+	const uint16_t newcode = in_map >= 0 ? (uint16_t)in_map : find_free_space(rom->content, 0xc82b, 13); // Starting address for new code
+	const uint16_t cpu = in_map >= 0 ? (uint16_t)(newcode + 0x8000) : newcode;
 
-    vpatch(rom, 0x3265, 4, 0x20, newcode & 0xff, (newcode >> 8) & 0xff, 0xea); // JSR newcode, NOP for opcode alignment. Hooking into RightSynced
-    vpatch(rom, 0x335f, 4, 0x20, newcode & 0xff, (newcode >> 8) & 0xff, 0xea); // JSR newcode, NOP for opcode alignment. Hooking into LeftSynced
-    vpatch(rom, 0x3517, 4, 0x20, newcode & 0xff, (newcode >> 8) & 0xff, 0xea); // JSR newcode, NOP for opcode alignment. Hooking into UpSynced
-    vpatch(rom, 0x33eb, 4, 0x20, newcode & 0xff, (newcode >> 8) & 0xff, 0xea); // JSR newcode, NOP for opcode alignment. Hooking into DownSynced
+    vpatch(rom, 0x3265, 4, 0x20, cpu & 0xff, (cpu >> 8) & 0xff, 0xea); // JSR newcode, NOP for opcode alignment. Hooking into RightSynced
+    vpatch(rom, 0x335f, 4, 0x20, cpu & 0xff, (cpu >> 8) & 0xff, 0xea); // JSR newcode, NOP for opcode alignment. Hooking into LeftSynced
+    vpatch(rom, 0x3517, 4, 0x20, cpu & 0xff, (cpu >> 8) & 0xff, 0xea); // JSR newcode, NOP for opcode alignment. Hooking into UpSynced
+    vpatch(rom, 0x33eb, 4, 0x20, cpu & 0xff, (cpu >> 8) & 0xff, 0xea); // JSR newcode, NOP for opcode alignment. Hooking into DownSynced
 
     vpatch(rom, newcode, 13,
         0xee, ram_s & 0xff, (ram_s >> 8) & 0xff,        // inc ram_s
         0xd0, 3,                                        // BNE to Done, no overflow on first byte
-        0xee, (ram_s+1) & 0xff, (ram_s >> 8) & 0xff,    // inc ram_s+1
+        0xee, (ram_s+1) & 0xff, ((ram_s+1) >> 8) & 0xff, // inc ram_s+1
         0xa5, 0x16, 0xc9, 0x20,                         // Done! Original code we overwrote
         0x60                                            // RTS
     );
@@ -4388,11 +4384,11 @@ static void raft_piers(dw_rom *rom)
         0xc9, 0x0a,                   /* cmp #$0a                                          */
         0xd0, 0x21,                   /* bne go        ; town, cave or castle: warp        */
         0xa2, 0x00,                   /* ldx #0                                            */
-        0xbd, 0xc8, 0xf3,             /* loop: lda $f3c8,x  ; warp from: map               */
-        0xc5, 0x45,                   /* cmp $45                                           */
-        0xd0, 0x0e,                   /* bne next                                          */
-        0xbd, 0xc9, 0xf3,             /* lda $f3c9,x   ; x                                 */
+        0xbd, 0xc9, 0xf3,             /* loop: lda $f3c9,x  ; warp from: x (rejects most)  */
         0xc5, 0x3a,                   /* cmp $3a                                           */
+        0xd0, 0x0e,                   /* bne next                                          */
+        0xbd, 0xc8, 0xf3,             /* lda $f3c8,x   ; map                               */
+        0xc5, 0x45,                   /* cmp $45                                           */
         0xd0, 0x07,                   /* bne next                                          */
         0xbd, 0xca, 0xf3,             /* lda $f3ca,x   ; y                                 */
         0xc5, 0x3b,                   /* cmp $3b                                           */
@@ -4564,21 +4560,20 @@ static void run_bank(dw_rom *rom)
     /* Window code $F8 is only in the window when Quick Spell is on. */
     if (QUICK_SPELL(rom)) {
         /* Window code $F8: print the last spell's short name, in the fixed bank. */
-        c = find_free_space(rom->content, FIXED_FREE_START, 99);
-        vpatch(rom, c, 49,
+        c = find_free_space(rom->content, FIXED_FREE_START, 98);
+        vpatch(rom, c, 48,
             0xa9, 0x05, 0x8d, 0xe2, 0x64,
-            0xae, LO(last), HI(last), 0xf0, 0x1a,
+            0xae, LO(last), HI(last), 0xf0, 0x19,
             0xca, 0x86, 0x1a, 0x8a, 0x0a, 0x0a, 0x18, 0x65, 0x1a, 0xaa,
-            0xea,
             0xa0, 0x05,
-            0xbd, LO(c + 49), HI(c + 49),
+            0xbd, LO(c + 48), HI(c + 48),
             0x99, 0xc9, 0x64, 0xe8, 0x88, 0xd0, 0xf6, 0x4c, 0x2b, 0xa6,
             0xa0, 0x05, 0xa9, 0x5f, 0x99, 0xc9, 0x64, 0x88, 0xd0, 0xfa,
             0x4c, 0x2b, 0xa6);
         names = MODERN_SPELLS(rom) ? modern_names : vanilla_names;
         for (i = 0; i < 50; i++) {
             char ch = names[i];
-            rom->content[c + 49 + i] = (ch == ' ') ? 0x5f : (uint8_t)(0x24 + ch - 'A');
+            rom->content[c + 48 + i] = (ch == ' ') ? 0x5f : (uint8_t)(0x24 + ch - 'A');
         }
         vpatch(rom, 0x66e1, 2, LO(c), HI(c));
     }
@@ -4841,12 +4836,11 @@ void new_flags_ram_init(dw_rom *rom)
         0xa9, 1,	// LDA 1
         0x8d, ram_v & 0xff, (ram_v >> 8) & 0xff, // STA (only Tantegel has been visited)
     };
-    const uint8_t steps[16] = {
+    const uint8_t steps[15] = {
         0xa5, 0xba, 0x05, 0xbb, 0xd0, 0x06,      // This runs on a continue too: keep the steps unless XP is 0
         0x8d, ram_s & 0xff, (ram_s >> 8) & 0xff, // STA (set byte 1 of step counter to 0)
         0x8d, (ram_s+1) & 0xff, ((ram_s+1) >> 8) & 0xff, // STA (set byte 2 of step counter to 0)
-        0x20, 0x47, 0xcb,   // Go to vanilla subroutine
-        0x60                // RTS
+        0x4c, 0x47, 0xcb    // JMP to the vanilla subroutine, which returns for us
     };
     const size_t n = (RETURN_TO_ZOOM(rom) || WARP_WHISTLE(rom)) ? sizeof(towns) : 0;
     const uint16_t newcode = find_free_space(rom->content, 0xc82b, n + sizeof(steps)); // Starting address for new code
@@ -5211,7 +5205,6 @@ void apply_stuff_to_rom(dw_rom *rom)
     magic_herbs(rom);
     shuffle_inn_prices(rom);
     shuffle_key_prices(rom);
-    step_counter(rom);
     mask_ow_locations(rom);
     random_town_entrances(rom);
 
@@ -5245,6 +5238,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     free_charlock(rom);
     auto_return(rom);
     responsive_controls(rom);
+    step_counter(rom);   /* after Responsive Controls: both use the spare end of the map */
     fast_hills(rom);
     run_bank_start_init(rom);
     /* Last, so its hooks chain onto everything above. */
@@ -5531,7 +5525,7 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
  *
  * @return A checksum for the new rom, or 0 if it could not be made.
  */
-uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
+static uint64_t dwr_randomize_tries(const char* input_file, uint64_t seed, char *flags,
         const char *sprite_name, const char* output_dir)
 {
     BOOL fit_game = FALSE, fit_extras = FALSE;
@@ -5556,7 +5550,7 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
             fit_extras = FALSE;
         } else if (custom_music_has_pack()) {
             /* Still no room after the checksum with a music pack: the game keeps its own music. */
-            custom_music_disable();
+            custom_music_disable(TRUE);
             fit_game = FALSE;
             fit_extras = FALSE;
             printf("Out of room with the music pack, keeping the original music.\n");
@@ -5566,6 +5560,16 @@ uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
         }
         printf("Out of room, packing the code more tightly...\n");
     }
+}
+
+uint64_t dwr_randomize(const char* input_file, uint64_t seed, char *flags,
+        const char *sprite_name, const char* output_dir)
+{
+    uint64_t crc = dwr_randomize_tries(input_file, seed, flags, sprite_name, output_dir);
+
+    /* A pack left out for lack of room is only left out of this ROM: the next build tries it again. */
+    custom_music_disable(FALSE);
+    return crc;
 }
 
 // Looks through the ROM for at least n bytes of free space

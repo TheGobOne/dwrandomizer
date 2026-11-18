@@ -25,6 +25,18 @@ static int same_word(const char *a, const char *b)
     return !*a && !*b;
 }
 
+/* Reads off, on or random (0, 1, 2), and stops on anything else. */
+static int off_on_random(const char *option, const char *value)
+{
+    if (!strcmp(value, "random"))
+        return 2;
+    if (strcmp(value, "on") && strcmp(value, "off")) {
+        fprintf(stderr, "%s must be off, on or random\n", option);
+        exit(1);
+    }
+    return !strcmp(value, "on");
+}
+
 static int on_off(const char *option, const char *value)
 {
     if (strcmp(value, "on") && strcmp(value, "off")) {
@@ -66,6 +78,11 @@ static void print_usage(const char *command, char *default_flags)
     printf("  --fast-hills on|off\n");
     printf("  --bank-cap 1-99\n");
     printf("  --bank-level normal|easy|strict|verystrict\n");
+    printf("  --run-bank off|on|random\n");
+    printf("  --safe-start on|off\n");
+    printf("  --fast-flute on|off\n");
+    printf("  --discard-flute off|on|random\n");
+    printf("  --screen-shake on|off   (off: Disable Screen Shake)\n");
     printf("\n");
     printf("Sprite should be one of: ");
     for(i=0; i < sprite_count(); i++) {
@@ -88,10 +105,11 @@ int main(int argc, char **argv)
     static const char *const bank_levels[4] = {"normal", "easy", "strict", "verystrict"};
     /* -1 and 0 for the cap: not given, so the flags decide. */
     int responsive = -1, bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, quick_swap = -1, no_blink = -1, fast_hills = -1, key_herb = -1, free_charlock = -1, auto_return = -1, auto_stairs = -1, biome = -1;
+    int run_bank = -1, safe_start = -1, fast_flute = -1, discard_flute = -1, no_shake = -1;
     static const char *const encounter_rates[4] = {"default", "low", "medium", "high"};
     char encoded[64] = {0};
 
-    printf("DWRandomizer version %s\n", VERSION);
+    printf("DWR version %s\n", VERSION);
     while (argc >= 3 && !strncmp(argv[1], "--", 2)) {
         if (!strcmp(argv[1], "--music")) {
             if (!custom_music_load(argv[2]))
@@ -154,6 +172,16 @@ int main(int argc, char **argv)
                 fprintf(stderr, "--bank-cap must be from 1 to 99\n");
                 exit(1);
             }
+        } else if (!strcmp(argv[1], "--run-bank")) {
+            run_bank = off_on_random(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--safe-start")) {
+            safe_start = on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--fast-flute")) {
+            fast_flute = on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--discard-flute")) {
+            discard_flute = off_on_random(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--screen-shake")) {
+            no_shake = !on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--bank-level")) {
             for (bank_level = 0; bank_level < 4; bank_level++)
                 if (!strcmp(argv[2], bank_levels[bank_level]))
@@ -202,7 +230,8 @@ int main(int argc, char **argv)
         sprite = "Random";
     }
 
-    if (bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || quick_swap >= 0 || no_blink >= 0 || fast_hills >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0 || responsive >= 0 || auto_stairs >= 0 || biome >= 0) {
+    if (bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || quick_swap >= 0 || no_blink >= 0 || fast_hills >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0 || responsive >= 0 || auto_stairs >= 0 || biome >= 0 ||
+            run_bank >= 0 || safe_start >= 0 || fast_flute >= 0 || discard_flute >= 0 || no_shake >= 0) {
         /* 27 bytes plus room for the 4 spare bits a 44 character code decodes into. */
         uint8_t raw[28] = {0};
         int length;
@@ -228,6 +257,17 @@ int main(int argc, char **argv)
             raw[22] = (uint8_t)((raw[22] & 0xef) | (auto_stairs ? 0x10 : 0));
         if (free_charlock >= 0)
             raw[11] = (uint8_t)((raw[11] & 0xfd) | (free_charlock ? 0x02 : 0));
+        /* The bits are those in common/dwr.h. For pairs, the low bit is on and the high bit is random. */
+        if (run_bank >= 0)
+            raw[11] = (uint8_t)((raw[11] & 0xf3) | (run_bank << 2));
+        if (safe_start >= 0)
+            raw[8] = (uint8_t)((raw[8] & 0xdf) | (safe_start ? 0x20 : 0));
+        if (fast_flute >= 0)   /* stored inverted: 0 is on */
+            raw[22] = (uint8_t)((raw[22] & 0xdf) | (fast_flute ? 0 : 0x20));
+        if (discard_flute >= 0)
+            raw[18] = (uint8_t)((raw[18] & 0xe7) | (discard_flute << 3));
+        if (no_shake >= 0)
+            raw[14] = (uint8_t)((raw[14] & 0xfd) | (no_shake ? 0x02 : 0));
         if (quick_spell >= 0)
             raw[11] = (uint8_t)((raw[11] & 0xfe) | (quick_spell ? 0x01 : 0));
         if (quick_swap >= 0)

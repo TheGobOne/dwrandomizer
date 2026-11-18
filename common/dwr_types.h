@@ -6,9 +6,9 @@
 
 #define ROM_SIZE 81936
 
-#define ABS(x) ((x < 0) ? -x : x)
-#define MAX(x,y) ((x > y) ? x : y)
-#define MIN(x,y) ((x < y) ? x : y)
+#define ABS(x) (((x) < 0) ? -(x) : (x))
+#define MAX(x,y) (((x) > (y)) ? (x) : (y))
+#define MIN(x,y) (((x) < (y)) ? (x) : (y))
 
 typedef enum {
     FALSE,

@@ -351,6 +351,9 @@ static void stair_shuffle_init(dw_rom *rom)
     warps_to = warps_from + 15;
     j = 0;
     for (i=0; i < 102; i++) {
+        /* The destinations start at copy 51; set this before that copy goes in. */
+        if (i == 51)
+            warps_to = warps_from + j;
 //         if (SHORT_CHARLOCK(rom) && (i % 51) == WARP_CHARLOCK_SURFACE_1)
 //             continue;
         if (!raft_warp(rom, i % 51) &&
@@ -359,8 +362,6 @@ static void stair_shuffle_init(dw_rom *rom)
             warps_from[j] = rom->map.warps_from[i];
             j++;
         }
-        if (i == 51)
-            warps_to = warps_from + j;
     }
     j = 0;
     for (i=0; indexes[i]; i++) {

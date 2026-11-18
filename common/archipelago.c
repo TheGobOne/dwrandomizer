@@ -21,8 +21,9 @@
  *   $6850-$6860  mailbox text, the item name in DW tiles, ended by $FA
  *
  * The ROM signature at PRG $7FE0: "DWRAP", 3 version digits, then a little
- * endian pointer to the 32 byte slot name (UTF-8, zero padded), 1 if custom
- * music went in, the 4 byte seed hash (little endian, never 0), then the herb
+ * endian pointer to the 32 byte slot name (UTF-8, zero padded), the music byte
+ * (0 no pack, 1 custom music went in, 2 frame-only music, 3 the pack was left
+ * out), the 4 byte seed hash (little endian, never 0), then the herb
  * cap in the high nibble and the key cap in the low nibble.
  *
  * Based on Serpikmin's ap_changes() for the Dragon Warrior APWorld, rewritten

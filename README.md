@@ -26,7 +26,7 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 | **Fast Hills** | A step onto a hill takes as long as a step onto grass. |
 | **Disable Cursor Blink** | The menu cursor arrow stays on instead of blinking. |
 | **Fast Flute** | The Fairy Flute plays only the climb up the scale from its song, with or without Speed Hacks. |
-| **DK Flute** | With a full inventory, the flute can be dropped for a new item, or sold to a shop for 1 gold. |
+| **Discard Flute** | With a full inventory, the flute can be dropped for a new item, or sold to a shop for 1 G. |
 | **Archipelago** | Builds a ROM for an Archipelago multiworld (Windows; tested in FCEUX only). See [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md). |
 | **Website** | A single-page generator with the options grouped into tabs. |
 
@@ -50,9 +50,9 @@ What the page adds on top of the options:
 
 ### Command line
 
-Flag codes are 40, 42 or 44 letters (A-Z and 2-7). A code stays 40 letters unless it uses Lake or a later biome, Swap Quick Spell or Disable Cursor Blink (42), or Fast Hills (44). Other lengths are refused.
+Flag codes are 40, 42 or 44 letters (A-Z and 2-7). A code stays 40 letters unless it uses the Random biome, Lake or a later biome, Swap Quick Spell or Disable Cursor Blink (42), or Fast Hills (44). Other lengths are refused.
 
-Build with CMake and a C compiler (checked on Windows with Ninja and GCC):
+Build with CMake and a C compiler (the build folder in this checkout was made on Windows with GCC and MinGW Makefiles):
 
 ```sh
 cmake -S . -B build
@@ -81,11 +81,11 @@ To make a pack, use the [NES Custom Music Tool](https://github.com/TheGobOne/NES
 
 Custom music runs its driver every frame, and that work takes time the game needs for walking and text. The remix budgets for it, so walking should not stutter.
 
-- **Walking:** with the wait loop in place, a beat can be dropped during a walking step, never two in a row, so the music stays at least half speed. In a test walk through Garinham, 93% of steps took the normal 16 frames. With no custom music it was 89%. Rarely, the build log says "No room for the music wait loop": the music then runs from the frame only and busy frames can slow. That case has not been measured.
+- **Walking:** with the wait loop in place, a beat can be dropped during a walking step, never two in a row, so the music stays at least half speed. The 1.0 release notes ([docs/release-1.0.md](docs/release-1.0.md)) record a test walk through Garinham where 93% of steps took the normal 16 frames, against 89% with no custom music. That test is not in this repo and was not repeated for later versions. Rarely, the build log says "No room for the music wait loop": the music then runs from the frame only and busy frames can slow. That case has not been measured.
 - **Battles and text:** every beat plays, even while you hold A through a fight or a message.
-- **Stepping off a standstill in towns:** the first step can take 10 to 25 frames, because the game waits for its NPCs. The music is not the cause.
+- **Stepping off a standstill in towns:** the first step can take longer than later steps because the game waits for its NPCs. This was seen by hand and is not measured in the repo.
 
-Everything here was measured in FCEUX. It has not been checked on hardware or in other emulators.
+The timing notes come from FCEUX runs. Nothing here was checked on hardware.
 
 ## Escapes at a glance
 
@@ -95,20 +95,20 @@ Run Mechanics (Battle tab) and Run Bank are separate things. Run Mechanics chang
 
 - It does not include, download or patch ROMs for you.
 - Its seeds and flags are not compatible with mcgrew's or juef17's versions.
-- Custom music cannot replace sound effects, and each ROM fits at most 24 songs from a pack, in about 17 KB.
+- Custom music cannot replace sound effects, and each ROM fits at most 24 songs from a pack (`MAX_PLACED` in `common/custom_music.c`).
 - Phone play is not a supported way to use it.
 - Archipelago play is Windows only, and six flags are rejected for it: Random Chest Locations, Stair Shuffle, Cursed Princess, Three's Company, Radish Finish and Disguised Dragonlord. See [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
 
 ## Known issues
 
-- Some random flag sets fail to build with "Not enough space" (about 1 in 18 random sets). Turn off one of `Build Options`, `Hurtmore Doors` or `Warp Whistle`. Archipelago builds no longer stop for space: with a full main program bank they place the vertical bridge code in pieces, run some game-start code from bank 3, run the Responsive Controls read hook from bank 6, and may leave the checksum off the title menu (the build log says so).
-- In Archipelago builds with a music pack, the music wait loop and hooks fit on every seed tried (90 of 90 with the Gob Standard preset on the site and the setup guide's flags). If the build log says "No room for the music wait loop" or "No room for the music hooks", see [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
-- The first step off a standstill in towns can take up to 25 frames.
-- Custom music timing was measured in FCEUX. Earlier releases were also run in Mesen, and the newest flags were spot-checked there. Nothing has been tested on hardware.
+- Some random flag codes fail to build with "Not enough space". A sweep on 2026-11-17 with `build/dwrandomizer.exe` and random letter codes gave 3 failures in 200 at 40 letters and 4 in 200 at 44 letters (about 1 in 57 overall). Turn off one of `Build Options`, `Hurtmore Doors` or `Warp Whistle`. Archipelago builds no longer stop for space: with a full main program bank they place the vertical bridge code in pieces, run some game-start code from bank 3, run the Responsive Controls read hook from bank 6, and may leave the checksum off the title menu (the build log says so).
+- In Archipelago builds with a music pack, the music wait loop and hooks fit on every seed tried (90 of 90 with the Gob Standard preset from the website and the setup guide's older example flags). If the build log says "No room for the music wait loop" or "No room for the music hooks", see [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
+- The first step off a standstill in towns can take longer than later steps.
+- Custom music timing was measured in FCEUX. The release notes for 1.0.1, 1.2.0 and 1.2.1 say FCEUX and Mesen, and for 1.0 FCEUX only. Nothing is recorded for hardware.
 
 ## Troubleshooting
 
-- **Custom music squeals or sounds off-key in FCEUX:** set FCEUX's sound rate to match your audio device. Open `fceux.cfg` and set `soundrate` to `44100` (the default is 48000). Pick the rate your device uses.
+- **Custom music squeals or sounds off-key in FCEUX:** this is a reported fix that could not be checked from the repo. Set FCEUX's sound rate to match your audio device: open `fceux.cfg` and set `soundrate` to the rate your device uses (for example `44100`).
 
 ## Credits
 

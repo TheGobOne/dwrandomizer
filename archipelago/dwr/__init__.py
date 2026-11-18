@@ -16,6 +16,7 @@ you win. Random Map and Open Charlock are fine: the Charlock rule only asks for
 more than Open Charlock needs.
 Magic Keys can be bought, so key doors are not in logic.
 """
+import logging
 import os
 from typing import ClassVar
 
@@ -54,6 +55,7 @@ class DWRWorld(World):
     location_name_to_id = LOCATION_NAME_TO_ID
 
     free_charlock: bool = False
+    flags_text: str = ""   # the DWR flags this slot is built with, after random_off
 
     def generate_early(self) -> None:
         # The ROM keeps the slot name in 32 bytes of UTF-8 for the client to log in with.
@@ -63,6 +65,11 @@ class DWRWorld(World):
                               "Use fewer non-Latin characters.")
         text = dwr_flags.clean(self.options.dwr_flags.value)
         try:
+            text, turned_off = dwr_flags.random_off(text)
+            if turned_off:
+                logging.warning(f"{self.player_name}: these DWR flags were set to Random and are not supported "
+                                f"with Archipelago, so they are off: {', '.join(turned_off)}")
+            self.flags_text = text
             bad = dwr_flags.unsupported(text)
             self.free_charlock = dwr_flags.free_charlock(text)
         except ValueError as error:
@@ -123,7 +130,7 @@ class DWRWorld(World):
         player = self.player
         lines = [
             f"slot {self.multiworld.player_name[player]}",
-            f"flags {dwr_flags.clean(self.options.dwr_flags.value)}",
+            f"flags {self.flags_text}",
             f"seed {self.random.getrandbits(63)}",
             f"free_charlock {1 if self.free_charlock else 0}",
         ]

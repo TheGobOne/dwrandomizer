@@ -224,6 +224,22 @@ class GiveItem(unittest.TestCase):
             give(["Herb"], self.ram, received=5, client=client)
         self.assertEqual(sum("has received 5 items" in line for line in log.output), 1)
 
+    def test_received_count_drop_is_logged(self):
+        client = C.DWRClient()
+        give(["Herb", "Herb", "Herb"], self.ram, received=2, client=client, mail_flag=1)
+        with self.assertLogs("Client", level="INFO") as log:
+            give(["Herb", "Herb", "Herb"], self.ram, received=0, client=client, mail_flag=1)
+        self.assertTrue(any("went from 2 to 0" in line for line in log.output))
+
+    def test_first_poll_and_rising_count_log_nothing(self):
+        client = C.DWRClient()
+        logger = logging.getLogger("Client")
+        with self.assertLogs("Client", level="INFO") as log:
+            logger.info("marker")
+            give(["Herb", "Herb"], self.ram, received=0, client=client, mail_flag=1)
+            give(["Herb", "Herb"], self.ram, received=1, client=client, mail_flag=1)
+        self.assertFalse(any("went from" in line for line in log.output))
+
     def test_own_gwaelin_item_still_gets_a_message(self):
         gwaelin = C.LOCATION_NAME_TO_ID[C.GWAELIN]
         writes, _ = give(["Herb"], self.ram, sender=1, location=gwaelin)[0]

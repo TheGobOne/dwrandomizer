@@ -44,12 +44,12 @@ Make a YAML file for yourself, for example `MyName.yaml`:
 name: MyName
 game: DWR
 DWR:
-  dwr_flags: IVICEV2EKADEAMAAAADQAEBWAAAJACAAAAIBQAAA
+  dwr_flags: IVIAAV2EKADEAMAAAADYKEBWAAAJACAAAAIBQAAM75QA
 ```
 
 Paste your own flag string from the DWR site in place of the example. Archipelago rejects these flags: Random Chest Locations, Stair Shuffle, Cursed Princess, Three's Company, Radish Finish and Disguised Dragonlord. The site shows a line under the flags: it names the ones that are on (three at most, hover for all), or says Archipelago accepts the flags. Set them to off before you copy the string: a flag set to Random counts as on.
 
-The example string has Free Charlock on, and a YAML without `dwr_flags` uses it too. Free Charlock changes the logic as below.
+The example string is the Gob Standard preset from the website (44 letters). It has Free Charlock on and none of the rejected flags. A YAML without `dwr_flags` uses the older default string in `archipelago/dwr/options.py`, which also has Free Charlock on. Free Charlock changes the logic as below.
 
 The logic puts the Charlock chests and the Dragonlord behind the Stones of Sunlight, Staff of Rain and Erdrick's Token, the items the Rainbow Drop needs, even with Open Charlock or Free Charlock. With Free Charlock it also keeps your own Erdrick's Sword, Erdrick's Armor, Silver Harp, Stones of Sunlight, Staff of Rain and Erdrick's Token out of Charlock chests.
 

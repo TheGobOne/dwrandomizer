@@ -96,7 +96,7 @@ Item shops (Herb, Torch, Wings, Dragon's Scale, Fairy Water) and key vendors are
 
 ### RAM and SRAM that DWR already uses
 
-From `notes/ram.txt`: `$6800-$6815` (return/whistle, step counter, per-slot copies), `$6900-$6BFF` (custom music driver), `$6670-$675F` (monster fought/won/died stats). Serpikmin's patch uses `$7000` for the received counter and RAM `$0E`, which DWR's search code also uses as a flag, so the AP block is in work RAM instead: `$6820-$6860` (the full map is at the top of `common/archipelago.c`).
+From `notes/ram.txt`: `$6800-$6818` (return/whistle, run attempts, step counter, Run Bank, danger meter, Responsive Controls, per-slot copies, the vertical bridge flag), `$6900-$6BFF` (custom music driver). `$6670-$675F` (monster fought/won/died stats) is not in `notes/ram.txt` and was not checked against the game here. Serpikmin's patch uses `$7000` for the received counter and RAM `$0E`, which DWR's search code also uses as a flag, so the AP block is in work RAM instead: `$6820-$6860` (the full map is at the top of `common/archipelago.c`).
 
 ## 4. Phased plan
 

@@ -703,6 +703,8 @@ static int map_fill_point(dw_map *map, uint8_t **points,
     }
     (*points)[0] = x;
     (*points)[1] = y;
+    /* [y][x] where the rest of the file uses [x][y]: the blob comes out mirrored, which is harmless, and
+     * swapping it would change every random map. */
     map->tiles[y][x] = (uint8_t)tile;
     if (tile == TILE_MOUNTAIN)
         return 2; /* not so many mountain tiles */

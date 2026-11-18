@@ -36,8 +36,8 @@ const char *dwr_ap_patch_flags(void);
 BOOL dwr_ap_patch_seed(uint64_t *seed);
 int dwr_ap_patch_free_charlock(void);
 
-/* Marks the ROM signature: byte 10 is 1 when custom music went in, so the
- * client can say so (music changes frame timing a little). */
+/* Marks the ROM signature: byte 10 is 1 when custom music went in, 2 when it runs from the frame only,
+ * 3 when a pack was given but left out, so the client can say so. */
 void dwr_ap_mark_music(dw_rom *rom, int state);
 
 /* Applies the Archipelago ROM changes. Does nothing when AP mode is off. */

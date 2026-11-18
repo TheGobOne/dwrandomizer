@@ -1579,12 +1579,26 @@ void custom_music_apply(dw_rom *rom)
     uint8_t *start_at = credits + (CREDITS_MUSIC_START - 0x8000);
     uint8_t *update_at = credits + (CREDITS_MUSIC_UPDATE - 0x8000);
 
-    if (music_disabled)
+    if (music_disabled) {
+        /* Left out for lack of room (dwr_randomize). */
+        if (song_count > 0 || pack_count > 0)
+            dwr_ap_mark_music(rom, 3);
         return;
-    if (!apply_music(rom)) {
-        if (custom_music_has_pack() && fallback_credits_track >= 0) {
+    }
+    if (custom_music_has_pack() && DISABLE_MUSIC(rom)) {
+        /* The player asked for no music, so the pack's songs stay out too. */
+        printf("Disable Music is on, so the music pack is left out.\n");
+        if (fallback_credits_track >= 0)
             add_music(rom, fallback_credits_track);
-            printf("The stat scroll plays the built-in credits song.\n");
+        return;
+    }
+    if (!apply_music(rom)) {
+        if (custom_music_has_pack()) {
+            dwr_ap_mark_music(rom, 3);
+            if (fallback_credits_track >= 0) {
+                add_music(rom, fallback_credits_track);
+                printf("The stat scroll plays the built-in credits song.\n");
+            }
         }
         return;
     }
@@ -1600,9 +1614,9 @@ void custom_music_apply(dw_rom *rom)
 }
 
 
-void custom_music_disable(void)
+void custom_music_disable(BOOL off)
 {
-    music_disabled = TRUE;
+    music_disabled = off;
 }
 
 BOOL custom_music_has_pack(void)

@@ -52,12 +52,12 @@ Needs Random Map. Chooses the shape of the generated overworld. The choice is pa
 - **Westeros**: one long continent. The Wall, a line of mountains across the North, has a single pass, and Charlock is always beyond it while Tantegel is always south of it. The Neck, partway down, is swamp. Always normal size.
 - **Random**: picks one of the seven.
 
-Lake, Earth, Westeros and later biomes are stored in a 26th flag byte, so their flag codes are at least 42 characters, or 44 with Fast Hills on. Codes for the first four biomes stay 40 characters. Old codes with Biome set to Random keep picking from the first four.
+Random, Lake, Earth, Westeros and later biomes are stored in a 26th flag byte, so their flag codes are at least 42 characters, or 44 with Fast Hills on. Codes for the first four biomes stay 40 characters. Old codes with Biome set to Random keep picking from the first four.
 
 
 #### Safe Start ####
 
-Swamp within 3 tiles of Tantegel becomes grass, so the first steps of the game are safe. It needs Random Map on. With the original map it does nothing. It is part of the flags and the checksum.
+Swamp within 3 tiles of Tantegel becomes grass, so the first steps of the game are safe. The game code applies it with Random Map off too, where it only matters if a swamp tile lies near Tantegel (in a check of 6 seeds on the original land it changed the ROM for 1). The website no longer requires Random Map for it. It is part of the flags and the checksum.
 
 
 #### Encounter Rate ####
@@ -85,7 +85,7 @@ On the overworld, walking, the command window and pause answer a press at once i
 
 #### Fast Hills ####
 
-A step onto a hill takes as long as a step onto grass. The original game waits 3 extra frames on every hill step. It is the third bit of the 27th flag byte, so a code with it on is 44 characters. Command line: `--fast-hills on`.
+A step onto a hill takes as long as a step onto grass. The original game waits extra frames on every hill step. It is the third bit of the 27th flag byte, so a code with it on is 44 characters. Command line: `--fast-hills on`.
 
 
 #### Auto Stairs ####
@@ -110,7 +110,7 @@ Keeps the screen still when you take damage.
 
 #### Custom Music Packs ####
 
-Pick a pack in the Custom Music Pack option on the website, or pass `--music pack.json5` on the command line. Packs hold FamiTracker modules and play through the Dn-FamiTracker driver. Up to 24 songs and about 17 KB fit, and songs that don't fit are skipped. A scene with no tagged song keeps its default music. Sound effects can't be replaced.
+Pick a pack in the Custom Music Pack option on the website, or pass `--music pack.json5` on the command line. Packs hold FamiTracker modules and play through the Dn-FamiTracker driver. Up to 24 songs fit, and songs that don't fit are skipped. A scene with no tagged song keeps its default music. Sound effects can't be replaced.
 
 Scene tags: `Title`, `Tantegel`, `Town`, `Overworld`, `Charlock`, `Cave`, `Encounter`, `Dragonlord`, `CharlockFinalFloor`, `Hauksness`.
 One `Charlock` song plays on all seven floors of Charlock, to save music space. `CharlockFinalFloor` and `Hauksness` use it if they have no song of their own. `Cave` plays in Erdrick's Cave, the mountain cave, Garin's Grave and the swamp cave; without a `Cave` song those keep the game's own floor music. The old man caves (the Tantegel basement and the shrines) have no song of their own: whatever was playing keeps playing, so the overworld song from an overworld tile, or the town or cave song when the cave is joined to one.
@@ -211,9 +211,9 @@ The menu cursor arrow stays on all the time instead of blinking. It is the secon
 Prevents the screen from flashing when walking on damage tiles. If bonk damage is on, the usual swamp damage sound is used instead of the bonking sound.
 
 
-#### DK Flute ####
+#### Discard Flute ####
 
-Make it possible to drop the flute on finding a new item with a full inventory, or sell to a shop for 1g.
+Make it possible to drop the flute on finding a new item with a full inventory, or sell to a shop for 1 G. The flute options (Warp Whistle, Discard Flute, Flute Is For, Fast Flute) sit together in the Fairy Flute section of the Hero & Magic tab.
 
 
 #### Return Escapes ####
@@ -287,7 +287,7 @@ Make the game use alternate mechanics for running away from an enemy from anothe
 
 For `Costs XP`, you are guaranteed to run away if your XP is at least 1/8th of the enemy's XP drop: in that case, that amount is deducted from your XP. Yes, this means you can lose levels! Also, note that running from sleeping enemies won't cost you XP, nor will running from either Dragonlord form (as they don't give experience).
 
-This flag overrides `Alternate Running Algorithm`. `Easy Charlock` is turned off and disabled while any Run Mechanics option is on, including Random.
+This flag overrides `Alternate Running Algorithm`. `Easy Charlock` (Quest tab, Route section) is turned off and disabled while any Run Mechanics option is on, including Random.
 
 
 #### Unbreakable Keys ####
@@ -315,9 +315,9 @@ The post-credits sequence will show how many steps you've taken in your entire p
 The `Summary` tab will now show differences between the chosen flagset and the standard flagset. Active cosmetic flags will also be displayed separately there.
 
 
-#### Modifiable Tristate Summer Sale chance ####
+#### Summer Sale Chance ####
 
-Normally, having `Summer Sale` on tristate will make each piece of gear have a 50% chance to have a reduced price. This probability can now be modified (12.5%, 25%, 50% or 75%).
+Normally, having `Summer Sale` on Random will make each piece of gear have a 50% chance to have a reduced price. This probability can now be modified (12.5%, 25%, 50% or 75%).
 
 
 #### Unguarded Overworld Search Spot ####
@@ -342,7 +342,7 @@ The Fairy Flute plays only the climb up the scale from its song, at its original
 
 #### Hints ####
 
-In the vanilla game, some NPCs give directions that become just plain wrong when randomizing the map. `Hints` set to `Corrected` is an attempt at fixing them, making the detour to some NPCs somehow worth it.
+In the vanilla game, some NPCs give directions that become just plain wrong when randomizing the map. `Hints` set to `Corrected` (the other choice is `Original text`) is an attempt at fixing them, making the detour to some NPCs somehow worth it.
 
 Here's a list of changed dialog:
 * NPC in Tantegel: `East of this castle is a town…` (this is a throne room guard's dialogue about Brecconary... but only before you leave it the first time!)
@@ -357,6 +357,8 @@ Here's a list of changed dialog:
 * NPC in Rimuldar: `Heed my warning! Travel not to the south` (changed to `inside caves`, to avoid messing with zones and enemies to find out the most difficult one.)
 * NPC in Rimuldar: `Hast thou found a magic temple? (No:) Go to the south.`
 * NPC in Rimuldar: `Over the western part of this island Erdrick created a rainbow.` (again, the island thing is bad, so a more generic message without a direction is used)
+
+The directions come from the map coordinates of the two places and ignore water. On the Earth biome a place named in a hint can be across the sea, so reaching it may need a raft.
 
 In most of the above, just the direction is changed. For instance, if you're in Kol, and Hauksness is at (50, 43) and Cantlin is at (44, 19), the NPC in the weapon shop will say: `North of Hauksness, 'tis said there is a town where one may purchase weapons of extraordinary quality.`, since Cantlin is just a bit West but a whole lot North of Hauksness.
 
@@ -447,12 +449,12 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--quick-spell` | `on` or `off` |
 | `--quick-spell-swap` | `on` or `off`. `on`: SPELL top right, quick spell under it. Needs Quick Spell |
 | `--cursor-blink` | `on` or `off`. `off` turns on Disable Cursor Blink. `on` keeps the blinking cursor |
-| `--fast-hills` | `on`: Fast Hills |
-| `--key-herb` | `on`: adds a keys and herbs row to the stats window |
-| `--auto-stairs` | `on`: stepping onto stairs takes them |
+| `--fast-hills` | `on` or `off`: Fast Hills |
+| `--key-herb` | `on` or `off`: the keys and herbs row in the stats window |
+| `--auto-stairs` | `on` or `off`: stepping onto stairs takes them |
 | `--ap-slot` | `<name>`: builds an Archipelago ROM for that slot name |
 | `--ap-patch` | `<file.apdwr>`: builds an Archipelago ROM from a patch file. Its flags and seed are used when you leave them out |
-| `--spoiler` | `on`: writes a `.spoiler.txt` next to the ROM. It changes the checksum, so a spoiler seed never matches one without |
+| `--spoiler` | `on` or `off`: `on` writes a `.spoiler.txt` next to the ROM. It changes the checksum, so a spoiler seed never matches one without |
 
 Most of these also exist as options on the website, including the spoiler log.
 

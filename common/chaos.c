@@ -300,28 +300,29 @@ static void chaos_running(dw_rom *rom)
     printf("Enabling alternate running algorithm...\n");
 
     vpatch(rom, 0xee94, 53,
-      /*EE94*/ 0xa5, 0x45,       /* LDA $00E0 ; Load the current map.         */
-      /*EE96*/ 0xc9, 0x14,       /* CMP #$01  ; If it's greater than 20.      */
+      /*EE94*/ 0xa5, 0x45,       /* LDA $45   ; Load the current map.         */
+      /*EE96*/ 0xc9, 0x14,       /* CMP #$14  ; If it's 20 or more...         */
       /*EE98*/ 0x90, 0x07,       /* BCC $EEA1 ;                               */
       /*EE9A*/ 0xa5, 0x95,       /* LDA $0095 ;                               */
       /*EE9C*/ 0x29, 0x7f,       /* AND #$7F  ; ...use a random number 0-127  */
       /*EE9E*/ 0x4c, 0xc7, 0xee, /* JMP $EEC7                                 */
 
-      /*EEA1*/ 0xc9, 0x06,       /* CMP #$06  ; therwise if it's >= 6...      */
+      /*EEA1*/ 0xc9, 0x06,       /* CMP #$06  ; Otherwise if it's >= 6...     */
       /*EEA3*/ 0x90, 0x05,       /* BCC $EEAA                                 */
       /*EEA5*/ 0xa5, 0x95,       /* LDA $0095                                 */
       /*EEA7*/ 0x4c, 0xc7, 0xee, /* JMP $EEC7 ; use a random number 0-255.    */
 
       /*EEAA*/ 0xc9, 0x02,       /* CMP #$02  ; Otherwise if it's >= 2...     */
-      /*EEAC*/ 0x90, 0x12,       /* BCC $EEB2                                 */
+      /*EEAC*/ 0x90, 0x12,       /* BCC $EEC0 ; (map 1 goes to $EEC0)         */
       /*EEAE*/ 0xa5, 0x95,       /* LDA $0095                                 */
       /*EEB0*/ 0x29, 0x3f,       /* AND #$3F                                  */
       /*EEB2*/ 0x85, 0x3e,       /* STA $003E ; put a number 0-63 at $3E.     */
       /*EEB4*/ 0x20, 0x5b, 0xc5, /* JSR $C55B                                 */
       /*EEB7*/ 0xa5, 0x95,       /* LDA $0095                                 */
       /*EEB9*/ 0x29, 0x1f,       /* AND #$1F                                  */
-      /*EEBB*/ 0x65, 0x3e,       /* ADC $003E ; Add another number 0-31       */
-      /*EEBD*/ 0x4c, 0xc7, 0xee, /* JMP $EEC7 ; This makes the number 0-94.   */
+      /*EEBB*/ 0x65, 0x3e,       /* ADC $003E ; Add another number 0-31. No   */
+      /*EEBD*/ 0x4c, 0xc7, 0xee, /* JMP $EEC7 ; CLC: the carry $C55B leaves   */
+                                 /*           ; can add 1, so 0-95.          */
 
       /*EEC0*/ 0x20, 0x5b, 0xc5, /* JSR $C55B                                 */
       /*EEC3*/ 0xa5, 0x95,       /* LDA $0095 ; If the map is 1 (overworld)   */

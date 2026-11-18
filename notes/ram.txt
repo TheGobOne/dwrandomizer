@@ -1,5 +1,7 @@
 Address         | Function                | Notes
 =============== | ======================= | ============================================================================
+0x30-0x34       | Far call scratch        | Used by the game's BRK handler ($FD3A) for far calls into bank 6 (dwr.c far_place); a far call site must keep nothing here
+0x37-0x39       | Far call scratch        | Same: a far call also uses 4 more stack bytes than a jsr, so only main-loop code may use one
 0x3a            | X position              |
 0x3b            | Y position              |
 0x45            | Current Map             |
@@ -55,12 +57,33 @@ Address         | Function                | Notes
 
 Randomizer RAM (not in the original game; vanilla use of $6900-$6BFF is unverified)
 0x6800-0x6801   | Return/Whistle index    | Return to Town and Warp Whistle: town indexes
-0x6802-0x6803   | Visited towns           | Return to Town and Warp Whistle: bit per town
+0x6802          | Visited towns           | Return to Town and Warp Whistle: bit per town (00RC GKBT)
+0x6803          | Run attempts            | Run Mechanics: run attempts in this battle minus one (2 bits used)
 0x6804-0x6805   | Step counter            | Steps since the start (kept on continue unless XP is 0)
+0x6806          | Run Bank count          | Banked runs (cap 1-99, 9 when the cap is 0). Cleared at a new game
+0x6807          | Last spell              | Quick Spell and Run Bank: id of the last spell cast, plus 1 (0 for none)
+0x6808          | Run Bank points         | Kill points toward the next run, 96 make one run (dots at 32 and 64)
+0x6809          | Danger meter            | Encounter Rate Low, Medium or High: points added by each step
+0x680a          | Danger target           | Encounter Rate: the meter value that triggers a fight check
+0x680b          | RC step map             | Responsive Controls: map number where the step ended
+0x680c          | RC state                | $A5 reading, $5A step finished, $3C step pending. Other values (fresh RAM) mean nothing saved
+0x680d          | RC press buffer         | Responsive Controls: buttons newly pressed during the step
+0x680e          | RC previous pad         | Responsive Controls: pad value of the last read, to find new presses
+0x680f          | RC pending press        | Responsive Controls: a press kept until the game can act on it
 0x6810-0x6812   | Visited towns per slot  | Saved copy of the visited towns for each save slot
 0x6813-0x6815   | Return town per slot    | Saved Return to Town index for each save slot
 0x6816          | Vertical bridge flag    | Set when the last overworld block lookup found tile $D (a north-south bridge)
 0x6817-0x6818   | Responsive Controls     | Hero x, y when a step ended (0x680b holds the map), to tell if the tile moved him
+0x6820-0x6821   | AP items received       | Archipelago builds (layout from common/archipelago.c): live count, written by the client
+0x6822-0x6825   | AP chest bits           | Bit n is chest n of the chest table (31 chests)
+0x6826          | AP search bits          | Bit n is search table entry n
+0x6827          | AP load flag            | 1 between a Continue's load and game start
+0x6828-0x682d   | AP received per slot    | Saved copy of the items received, 2 bytes for each of slots 0-2
+0x682e          | AP mailbox flag         | 1 when the client has a received-item message waiting
+0x6830-0x6840   | AP name buffer          | Item name for the found message (17 bytes)
+0x6842-0x6845   | AP seed hash            | Hash of the ROM that started this game, written at a new game
+0x6846-0x684b   | AP slot tags            | 2 bytes per slot: seed hash bytes 0 and 1 of the ROM that started it
+0x6850-0x6860   | AP mailbox text         | Item name in DW tiles, ended by $FA
 0x6900-0x6AFF   | Music driver work RAM   | Dn-FamiTracker driver BSS (tools/custom-music/gen_driver.py)
 0x6B00-0x6B4D   | Music zero page swap    | Game and driver copies of $D0-$DD
 0x6BF0-0x6BFE   | Music state             | Song address, wait loop counters, bank select, jingle, song, want, current
