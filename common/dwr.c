@@ -3449,6 +3449,11 @@ static BOOL tile_is_walkable(dw_tile tile)
     }
 }
 
+static BOOL tile_is_plain_land(dw_tile tile)
+{
+    return tile == TILE_GRASS || tile == TILE_DESERT || tile == TILE_HILL || tile == TILE_TREES;
+}
+
 void find_zoom_tile(dw_rom *rom, uint8_t town, uint8_t zoom_data[][3], uint8_t i)
 {
     // town is warp index in map.h
@@ -3459,13 +3464,14 @@ void find_zoom_tile(dw_rom *rom, uint8_t town, uint8_t zoom_data[][3], uint8_t i
     zoom_data[i][1] = x;
     zoom_data[i][2] = y;
 
-    if(y < 119 && tile_is_walkable(rom->map.tiles[x][y+1]))
+    /* Land next to the entrance, never on another town, cave, castle, bridge or swamp tile. */
+    if(y < 119 && tile_is_plain_land(rom->map.tiles[x][y+1]))
         zoom_data[i][2] = y+1;
-    else if(y > 0 && tile_is_walkable(rom->map.tiles[x][y-1]))
+    else if(y > 0 && tile_is_plain_land(rom->map.tiles[x][y-1]))
         zoom_data[i][2] = y-1;
-    else if(x > 0 && tile_is_walkable(rom->map.tiles[x-1][y]))
+    else if(x > 0 && tile_is_plain_land(rom->map.tiles[x-1][y]))
         zoom_data[i][1] = x-1;
-    else if(x < 119 && tile_is_walkable(rom->map.tiles[x+1][y]))
+    else if(x < 119 && tile_is_plain_land(rom->map.tiles[x+1][y]))
         zoom_data[i][1] = x+1;
 }
 
@@ -4080,7 +4086,9 @@ void dwr_set_spoiler(BOOL enabled)
 
 static uint64_t rom_checksum(dw_rom *rom)
 {
+    /* Expansion banks hold code and music that change the game, so they count too. */
     uint64_t crc = crc64(0, rom->content, 0x10000);
+    crc = crc64(crc, rom->expansion, 0x10000);
     uint8_t mixed = gameplay_patches | (write_spoiler ? 0x10 : 0);
 
     if (mixed)

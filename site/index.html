@@ -814,11 +814,15 @@ function matches(it,q){ q=q.toLowerCase(); return !q||it[1].toLowerCase().includ
 const AP_REJECT=['chestloc','stairs','cursed','three','radish','disguised'];
 function itemLabel(id){ for(const t of TABS) for(const it of t.items) if(it[0]===id) return it[1]; return id; }
 function flagsBlock(){
-  const fi=el('input',{id:'flags',type:'text','aria-describedby':'apmsg',value:State.flags()});
+  const fi=el('input',{id:'flags',type:'text','aria-describedby':'apmsg flagerr',value:State.flags()});
+  const fe=el('p',{id:'flagerr',class:'hint',role:'alert',text:''});
   fi.addEventListener('change',()=>{ let ok; State.oddFlags=false; State.oddBits=false;
     const raw=fi.value, clean=raw.replace(/^\s*flags\s*:?/i,'').replace(/[\s-]/g,'').toUpperCase();
-    State.keepPersonal(()=>{ ok=State.setFlags(clean); }); if(!ok) fi.value=State.flags();
-    State.say(ok?State.flagNote():(/[^A-Z2-7]/.test(clean)?'Those flags are not valid, so your flags did not change. Flags only use the letters A-Z and the digits 2-7.':'Those flags are not valid, so your flags did not change. Flags are 40, 42 or 44 letters and digits; found '+clean.length+'.')); });
+    State.keepPersonal(()=>{ ok=State.setFlags(clean); });
+    /* The error sits under the box and keeps what was typed, so it can be fixed. */
+    if(ok){ fe.textContent=''; State.say&&State.say(State.flagNote()); }
+    else { fe.textContent=(/[^A-Z2-7]/.test(clean)?'Flags only use the letters A-Z and the digits 2-7.':'Flags are 40, 42 or 44 letters; this has '+clean.length+'.')+' Your flags did not change.';
+      if(!fe.isConnected) fi.insertAdjacentElement('afterend',fe); } });
   const sd=el('input',{id:'seed',type:'text',inputmode:'numeric',maxlength:20,'aria-label':'Seed',value:State.seed});
   sd.addEventListener('change',()=>{ let v=sd.value.replace(/\D/g,''); if(v) v=(BigInt(v)>18446744073709551615n?18446744073709551615n:BigInt(v)).toString(); if(!v){ State.newSeed(); State.say&&State.say('A seed is a number, so a new random one was chosen.'); return; } State.seed=v; sd.value=v; State.emit('seed'); });
   const rnd=el('button',{type:'button',class:'btn',text:'Random Seed',onclick:()=>State.newSeed()});
@@ -925,9 +929,10 @@ function showResult(name,lines){
 function goBlock(out){
   const o=out||el('p',{class:'result',role:'status'});
   State.say=t=>{ o.textContent=t; };
+  if(State.loadNote){ o.textContent=State.loadNote; State.loadNote=''; }
   State.clearDone=()=>{ if(/^ROM (downloaded|and spoiler)/.test(o.textContent)) o.textContent=''; };
   const b=el('button',{type:'button',class:'btn go',text:'Randomize',onclick:async()=>{
-    if(!State.rom){ o.textContent=''; const f=document.querySelector('.romfile'), st=document.querySelector('.romstat'); if(st){ st.classList.add('romalert'); if(f) f.addEventListener('change',()=>st.classList.remove('romalert'),{once:true}); } if(f) f.focus(); return; }
+    if(!State.rom){ o.textContent='Choose your ROM first.'; const f=document.querySelector('.romfile'), st=document.querySelector('.romstat'); if(st){ st.classList.add('romalert'); if(f) f.addEventListener('change',()=>st.classList.remove('romalert'),{once:true}); } if(f) f.focus(); return; }
     if(!wasmReady){ o.textContent='Still loading the randomizer. Try again in a moment.'; return; }
     b.disabled=true; o.textContent='Randomizing...';
     await new Promise(r=>setTimeout(r,20));
@@ -1039,8 +1044,10 @@ try{ const v=JSON.parse(localStorage.getItem(COMFORT_KEY)); COMFORT.forEach(id=>
 try{ const i=State.find('sprite')[4].indexOf(localStorage.getItem('dwrSprite')); if(i>0) State.v.sprite=i; }catch(e){}
 /* The address carries the flags and seed, so copying it shares the setup. */
 try{ const q=new URLSearchParams(location.hash.slice(1)), f=q.get('f'), sd=q.get('s');
-  if(f){ State.oddFlags=false; State.oddBits=false; State.keepPersonal(()=>{ State.setFlags(f.trim().toUpperCase()); }); if(State.say&&State.flagNote()) State.say(State.flagNote()); }
-  if(sd&&/^\d{1,20}$/.test(sd)) State.seed=sd; }catch(e){}
+  if(f){ State.oddFlags=false; State.oddBits=false; let ok=false; State.keepPersonal(()=>{ ok=State.setFlags(f.trim().toUpperCase()); });
+    /* goBlock shows this once the status line exists. */
+    State.loadNote=ok?State.flagNote():'The flags in the link are not valid, so they were not changed.'; }
+  if(sd&&/^\d{1,20}$/.test(sd)) State.seed=(BigInt(sd)>18446744073709551615n?18446744073709551615n:BigInt(sd)).toString(); }catch(e){}
 State.on(()=>{ try{ history.replaceState(null,'','#f='+State.flags()+'&s='+State.seed); }catch(e){} });
 State.on(()=>{ try{ localStorage.setItem(COMFORT_KEY,JSON.stringify(Object.fromEntries(COMFORT.map(id=>[id,State.v[id]?1:0])))); }catch(e){} });
 State.on(()=>{ try{ localStorage.setItem('dwrSprite',State.find('sprite')[4][State.v.sprite|0]||'Random'); }catch(e){} });

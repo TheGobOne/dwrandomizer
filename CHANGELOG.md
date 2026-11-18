@@ -1,4 +1,4 @@
-# Unreleased - TheGobOne Remix #
+# 1.2.2 - TheGobOne Remix #
 * The desktop app (electron/) and the old web interface (webui/) are removed. The website in site/ is the only interface
 * Archipelago: Copy Quest no longer carries the Archipelago item count and seed tag with the copy. Copies are not a supported way to play an Archipelago seed
 * Archipelago builds no longer stop with "Not enough space". A full fixed bank now gets its pieces placed in smaller gaps, and the game-start code of the run bank and danger meter runs from bank 3. When the title menu has no room for its checksum, the build leaves it out and says so

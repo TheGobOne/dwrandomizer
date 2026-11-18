@@ -2,7 +2,7 @@
 
 <img src="site/sprites/Loto.png" width="64" alt="Loto sprite"> <img src="site/sprites/Slime.png" width="64" alt="Slime sprite"> <img src="site/sprites/Metal%20Slime.png" width="64" alt="Metal Slime sprite"> <img src="site/sprites/Gwaelin.png" width="64" alt="Gwaelin sprite"> <img src="site/sprites/Dragonlord.png" width="64" alt="Dragonlord sprite">
 
-**Version 1.2.1.** A randomizer for the NES game *Dragon Warrior* with a safer start, tunable encounters, a stockpile of escapes, custom music packs and a new web page to drive it all.
+**Version 1.2.2.** A randomizer for the NES game *Dragon Warrior* with a safer start, tunable encounters, a stockpile of escapes, custom music packs and a new web page to drive it all.
 
 This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer), which builds on [mcgrew's Dragon Warrior Randomizer](https://dwrandomizer.com/). If you want the polished, balanced tournament experience, use mcgrew's official version. This one is a playground.
 
@@ -27,6 +27,7 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 | **Disable Cursor Blink** | The menu cursor arrow stays on instead of blinking. |
 | **Fast Flute** | The Fairy Flute plays only the climb up the scale from its song, with or without Speed Hacks. |
 | **DK Flute** | With a full inventory, the flute can be dropped for a new item, or sold to a shop for 1 gold. |
+| **Archipelago** | Builds a ROM for an Archipelago multiworld (Windows; tested in FCEUX only). See [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md). |
 | **Website** | A single-page generator with the options grouped into tabs. |
 
 Details, tables and the older fork features are in [docs/FLAGS.md](docs/FLAGS.md).
