@@ -5621,6 +5621,8 @@ static jmp_buf *no_space_handler = NULL;
 static BOOL fit_best = FALSE;
 static BOOL ran_out_of_room = FALSE;
 static int fail_stage = 0; /* 1 before the checksum, 2 after it */
+/* The flags the output file is named from: the ones dwr_randomize was given. */
+static char out_flags[64];
 
 /**
  * Randomizes a Dragon Warrior rom file
@@ -5721,8 +5723,10 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
     if (!rom)
         return 0;
 
+    /* Named from the flags as given (out_flags), so a build that left out personal options keeps the name
+     * the site and the CLI expect. */
     snprintf(output_file, 1024, "%s/DWR.%"PRIu64".%s.nes", output_dir,
-            seed, flags);
+            seed, out_flags[0] ? out_flags : flags);
     printf("Using seed# %"PRIu64"\n", seed);
     printf("Using flags %s\n", flags);
 
@@ -5841,7 +5845,8 @@ static BOOL drop_personal(char *flags)
     raw[16] &= 0xef;    /* Don't Mute Jingles */
     raw[17] &= 0x7f;    /* Red Flashes */
     raw[22] &= 0xfe;    /* Winter Theme */
-    raw[26] &= 0xbf;    /* Skip Credits */
+    raw[26] &= 0xbf;    /* Disable Cursor Blink */
+    raw[27] = 0;        /* the spare bits of a 44 letter code, as cli/main.c clears them */
     length = FLAG_CODE_LENGTH(raw);
     base32_encode(raw, 27, (unsigned char *)code);
     code[length] = '\0';
@@ -5864,6 +5869,8 @@ static uint64_t dwr_randomize_tries(const char* input_file, uint64_t seed, char 
     uint64_t crc;
 
     last_repacked = FALSE;
+    strncpy(out_flags, flags, sizeof(out_flags) - 1);
+    out_flags[sizeof(out_flags) - 1] = '\0';
     for (;;) {
         ran_out_of_room = FALSE;
         crc = dwr_randomize_once(input_file, seed, flags, sprite_name, output_dir, fit_game, fit_extras);

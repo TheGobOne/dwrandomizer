@@ -68,11 +68,11 @@ def dw_text(name: str, sender: str = "", player: int = 0) -> bytes:
 
 def batch_text(count: int, sender: str = "") -> str:
     """The mailbox text for a batch of 2 or more, shown as "Thou hast found the <text>.". The first option that fits
-    the 16 character mailbox is used: "Alex's 12 items", "Alexandra's pile", "pile of 12 items", "12 items".
+    the 16 character mailbox is used: "5 items from Al", "pile from Alex", "pile of 12 items", "12 items".
     Without a sender only the last two are used."""
     if sender:
         name = fold(sender) or "?"
-        for text in (f"{name}'s {count} items", f"{name}'s pile"):
+        for text in (f"{count} items from {name}", f"pile from {name}"):
             if len(text) <= TEXT_LEN:
                 return text
     text = f"pile of {count} items"
