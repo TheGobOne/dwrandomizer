@@ -1207,8 +1207,12 @@ static void write_chained_frame(dw_rom *rom)
 }
 #undef CH
 
+/* Whether the last build placed the pack's songs. */
+static BOOL music_kept;
+
 static BOOL apply_music(dw_rom *rom)
 {
+    music_kept = FALSE;
     static const int banks[MUSIC_BANKS] = {6, 3, 5, 4, 4};
     /* Bits 7-6 of a song's high address byte name its bank (gen_driver.py). */
     static const uint8_t bank_code[MUSIC_BANKS] = {0xc0, 0x00, 0x80, 0x40, 0x40};
@@ -1228,7 +1232,7 @@ static BOOL apply_music(dw_rom *rom)
         return FALSE;
     /* In AP mode the top of bank 3 holds the AP code and the found-message item names. The site's planner
      * (pick_like_site) and the placement below must both use the same room. */
-    music_bank_end[1] = dwr_ap_bank3_start();
+    music_bank_end[1] = dwr_ap_bank3_start() < 0xbffa ? dwr_ap_bank3_start() : 0xbffa;
     pick_room[1] = music_bank_end[1] - FT_SONGS;
     if (choose_like_site)
         pick_like_site(rom);
@@ -1556,6 +1560,7 @@ static BOOL apply_music(dw_rom *rom)
         }
     }
 
+    music_kept = TRUE;
     return TRUE;
 }
 
@@ -1624,5 +1629,10 @@ void custom_music_disable(BOOL off)
 BOOL custom_music_has_pack(void)
 {
     return !music_disabled && (song_count > 0 || pack_count > 0);
+}
+
+BOOL custom_music_kept(void)
+{
+    return music_kept;
 }
 

@@ -365,10 +365,10 @@ class DWRClient(BizHawkClient):
             item, shown, sender = mentions[0]
             from_other = item.player != ctx.slot
             writes.append((MAIL_TEXT, dw_text(shown, sender if from_other else "", item.player), "System Bus"))
-            writes.append((MAIL_FLAG, b"", "System Bus"))
+            writes.append((MAIL_FLAG, b"\x01", "System Bus"))
         elif mentions:
             writes.append((MAIL_TEXT, dw_text(batch_text(len(mentions), self._batch_sender(ctx, mentions))), "System Bus"))
-            writes.append((MAIL_FLAG, b"", "System Bus"))
+            writes.append((MAIL_FLAG, b"\x01", "System Bus"))
         guards = [(AP_RECV, bytes(block[0:2]), "System Bus")]
         for addr, data, domain in writes:
             if domain == "RAM":

@@ -46,7 +46,7 @@ What the page adds on top of the options:
 
 - Search flags (press `/`): finds options by name, description or dropdown choice, and has a "Changed" filter.
 - ROM space line (Status window): once a ROM is loaded, the page runs a quick test build after each change and shows how many bytes are still free in the main program bank, or that the flags will not fit.
-- Copy: copies a link, the gameplay flags, the seed and the checksum. Your comfort and sound options (such as Disable Music, Disable Spell Flashing and Disable Red Flashes) are left out, so presets and links keep your own.
+- Copy: copies a link, the gameplay flags, the seed and the checksum. Your personal options (such as Disable Music, Disable Spell Flashing and Disable Red Flashes) are left out, so presets and links keep your own.
 
 ### Command line
 

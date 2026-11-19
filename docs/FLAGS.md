@@ -36,7 +36,7 @@ Adds a battle command that casts your last spell again, without opening the spel
 
 #### Swap Quick Spell ####
 
-Needs Quick Spell. Puts SPELL in the top right slot of the battle window and the quick spell command under it. Without it the quick spell is the top right slot and SPELL is under it. The flag is the first bit of the 27th flag byte, so a code with it on is at least 42 characters.
+Needs Quick Spell. Puts SPELL in the top right slot of the battle window and the quick spell command under it. Until a spell is cast, the command reads -----. Without it the quick spell is the top right slot and SPELL is under it. The flag is the first bit of the 27th flag byte, so a code with it on is at least 42 characters.
 
 
 #### Biome ####
@@ -100,7 +100,7 @@ Entering Charlock from the overworld puts you in the Dragonlord's room, beside h
 
 #### Show Key & Herb Counter ####
 
-Adds a row to the bottom of the stats window that reads `K n  H n`: keys and herbs. Command line: `--key-herb on`.
+Adds a row to the bottom of the stats window that reads `H n  K n`: herbs and keys. Command line: `--key-herb on`.
 
 
 #### Disable Screen Shake ####
@@ -237,6 +237,8 @@ Wings and Return send you to the last place you saved or used an inn at. You lan
 
 
 #### Warp Whistle ####
+
+Summary: outside battle, the Fairy Flute warps you between the places you have visited, in a fixed order.
 
 The Fairy Flute will work as a warp whistle outside of battle, cycling between places you saved or used an inn at, and Hauksness once you have walked into it. Each use warps you to the stop the flute points at, then the flute points at the next visited stop in the list below. Stops you have not visited are skipped, and after the last stop the list starts again at Tantegel, so reaching a stop behind you can take several uses. The order is:
 
@@ -398,7 +400,7 @@ The Silver Harp and Gwaelin jingles are now sped up by the `Speed Hacks` flag.
 
 #### NPC Guillotine ####
 
-Talk to any mobile NPC to make them disappear! They will come back if you exit and reenter the area you found them in. If `Disguised Dragonlord` is on and the Dragonlord happens to be a mobile NPC:
+Talk to any mobile NPC to make them disappear! They will come back if you exit and reenter the area you found them in. The NPCs who give the Staff of Rain, the Rainbow Drop, the token coordinates and the uncurse stay put, so those items are always reachable. If `Disguised Dragonlord` is on and the Dragonlord happens to be a mobile NPC:
 * If you run from the fight during the Dragonlord's first form, he will disappear and you will have to leave and reenter the area he was in to initiate the fight again.
 * If you run from the fight during the Dragonlord's second form, he (and all other NPCs from that area) will respawn in their original location immediately.
 
@@ -427,7 +429,7 @@ When on your status screen, hold Start and Select to warp to the end of the game
 
 Which stats the hero grows best in. Set on the Hero & Magic tab. By Crump's Brother. When it is not `Original`, the title menu line for message speed reads `CHANGE BUILD (EXP 0)` and opens the build window.
 
-* `Original`: the name impacts your stat build. All builds are -10%/+3 for the selected stats: the stat loses 10% and gains a flat 3, which looks like a bonus early on. The 3 is the best result of the original game's 0 to 3 roll, which DWR locks in.
+* `Original`: the name impacts your stat build. The selected stats lose 10% and gain a flat 3. Example: a stat of 10 becomes 9, then 12, which looks like a bonus early on. The 3 is the best result of the original game's 0 to 3 roll, which DWR locks in.
 * `Free Selection`: stat builds are freely chosen on a menu at the start and are not tied to name length. Text speed is set to `Fast` automatically.
 * `Free Selection Plus`: two new stat builds are added to Free Selection (HP-Agility and Strength-MP).
 * `Free Selection Unified`: all stat builds are merged into one that has the best of all of them and no Str/MP penalties.
@@ -476,7 +478,7 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--jingles` | `on` or `off`. `on` turns on Don't Mute Jingles (jingles keep playing with Disable Music on) |
 | `--original-credits` | `on` or `off`. `off` turns on Skip Original Credits |
 | `--menu-wrap` | `on` or `off`: Menu Wrapping |
-| `--race-card` | `on` or `off`. `on` prints a card after the build to paste into a race: version, the flags without your comfort and sound options, the seed and the checksum. It has the same flags, seed and checksum as the site's Copy text, without the link |
+| `--race-card` | `on` or `off`. `on` prints a card after the build to paste into a race: version, the flags without your personal options, the seed and the checksum. It has the same flags, seed and checksum as the site's Copy text, without the link |
 | `--spoiler` | `on` or `off`: `on` writes a `.spoiler.txt` next to the ROM. It changes the checksum, so a spoiler seed never matches one without |
 
 Most of these also exist as options on the website, including the spoiler log.
