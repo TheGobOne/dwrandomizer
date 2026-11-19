@@ -227,7 +227,7 @@ int dwr_try_free_space(uint8_t *content, uint16_t start, uint8_t n);
  * changed a byte. */
 BOOL dwr_normalize_flags(uint8_t raw[28]);
 /* TRUE when the last build repacked the game code to make room, so its checksum can differ from the same
- * flags and seed built with other comfort or sound options. */
+ * flags and seed built with other personal options. */
 BOOL dwr_last_repacked(void);
 /* TRUE when the last build had no room for the checksum on the title menu (Archipelago builds only). */
 BOOL dwr_title_checksum_left_out(void);

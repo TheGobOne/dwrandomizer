@@ -1483,7 +1483,7 @@ function checkSpace(){ spaceTimer=null;
       .concat(moved.map(n=>n+' set to Default: no room for its song'));
     if(missed.length&&State.assign){ if(!State.badSlots) State.badSlots=new Set();
       missed.forEach(m=>{ delete State.assign[m.key]; State.badSlots.add(m.key); }); State.autoDefaulted=moved; savePicks(); State.emit('assign'); }
-    spaceLine.textContent=r.data?'ROM left: '+freeBytes(r.data)+' B'+(left.length?'. Left out: '+left.join('; ')+'.':''):(r.log.some(t=>t.includes('Out of room'))?'ROM full: turn off a flag.':'Build check: '+failMessage(r.log)); }
+    spaceLine.textContent=r.data?'ROM left: '+freeBytes(r.data)+' B'+(left.length?'. Left out: '+left.join('; ')+'.':''):(r.log.some(t=>t.includes('Out of room'))?'ROM full even without personal options: turn off a flag.':'Build check: '+failMessage(r.log)); }
   catch(e){ spaceLine.textContent=''; }
   /* Held back while checking, so a screen reader says the result once. */
   spaceLine.setAttribute('aria-busy','false'); }

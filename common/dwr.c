@@ -5816,7 +5816,7 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
 }
 
 /* TRUE when the last build repacked the game code as a last resort, so its checksum can differ from the same
- * flags and seed built with other comfort or sound options. */
+ * flags and seed built with other personal options. */
 /* Set when the game code was repacked to make room (the last resort), so the checksum can differ from the same
  * flags built with other options. The race card warns from it. Cleared only at the start of dwr_randomize_tries. */
 static BOOL last_repacked = FALSE;
@@ -5916,7 +5916,7 @@ static uint64_t dwr_randomize_tries(const char* input_file, uint64_t seed, char 
             fit_extras = FALSE;
             last_repacked = TRUE;
             printf("Repacked the game code to make room, so this checksum can differ from "
-                    "the same flags and seed built with other comfort or sound options.\n");
+                    "the same flags and seed built with other personal options.\n");
         } else {
             return 0;
         }
