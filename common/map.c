@@ -1517,6 +1517,17 @@ static int earth_label(dw_map *map, char key, int label[120][120], int *size)
  * on a lone tile or a pocket of grass cut off by mountains or water. */
 static uint8_t earth_big[120][120];
 
+/* The label of the biggest piece, from the sizes earth_label returns. */
+static int earth_biggest(const int *size, int n)
+{
+    int i, big = 1;
+
+    for (i = 2; i <= n; i++)
+        if (size[i] > size[big])
+            big = i;
+    return big;
+}
+
 static void earth_mark_big(dw_map *map)
 {
     static int label[120][120];
@@ -1536,10 +1547,7 @@ static void earth_mark_big(dw_map *map)
             n = earth_label(map, key, label, size);
             if (!n)
                 continue;
-            big = 1;
-            for (i = 2; i <= n; i++)
-                if (size[i] > size[big])
-                    big = i;
+            big = earth_biggest(size, n);
             for (i = 0; i < 120 * 120; i++)
                 if (label[i / 120][i % 120] == big)
                     earth_big[i / 120][i % 120] = 1;
@@ -1675,10 +1683,7 @@ static void earth_connect(dw_map *map)
                 n = earth_label(map, key, label, size);
                 if (n <= 1)
                     break;
-                big = 1;
-                for (i = 2; i <= n; i++)
-                    if (size[i] > size[big])
-                        big = i;
+                big = earth_biggest(size, n);
                 /* Search outward from the biggest piece through this region's land (walkable or mountain) until
                  * another piece is touched, then open the mountains on the way back. */
                 memset(parent, 0xff, sizeof(parent));

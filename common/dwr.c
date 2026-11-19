@@ -4097,26 +4097,24 @@ void npc_guillotine(dw_rom *rom)
     if (!NPC_GUILLOTINE(rom))
         return;
 
-    /* The routine has 31 bytes and stays in the fixed bank. It cannot go behind a far call: $C04A goes on to bank 0
+    /* The routine has 29 bytes and stays in the fixed bank. It cannot go behind a far call: $C04A goes on to bank 0
      * code ($C0D4: JSR $B6C2) and bank 0 tables, which need bank 0 mapped.
      * The NPCs whose control byte is $6B to $6E are never removed: the one who gives the Erdrick's Token coordinates
      * ($6B), the Staff of Rain and Rainbow Drop guys ($6C, $6D) and the one who lifts the curse ($6E). */
-    const uint16_t at = find_free_space(rom->content, 0xc82b, 31);
-    const uint8_t body[31] = {
+    const uint16_t at = find_free_space(rom->content, 0xc82b, 29);
+    const uint8_t body[29] = {
         0xc9, 30,               // CMP 30: A is the NPC's offset in the NPC table. Is the NPC mobile?
-        0xb0, 0x17,             // BCS to the original code if not
+        0xb0, 0x15,             // BCS to the original call if not
         0xaa,                   // TAX
         0xb5, 0x53,             // LDA $53,X: the NPC's control byte
         0x38, 0xe9, 0x6b,       // SEC, SBC #$6B
         0xc9, 0x04,             // CMP #4: is it one of the four NPCs the quest needs?
-        0x90, 0x0c,             // BCC to the original code, so he stays
-        0x8a,                   // TXA: the offset again
-        0x48,                   // PHA to save the offset for the original code
+        0x90, 0x0a,             // BCC to the TXA before the original call, so he stays
         0xa9, 0x00,             // LDA 0
         0x95, 0x51,             // STA,X 1st NPC byte to set it to zero
         0x95, 0x52,             // STA,X 2nd NPC byte to set it to zero
         0x95, 0x53,             // STA,X 3rd NPC byte to set it to zero
-        0x68,                   // PLA to restore the offset
+        0x8a,                   // TXA: A is the offset again, since STA,X leaves X alone
         0x60,                   // RTS
         0x8a,                   // TXA: the offset again (the NPC stays)
         0x20, 0x4a, 0xc0,       // JSR $C04A: the original call
@@ -5815,6 +5813,8 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
 
 /* TRUE when the last build repacked the game code as a last resort, so its checksum can differ from the same
  * flags and seed built with other comfort or sound options. */
+/* Set when the game code was repacked to make room (the last resort), so the checksum can differ from the same
+ * flags built with other options. The race card warns from it. Cleared only at the start of dwr_randomize_tries. */
 static BOOL last_repacked = FALSE;
 
 BOOL dwr_last_repacked(void)
