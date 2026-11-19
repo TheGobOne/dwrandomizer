@@ -5822,9 +5822,38 @@ BOOL dwr_last_repacked(void)
     return last_repacked;
 }
 
+/* Turns off the personal options in a flag string (the ones the race card leaves out), so a build that
+ * is out of room can go without them. Returns FALSE when none was on. The same bits as print_race_card in
+ * cli/main.c. */
+static BOOL drop_personal(char *flags)
+{
+    uint8_t raw[28] = {0};
+    char code[64] = {0};
+    int length;
+
+    strncpy(code, flags, 44);
+    base32_decode((const unsigned char *)code, raw);
+    if (!((raw[3] & 0xc0) || (raw[14] & 0x6e) || (raw[16] & 0x10) || (raw[17] & 0x80) ||
+            (raw[22] & 0x01) || (raw[26] & 0x40)))
+        return FALSE;
+    raw[3] &= 0x3f;     /* Menu Wrapping */
+    raw[14] &= 0x91;    /* the personal bits of byte 14 */
+    raw[16] &= 0xef;    /* Don't Mute Jingles */
+    raw[17] &= 0x7f;    /* Red Flashes */
+    raw[22] &= 0xfe;    /* Winter Theme */
+    raw[26] &= 0xbf;    /* Skip Credits */
+    length = FLAG_CODE_LENGTH(raw);
+    base32_encode(raw, 27, (unsigned char *)code);
+    code[length] = '\0';
+    strcpy(flags, code);
+    return TRUE;
+}
+
 /**
  * Randomizes a Dragon Warrior rom file. If the code does not fit, the build is tried again with
  * the code packed more tightly, first for what comes after the checksum, then for everything.
+ * With no room even then, the personal options are left out (they are not in the checksum), and only
+ * after that is the game code repacked.
  *
  * @return A checksum for the new rom, or 0 if it could not be made.
  */
@@ -5855,6 +5884,12 @@ static uint64_t dwr_randomize_tries(const char* input_file, uint64_t seed, char 
             custom_music_disable(TRUE);
             fit_extras = FALSE;
             printf("Out of room with the music pack, keeping the original music.\n");
+            continue;
+        } else if (drop_personal(flags)) {
+            /* Personal options are not in the checksum, so leaving them out keeps the checksum of a build
+             * without them. The flags string is shortened to match, so the file name and race card follow it. */
+            fit_extras = FALSE;
+            printf("Out of room, so the personal options are left out of this build.\n");
             continue;
         } else if (!fit_game) {
             /* Last resort: repacking the game code changes the checksum. */
