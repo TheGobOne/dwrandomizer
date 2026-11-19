@@ -166,7 +166,7 @@ class GiveItem(unittest.TestCase):
         writes, guards = calls[0]
         self.assertIn((C.HERBS, bytes([5]), "RAM"), writes)
         self.assertIn((C.AP_RECV, (5).to_bytes(2, "little"), "System Bus"), writes)
-        self.assertEqual([w for w in writes if w[0] == C.MAIL_TEXT], [(C.MAIL_TEXT, C.dw_text("pile of 5 items"), "System Bus")])
+        self.assertEqual([w for w in writes if w[0] == C.MAIL_TEXT], [(C.MAIL_TEXT, C.dw_text("Friend's 5 items"), "System Bus")])
         self.assertEqual(len([w for w in writes if w[0] == C.MAIL_FLAG]), 1)
 
     def test_three_waiting_items_still_come_one_at_a_time(self):
@@ -196,12 +196,14 @@ class GiveItem(unittest.TestCase):
         BH.calls.clear(); BH.guard_result = True
         asyncio.run(C.DWRClient()._give_item(ctx, bytes(self.ram), bytes(7), 0))
         writes, _ = BH.calls[0]
-        self.assertIn((C.MAIL_TEXT, C.dw_text("5 items from Al"), "System Bus"), writes)
+        self.assertIn((C.MAIL_TEXT, C.dw_text("Al's 5 items"), "System Bus"), writes)
 
     def test_batch_text_fits_the_mailbox(self):
-        self.assertEqual(C.batch_text(22, "Alex"), "pile of 22 items")
-        self.assertEqual(C.batch_text(5, "Alex"), "pile of 5 items")
-        self.assertEqual(C.batch_text(5, "Bo"), "5 items from Bo")
+        self.assertEqual(C.batch_text(22, "Alex"), "Alex's 22 items")
+        self.assertEqual(C.batch_text(5, "Alex"), "Alex's 5 items")
+        self.assertEqual(C.batch_text(5, "Bo"), "Bo's 5 items")
+        self.assertEqual(C.batch_text(12, "Alexandra"), "Alexandra's pile")
+        self.assertEqual(C.batch_text(12), "pile of 12 items")
         self.assertEqual(C.batch_text(120), "120 items")
         for n in (2, 9, 10, 99, 100, 999):
             for sender in ("", "Al", "Server", "A very long name"):

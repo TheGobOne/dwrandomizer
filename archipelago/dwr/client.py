@@ -67,13 +67,14 @@ def dw_text(name: str, sender: str = "", player: int = 0) -> bytes:
     return bytes(codes + [0xFA])
 
 def batch_text(count: int, sender: str = "") -> str:
-    """The mailbox text for a batch of 2 or more. The game's line holds 22 characters, and a first word
-    of 3 or more letters starts the next line, so "items." never sits alone: "N items from Alex" when
-    that fits the 16 character mailbox, otherwise "pile of N items" (or "N items" for 100 or more)."""
+    """The mailbox text for a batch of 2 or more, shown as "Thou hast found the <text>.". The first option that fits
+    the 16 character mailbox is used: "Alex's 12 items", "Alexandra's pile", "pile of 12 items", "12 items".
+    Without a sender only the last two are used."""
     if sender:
-        text = f"{count} items from {fold(sender) or '?'}"
-        if len(text) <= TEXT_LEN:
-            return text
+        name = fold(sender) or "?"
+        for text in (f"{name}'s {count} items", f"{name}'s pile"):
+            if len(text) <= TEXT_LEN:
+                return text
     text = f"pile of {count} items"
     return text if len(text) <= TEXT_LEN else f"{count} items"
 
