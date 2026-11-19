@@ -1065,10 +1065,8 @@ function buildOnce(spoiler){
   if(sum!==0n){ data=FS.readFile('/'+out_name); FS.unlink('/'+out_name);
     const sp='/'+out_name+'.spoiler.txt';
     if(FS.analyzePath(sp).exists){ spoilerText=FS.readFile(sp,{encoding:'utf8'}); FS.unlink(sp); } }
-  /* Racers on the same flags get the same name. Personal options, or a music pack, add a tag, so builds
-   * of one seed with and without them can be told apart. */
-  const tag=(PERSONAL.some(id=>State.v[id]|0)?'+personal':'')+(picks.count&&!(State.v.nomusic|0)&&!log.some(t=>t.includes('keeping the original music'))?'+music':'');
-  return {seed,flags,out_name:'DWR.'+seed+'.'+State.flags(true)+tag+'.nes',picks,log,sum,data,spoilerText};
+  /* Racers on the same flags and seed get the same file name. */
+  return {seed,flags,out_name:'DWR.'+seed+'.'+State.flags(true)+'.nes',picks,log,sum,data,spoilerText};
 }
 /* The space line builds the ROM for the current flags and seed. Randomize reuses that build when nothing has changed. */
 let buildCache=null, sizeCache=null;

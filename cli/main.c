@@ -135,27 +135,6 @@ static void print_race_card(const char *flags, uint64_t seed, uint64_t crc)
     printf("Your personal options are not in these flags.\n");
 }
 
-/* Adds the site's tags to the file name: +personal when a personal option is on, +music when the pack's songs
- * were placed. Personal bits are the ones the race card leaves out. */
-static void name_tags(const char *output_dir, uint64_t seed, const char *flags)
-{
-    uint8_t raw[28] = {0};
-    char code[64] = {0};
-    char from[1100], to[1100];
-    const char *personal, *music;
-
-    strncpy(code, flags, 44);
-    base32_decode((uint8_t *)code, raw);
-    personal = ((raw[3] & 0xc0) || (raw[14] & 0x6e) || (raw[16] & 0x10) || (raw[17] & 0x80) ||
-            (raw[22] & 0x01) || (raw[26] & 0x40)) ? "+personal" : "";
-    music = custom_music_kept() ? "+music" : "";
-    if (!personal[0] && !music[0])
-        return;
-    snprintf(from, sizeof from, "%s/DWR.%" PRIu64 ".%s.nes", output_dir, seed, flags);
-    snprintf(to, sizeof to, "%s/DWR.%" PRIu64 ".%s%s%s.nes", output_dir, seed, flags, personal, music);
-    (void)rename(from, to);
-}
-
 int main(int argc, char **argv)
 {
     uint64_t seed;
@@ -411,7 +390,6 @@ int main(int argc, char **argv)
     const uint64_t crc = dwr_randomize(input_file, seed, flags, sprite, output_dir);
     if (!crc)
         return 1;
-    name_tags(output_dir, seed, flags);
     if (race_card)
         print_race_card(flags, seed, crc);
 
