@@ -5833,17 +5833,25 @@ static BOOL drop_personal(char *flags)
 {
     uint8_t raw[28] = {0};
     char code[64] = {0};
+    char names[200] = "";
     int length;
 
     strncpy(code, flags, 44);
     base32_decode((const unsigned char *)code, raw);
-    if (!((raw[3] & 0xc0) || (raw[14] & 0x6e) || (raw[16] & 0x10) || (raw[17] & 0x80) ||
-            (raw[22] & 0x01) || (raw[26] & 0x40)))
+    /* Only the options that change no flashing or shaking. Spell Flashing, Red Flashes and Screen Shake stay as
+     * the player set them, so a build that is out of room never loses them. */
+    if (raw[14] & 0x40) strcat(names, ", Disable Music");
+    if (raw[14] & 0x08) strcat(names, ", Custom Spell Names");
+    if (raw[14] & 0x04) strcat(names, ", Skip Original Credits");
+    if (raw[16] & 0x10) strcat(names, ", Don't Mute Jingles");
+    if (raw[22] & 0x01) strcat(names, ", Winter Theme");
+    if (raw[26] & 0x40) strcat(names, ", Disable Cursor Blink");
+    if (raw[3] & 0xc0) strcat(names, ", Menu Wrapping");
+    if (!names[0])
         return FALSE;
     raw[3] &= 0x3f;     /* Menu Wrapping */
-    raw[14] &= 0x91;    /* the personal bits of byte 14 */
+    raw[14] &= 0xb3;    /* keeps Spell Flashing (0x20), Screen Shake (0x02) and the rest */
     raw[16] &= 0xef;    /* Don't Mute Jingles */
-    raw[17] &= 0x7f;    /* Red Flashes */
     raw[22] &= 0xfe;    /* Winter Theme */
     raw[26] &= 0xbf;    /* Disable Cursor Blink */
     raw[27] = 0;        /* the spare bits of a 44 letter code, as cli/main.c clears them */
@@ -5851,6 +5859,7 @@ static BOOL drop_personal(char *flags)
     base32_encode(raw, 27, (unsigned char *)code);
     code[length] = '\0';
     strcpy(flags, code);
+    printf("Out of room, so these personal options are left out of this build: %s.\n", names + 2);
     return TRUE;
 }
 
@@ -5878,8 +5887,12 @@ static uint64_t dwr_randomize_tries(const char* input_file, uint64_t seed, char 
         if (crc || !ran_out_of_room)
             return crc;
         if (fail_stage == 1) {
-            if (fit_game)
-                return 0;
+            if (fit_game) {
+                /* Out of room before the checksum even with best fit: personal options can still go. */
+                if (!drop_personal(flags))
+                    return 0;
+                continue;
+            }
             fit_game = TRUE;
             fit_extras = FALSE;
         } else if (!fit_extras) {
@@ -5896,7 +5909,6 @@ static uint64_t dwr_randomize_tries(const char* input_file, uint64_t seed, char 
             /* Personal options are not in the checksum, so leaving them out keeps the checksum of a build
              * without them. The flags string is shortened to match, so the file name and race card follow it. */
             fit_extras = FALSE;
-            printf("Out of room, so the personal options are left out of this build.\n");
             continue;
         } else if (!fit_game) {
             /* Last resort: repacking the game code changes the checksum. */
