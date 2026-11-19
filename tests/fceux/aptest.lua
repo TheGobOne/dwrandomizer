@@ -2,6 +2,8 @@
 -- uses Wings and teleports to reach each search spot, searches, then sets the
 -- Gwaelin and Dragonlord bits so the client sends those too.
 -- Log: dwr-ap-testbed/fx/aptest.txt, screenshots: dwr-ap-testbed/fx/*.png
+-- DW tile order (common/dwr.c alphabet), for reading the mailbox text.
+local FONT = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]'*>_:=_.,-_?!;)(``/'___________ "
 local OUT = "C:/Users/Ryan/code/dwr-ap-testbed/fx/"
 local CONNECTOR = "C:/ProgramData/Archipelago/data/lua/connector_fceux_generic.lua"
 
@@ -180,8 +182,7 @@ local function driver()
       if last_count >= 0 and count - last_count >= 4 then batch_at = frame end
       last_count = count; last_change = os.time()
       log(string.format("received %d, mail flag %d", count, rd(0x682e)))
-      -- The mailbox text the client wrote ($6850, DW tiles ended by $FA), as letters.
-      local FONT = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]'*>_:=_.,-_?!;)(``/'___________ "
+      -- The mailbox text the client wrote ($6850, DW tiles ended by $FA), as letters (FONT is the DW tile order).
       local text = ""
       for i = 0, 20 do
         local c = rd(0x6850 + i)

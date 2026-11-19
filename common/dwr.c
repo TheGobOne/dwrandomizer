@@ -4097,17 +4097,20 @@ void npc_guillotine(dw_rom *rom)
     if (!NPC_GUILLOTINE(rom))
         return;
 
-    /* The routine has 29 bytes and stays in the fixed bank. It cannot go behind a far call: $C04A goes on to bank 0
-     * code ($C0D4: JSR $B6C2) and bank 0 tables, which need bank 0 mapped.
-     * The NPCs whose dialogue byte (read from the ROM's NPC table, not RAM) is $6B to $6E are never removed: the one who gives the Erdrick's Token coordinates
-     * ($6B), the Staff of Rain and Rainbow Drop guys ($6C, $6D) and the one who lifts the curse ($6E). */
-    const uint16_t at = find_free_space(rom->content, 0xc82b, 29);
-    const uint8_t body[29] = {
+    /* The routine has 27 bytes and stays in the fixed bank. It cannot go behind a far call: $C04A goes on to
+     * bank 0 code ($C0D4: JSR $B6C2) and bank 0 tables, which need bank 0 mapped.
+     * The NPCs whose dialogue byte (read from the ROM's NPC table, not RAM) is $6B to $6E are never removed:
+     * the one who gives the Erdrick's Token coordinates ($6B), the Staff of Rain and Rainbow Drop guys ($6C, $6D)
+     * and the one who lifts the curse ($6E).
+     * LDA ($3C),Y only works because this routine replaces the one JSR at $D11F: there the talk code has $3C/$3D
+     * pointing at the map's NPC table and Y at the NPC's dialogue byte (its offset plus 2). */
+    const uint16_t at = find_free_space(rom->content, 0xc82b, 27);
+    const uint8_t body[27] = {
         0xc9, 30,               // CMP 30: A is the NPC's offset in the NPC table. Is the NPC mobile?
-        0xb0, 0x15,             // BCS to the original call if not
+        0xb0, 0x14,             // BCS to the original call if not
         0xaa,                   // TAX
-        0xb1, 0x3c,             // LDA ($3C),Y: the NPC's dialogue byte in the map's NPC table (Y is set by the caller)
-        0x38, 0xe9, 0x6b,       // SEC, SBC #$6B
+        0xb1, 0x3c,             // LDA ($3C),Y: the NPC's dialogue byte in the map's NPC table
+        0xe9, 0x6a,             // SBC #$6A: carry is clear (BCS not taken), so this is A - $6B
         0xc9, 0x04,             // CMP #4: is it one of the four NPCs the quest needs?
         0x90, 0x0a,             // BCC to the TXA before the original call, so he stays
         0xa9, 0x00,             // LDA 0
@@ -4117,8 +4120,7 @@ void npc_guillotine(dw_rom *rom)
         0x8a,                   // TXA: A is the offset again, since STA,X leaves X alone
         0x60,                   // RTS
         0x8a,                   // TXA: the offset again (the NPC stays)
-        0x20, 0x4a, 0xc0,       // JSR $C04A: the original call
-        0x60                    // RTS
+        0x4c, 0x4a, 0xc0        // JMP $C04A: the original call; its RTS returns to the talk code
     };
 
     vpatch(rom, 0xd11f, 2, at & 0xff, (at >> 8) & 0xff); // Save original JSR to set NPC direction but point to newcode
@@ -5815,8 +5817,6 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
     return crc;
 }
 
-/* TRUE when the last build repacked the game code as a last resort, so its checksum can differ from the same
- * flags and seed built with other personal options. */
 /* Set when the game code was repacked to make room (the last resort), so the checksum can differ from the same
  * flags built with other options. The race card warns from it. Cleared only at the start of dwr_randomize_tries. */
 static BOOL last_repacked = FALSE;

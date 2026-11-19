@@ -49,11 +49,18 @@ def with_value(code, index, mask, value):
     return "".join(F.BASE32[int("".join(map(str, bits[i:i + 5])), 2)] for i in range(0, len(bits), 5))
 
 
-@unittest.skipUnless(EXE and os.path.exists(ROM), "needs the built CLI and the vanilla ROM")
+# Set DWR_REQUIRE_CLI=1 to fail instead of skip when the CLI or the ROM is missing.
+HAVE = bool(EXE) and os.path.exists(ROM)
+if not HAVE and os.environ.get("DWR_REQUIRE_CLI"):
+    raise RuntimeError(f"normalize parity needs the built CLI and {ROM}")
+
+
+@unittest.skipUnless(HAVE, f"needs build/dwrandomizer and the vanilla ROM at {ROM}")
 class NormalizeParity(unittest.TestCase):
     def cli(self, code):
         with tempfile.TemporaryDirectory() as out:
             run = subprocess.run([EXE, ROM, code, "1", "Loto", out], capture_output=True, text=True, timeout=120)
+        self.assertEqual(run.returncode, 0, f"the CLI failed on {code}: {run.stderr.strip()[-300:]}")
         m = re.search(r"Fixed flag code: (\S+)", run.stdout)
         return m.group(1) if m else None
 

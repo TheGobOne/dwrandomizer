@@ -23,8 +23,6 @@ void custom_music_clear(void);
 void custom_music_apply(dw_rom *rom);
 /* True when a music pack is loaded. */
 BOOL custom_music_has_pack(void);
-/* True when the last build placed the music pack's songs. */
-BOOL custom_music_kept(void);
 /* TRUE leaves the pack out of the rest of this build (no room for it); FALSE takes it back for the next build. */
 void custom_music_disable(BOOL off);
 /* The built-in credits song to add if the pack's music does not go in. */
