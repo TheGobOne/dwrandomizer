@@ -4099,14 +4099,14 @@ void npc_guillotine(dw_rom *rom)
 
     /* The routine has 29 bytes and stays in the fixed bank. It cannot go behind a far call: $C04A goes on to bank 0
      * code ($C0D4: JSR $B6C2) and bank 0 tables, which need bank 0 mapped.
-     * The NPCs whose control byte is $6B to $6E are never removed: the one who gives the Erdrick's Token coordinates
+     * The NPCs whose dialogue byte (read from the ROM's NPC table, not RAM) is $6B to $6E are never removed: the one who gives the Erdrick's Token coordinates
      * ($6B), the Staff of Rain and Rainbow Drop guys ($6C, $6D) and the one who lifts the curse ($6E). */
     const uint16_t at = find_free_space(rom->content, 0xc82b, 29);
     const uint8_t body[29] = {
         0xc9, 30,               // CMP 30: A is the NPC's offset in the NPC table. Is the NPC mobile?
         0xb0, 0x15,             // BCS to the original call if not
         0xaa,                   // TAX
-        0xb5, 0x53,             // LDA $53,X: the NPC's control byte
+        0xb1, 0x3c,             // LDA ($3C),Y: the NPC's dialogue byte in the map's NPC table (Y is set by the caller)
         0x38, 0xe9, 0x6b,       // SEC, SBC #$6B
         0xc9, 0x04,             // CMP #4: is it one of the four NPCs the quest needs?
         0x90, 0x0a,             // BCC to the TXA before the original call, so he stays
