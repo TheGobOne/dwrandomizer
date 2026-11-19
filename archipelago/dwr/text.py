@@ -1,7 +1,12 @@
-"""Item names as the game shows them. DWR's found message has room for 16 characters."""
+"""Item names and the sentences the game shows for them.
+
+An item name has at most 16 characters. ROM version 005 and later show a whole sentence of up to
+38 characters ("You sent Heart Container to Alex."); older ROMs add "Thou hast found the" to a
+16 character text."""
 import unicodedata
 
 TEXT_LEN = 16
+LINE_LEN = 38  # common/archipelago.h AP_TEXT_LEN
 
 # Names longer than the message has room for, shortened for the game only.
 SHORT_NAMES = {"Stones of Sunlight": "Sunlight Stones"}
@@ -70,7 +75,7 @@ def _owner(name: str, player: int) -> str:
 
 
 def received_text(item: str, sender: str = "", player: int = 0) -> str:
-    """The mailbox text for an item another player sent: "Herb from Alex".
+    """The mailbox text for an item another player sent, for ROMs before version 005: "Herb from Alex".
 
     The item and the sender share 16 characters. The item is never shortened to make room: a
     long sender name is cut and ends in a period ("Torch from Bart."). When even a one
@@ -92,21 +97,41 @@ def received_text(item: str, sender: str = "", player: int = 0) -> str:
     return game_name(item)
 
 
-def found_text(item: str, owner: str = "", player: int = 0) -> str:
-    """The text after "Thou hast found the" for a chest or search spot.
+def _sentence(head: str, owner: str, tail: str = ".") -> str:
+    """head + owner + tail, with the owner cut so the whole fits LINE_LEN. The item in head is
+    never cut: an item is at most TEXT_LEN characters, which leaves room for at least 8 letters
+    of the owner."""
+    room = LINE_LEN - len(head) - len(tail)
+    return f"{head}{owner[:room].rstrip()}{tail}"
 
-    Another player's item says whose it is. A long owner name is cut and ends in a period
-    ("Bartholo.'s Herb"). An owner with no DW font characters shows as "P" and the player
-    number ("P3's Herb"), or "?" without one. The item is never
-    cut to make room for the owner, so an item name of 13 or more characters shows alone."""
+
+def found_text(item: str, owner: str = "", player: int = 0) -> str:
+    """The whole sentence a chest or search spot shows, after "Fortune smiles upon thee, <hero>."
+    (ROM version 005 and later).
+
+    The hero's own item: "Thou hast found the Herb." Another player's item says who gets it:
+    "You sent Heart Container to Alex." A long owner name is cut to fit. An owner with no DW font
+    characters shows as "P" and the player number ("P3"), or "?" without one."""
     item = game_name(item)
-    if owner:
-        owner = _owner(owner, player)
-        room = TEXT_LEN - len(item) - len("'s ")
-        if len(owner) <= room:
-            return f"{owner}'s {item}"
-        if room >= 2:
-            return f"{owner[:room - 1].rstrip()}.'s {item}"
-        if room == 1:
-            return f"{owner[0]}'s {item}"
-    return item
+    if not owner:
+        return f"Thou hast found the {item}."
+    return _sentence(f"You sent {item} to ", _owner(owner, player))
+
+
+def received_line(item: str, sender: str = "", player: int = 0) -> str:
+    """The mailbox sentence for an item from another player: "Alex hath sent thee Heart Container."
+    (ROM version 005 and later). The sender is cut to fit; the item is not. Without a sender (the
+    server, a !collect): "Thou hast found the Herb." """
+    if not sender:
+        return found_text(item)
+    item = game_name(item)
+    owner = _owner(sender, player)
+    room = LINE_LEN - len(" hath sent thee ") - len(item) - len(".")
+    return f"{owner[:room].rstrip()} hath sent thee {item}."
+
+
+def batch_line(count: int, sender: str = "") -> str:
+    """The mailbox sentence for a batch of 2 or more: "5 items from Alex." or "12 items."
+    (ROM version 005 and later)."""
+    name = fold(sender) if sender else ""
+    return _sentence(f"{count} items from ", name) if name else f"{count} items."

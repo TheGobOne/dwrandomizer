@@ -5,7 +5,7 @@
 -- Run "four": a new game clears the AP block.
 -- Run "five": open the first Tantegel chest that Random Chest Locations moved, read from the ROM's
 --   chest table. Needs a ROM built with RCL (CLI, not the APWorld). Logs FAIL otherwise.
--- Run "six": put "Herb" in the mailbox and check the printed name and that play goes on.
+-- Run "six": put "Heart Container from Alex." in the mailbox and check the printed text and that play goes on.
 -- Runs "one", "five" and "six" wait 780 frames after the intro; "three" and "four" wait less.
 -- The run name is read from dwr-ap-testbed/fx/p3mode.txt.
 local OUT = "C:/Users/Ryan/code/dwr-ap-testbed/fx/"
@@ -14,6 +14,12 @@ local mf = io.open(OUT .. "p3mode.txt"); local MODE = mf and mf:read("*l") or "o
 local frame, step, t0 = 0, "boot", 0
 local lines = {}
 local press, queue = {}, {}
+-- The run "six" mailbox sentence in DW tiles (the DW font order, as client.py DW_FONT), ended by $FA.
+local FONT = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]'*>_:=_.,-_?!;)(``/'___________ "
+local MAIL_TEXT = "Heart Container from Alex."
+local MAIL = {}
+for i = 1, #MAIL_TEXT do MAIL[i] = (FONT:find(MAIL_TEXT:sub(i, i), 1, true) or #FONT) - 1 end
+MAIL[#MAIL + 1] = 0xFA
 local function log(s)
   lines[#lines + 1] = string.format("f%d [%s %s] %s", frame, MODE, step, s)
   local f = io.open(OUT .. "p3_" .. MODE .. ".txt", "w"); f:write(table.concat(lines, "\n") .. "\n"); f:close()
@@ -30,11 +36,12 @@ local function go(x, y)
 end
 -- Clears a chest bit before TAKE, so a PASS means this try opened the chest.
 local function clear_bit(addr, bit) wr(addr, rd(addr) - AND(rd(addr), bit)) end
--- Checks the name the found-message code printed: $652C holds the text it copied from $6830, up to $FA.
+-- Checks the sentence the found-message code printed: $652C holds the text it copied from $6880, up to $FA
+-- (ROM version 005; the buffer was at $6830 before).
 local function printed_name_ok()
-  for i = 0, 16 do
-    if rd(0x652C + i) ~= rd(0x6830 + i) then return false end
-    if rd(0x6830 + i) == 0xfa then return true end
+  for i = 0, 38 do
+    if rd(0x652C + i) ~= rd(0x6880 + i) then return false end
+    if rd(0x6880 + i) == 0xfa then return true end
   end
   return false
 end
@@ -202,9 +209,9 @@ local function driver()
       end
     end
   elseif step == "mail" then
-    -- Run "six": put "Herb" in the mailbox, take a step, and check the message shows and play goes on.
+    -- Run "six": put a sentence in the mailbox, take a step, and check the message shows and play goes on.
     if age() == 1 then
-      local text = { 0x2B, 0x0E, 0x1B, 0x0B, 0xFA }   -- "Herb" in DW tiles
+      local text = MAIL
       for i, v in ipairs(text) do wr(0x6850 + i - 1, v) end
       wr(0x682E, 1); log("mailbox set, flag " .. rd(0x682E))
       mail_x, mail_y = rd(0x3a), rd(0x3b)
@@ -217,10 +224,9 @@ local function driver()
     end
     if mail_seen and frame == mail_seen + 90 and gui.savescreenshotas then gui.savescreenshotas(OUT .. "mail.png") end
     if mail_seen and frame == mail_seen + 30 then
-      local want = { 0x2B, 0x0E, 0x1B, 0x0B, 0xFA }   -- "Herb"
       local ok = true
-      for i, v in ipairs(want) do if rd(0x652C + i - 1) ~= v then ok = false end end
-      log(ok and "PASS mailbox printed Herb" or "FAIL mailbox printed the wrong name")
+      for i, v in ipairs(MAIL) do if rd(0x652C + i - 1) ~= v then ok = false end end
+      log(ok and "PASS mailbox printed " .. MAIL_TEXT or "FAIL mailbox printed the wrong text")
     end
     if mail_seen and frame == mail_seen + 120 then keys({ {1, "A"}, {20, "B"}, {20, "B"} }) end
     if mail_seen and frame >= mail_seen + 200 and frame < mail_seen + 560 and (frame - mail_seen) % 90 == 20 then

@@ -11,7 +11,8 @@ ROM side (common/archipelago.c in DWR, which has the full map):
   $6842-45    seed hash of the ROM that started this game (written by the ROM at a new game)
   $6846-4B    slot tags, 2 bytes each: seed hash bytes 0 and 1 of the ROM that last saved the slot
               (ROM version 003: byte 0 only)
-  $6850       mailbox text: the item name in DW tiles, ended by $FA
+  $6850       mailbox text in DW tiles, ended by $FA: a whole sentence of up to 38 characters
+              (ROM version 005), or an item name of up to 16 that the ROM puts after "Thou hast found the"
 """
 import logging
 from typing import TYPE_CHECKING
@@ -22,7 +23,7 @@ import worlds._bizhawk as bizhawk
 from worlds._bizhawk.client import BizHawkClient
 
 from .data import BASE, GAME, GWAELIN, LOCATION_NAME_TO_ID, SLOT_FLAGS_OFF
-from .text import TEXT_LEN, fold, received_text
+from .text import TEXT_LEN, batch_line, fold, received_line, received_text
 
 if TYPE_CHECKING:
     from worlds._bizhawk.context import BizHawkClientContext
@@ -32,7 +33,8 @@ logger = logging.getLogger("Client")
 SIGNATURE = 0x7FE0
 MAGIC = b"DWRAP"
 SLOT_NAME_LEN = 32  # bytes of UTF-8 the ROM keeps for the slot name
-ROM_VERSIONS = (b"002", b"003", b"004")  # 002: no seed hash or carry caps; 003: 1-byte slot tags
+# 002: no seed hash or carry caps; 003: 1-byte slot tags; 005: whole sentences in the found and mailbox messages
+ROM_VERSIONS = (b"002", b"003", b"004", b"005")
 
 AP_RECV = 0x6820
 AP_BLOCK_SIZE = 7  # $6820-$6826
@@ -41,7 +43,7 @@ SEED_HASH = 0x6842  # 4 bytes: the seed hash of the ROM this game was started wi
 SLOT_TAGS = 0x6846  # 6 bytes: the tag of each save slot, 2 bytes each
 SAVE_SLOT = 0x6039  # the save slot in use (0-2)
 BATCH_AT = 4  # this many items waiting at once (a release, a reconnect) are given together, with one message
-MAIL_TEXT = 0x6850  # the item name in DW tiles, ended by $FA
+MAIL_TEXT = 0x6850  # the message text in DW tiles, ended by $FA: up to 38 characters from ROM version 005, 16 before
 
 # DW's font order (common/dwr.c alphabet): a DW tile code is the index in this string.
 DW_FONT = ("0123456789abcdefghijklmnopqrstuvwxyz"
@@ -61,10 +63,21 @@ def untagged(tag: bytes) -> bool:
     return not tag or tag[0] in (0, 0xFF)
 
 
-def dw_text(name: str, sender: str = "", player: int = 0) -> bytes:
-    """The item name as DW tiles, ended by $FA, for the mailbox. A sender's name is added: "Herb from Alex"."""
-    codes = [DW_FONT.index(c) if c in DW_FONT else DW_FONT.index(" ") for c in received_text(name, sender, player)]
-    return bytes(codes + [0xFA])
+def tiles(text: str) -> bytes:
+    """Text as DW tiles, ended by $FA, for the mailbox."""
+    return bytes([DW_FONT.index(c) if c in DW_FONT else DW_FONT.index(" ") for c in text] + [0xFA])
+
+
+def dw_text(name: str, sender: str = "", player: int = 0, lines: bool = False) -> bytes:
+    """The mailbox text for one item, as DW tiles. ROM version 005 and later (lines) show a whole sentence,
+    "Alex hath sent thee Heart Container."; older ROMs add "Thou hast found the" to "Herb from Alex"."""
+    return tiles(received_line(name, sender, player) if lines else received_text(name, sender, player))
+
+
+def batch_tiles(count: int, sender: str = "", lines: bool = False) -> bytes:
+    """The mailbox text for a batch of 2 or more, as DW tiles: "5 items from Alex." on ROM version 005 and
+    later, batch_text on older ROMs."""
+    return tiles(batch_line(count, sender) if lines else batch_text(count, sender))
 
 def batch_text(count: int, sender: str = "") -> str:
     """The mailbox text for a batch of 2 or more, shown as "Thou hast found the <text>.". The first option that fits
@@ -132,6 +145,7 @@ class DWRClient(BizHawkClient):
         self.last_received = -1   # the save's received count at the last poll, -1 before the first
         self.notes = []           # warnings from _effect, logged once its write succeeds
         self.off_noted = False    # the Random flags turned off were logged at connect
+        self.lines = False        # ROM version 005 or later: the mailbox takes a whole sentence
 
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         try:
@@ -167,6 +181,7 @@ class DWRClient(BizHawkClient):
                 logger.info("This ROM runs its custom music from the frame only, so busy frames can be slower.")
             else:
                 logger.info("This ROM has custom music, which changes frame timing a little.")
+        self.lines = sig[5:8] >= b"005"
         self.seed_hash = sig[11:15] if any(sig[11:15]) else b""
         self.slot_tag = slot_tag(self.seed_hash, 1 if sig[5:8] == b"003" else 2)
         caps = sig[15] if sig[5:8] != b"002" else 0
@@ -307,7 +322,8 @@ class DWRClient(BizHawkClient):
         if given and (not found_here or self.shown != name):
             # Another player's item names them in the message. Your own items do not.
             from_other = item.player != ctx.slot
-            writes.append((MAIL_TEXT, dw_text(self.shown, sender if from_other else "", item.player), "System Bus"))
+            writes.append((MAIL_TEXT, dw_text(self.shown, sender if from_other else "", item.player, self.lines),
+                           "System Bus"))
             writes.append((MAIL_FLAG, b"\x01", "System Bus"))
         # Only write if nothing changed since the snapshot: the counter (a save loaded, a reset),
         # and every game byte the effect rewrites (a shop purchase or herb use in between).
@@ -365,10 +381,12 @@ class DWRClient(BizHawkClient):
             # One item to mention: the same text the one-at-a-time path shows.
             item, shown, sender = mentions[0]
             from_other = item.player != ctx.slot
-            writes.append((MAIL_TEXT, dw_text(shown, sender if from_other else "", item.player), "System Bus"))
+            writes.append((MAIL_TEXT, dw_text(shown, sender if from_other else "", item.player, self.lines),
+                           "System Bus"))
             writes.append((MAIL_FLAG, b"\x01", "System Bus"))
         elif mentions:
-            writes.append((MAIL_TEXT, dw_text(batch_text(len(mentions), self._batch_sender(ctx, mentions))), "System Bus"))
+            writes.append((MAIL_TEXT, batch_tiles(len(mentions), self._batch_sender(ctx, mentions), self.lines),
+                           "System Bus"))
             writes.append((MAIL_FLAG, b"\x01", "System Bus"))
         guards = [(AP_RECV, bytes(block[0:2]), "System Bus")]
         for addr, data, domain in writes:

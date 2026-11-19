@@ -5798,6 +5798,7 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
 
     sprite(rom, sprite_name);
     invisible_npcs(rom); // in case the custom sprite also changed NPCS.
+    dwr_ap_found_frame(rom); /* after the sprite, which writes names into the messages this moves */
     noir_mode(rom);
     add_reset_stubs(rom);
 

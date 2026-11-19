@@ -13,12 +13,13 @@
  *   $6827        1 between a continue's load and game start
  *   $6828-$682d  items received, saved copy for save slots 0-2
  *   $682e        mailbox: 1 when the client has a "received" message waiting
- *   $6830-$6840  found-message name buffer
+ *   $6830-$6840  unused (the found-message buffer before ROM version 005)
  *   $6842-$6845  seed hash of the ROM that started this game (written by the
  *                ROM at a new game), so a save from another seed is caught
  *   $6846-$684b  slot tags, 2 bytes each: seed hash bytes 0 and 1 of the ROM that started
  *                each slot (stride 2, like $6828), for the client to compare
- *   $6850-$6860  mailbox text, the item name in DW tiles, ended by $FA
+ *   $6850-$6876  mailbox text, a sentence in DW tiles, ended by $FA
+ *   $6880-$68a6  found-message buffer, the location's sentence ended by $FA
  *
  * The ROM signature at PRG $7FE0: "DWRAP", 3 version digits, then a little
  * endian pointer to the 32 byte slot name (UTF-8, zero padded), the music byte
@@ -54,7 +55,7 @@
 #define AP_SLOT_TAG   0x6846
 #define SAVE_SLOT     0x6039
 
-#define AP_VERSION    "004"
+#define AP_VERSION    "005"  /* 005: the found message and the mailbox print whole sentences */
 #define AP_NAME_LEN   32  /* UTF-8 bytes. Archipelago cuts slot names to 16 characters; longer byte strings are cut at a character */
 /* The unused Tablet: its index in the item name list, and its 6 letters. */
 #define TABLET_NAME   24
@@ -201,11 +202,12 @@ int dwr_ap_patch_free_charlock(void)
 }
 
 /*
- * Chest and search code. Both end in message $D9, "Thou hast found the
- * <name>." Its name control code ($F7, which reads a name index from $A3) is
- * changed to $F9, and $F9's handler is rewritten to print the $FA-terminated
- * text that $A3/$A4 point to. Each chest and search spot gets its own text:
- * the item name from the .apdwr patch file, or "APItem" without one.
+ * Chest and search code. Both end in message $D9, which dwr_ap_found_frame
+ * rewrites to "Fortune smiles upon thee, <hero>.", a new line, then $F9. $F9's
+ * handler is rewritten to print the $FA-terminated text that $A3/$A4 point to.
+ * Each chest and search spot gets its own sentence from the .apdwr patch file
+ * ("Thou hast found the Herb.", "You sent Heart Container to Alex."), or
+ * "Thou hast found the APItem." without one.
  *
  * Bank 1 has no room for the names, so they sit at the top of expansion bank
  * 3: a low and a high pointer table, then the names end to end, ending at
@@ -213,10 +215,10 @@ int dwr_ap_patch_free_charlock(void)
  * sets the location bit and copies the name into work RAM at AP_NAME_BUF. It then
  * maps the old bank back and points $A3/$A4 at the copy.
  */
-#define AP_NAME_BUF      0x6830  /* 17 bytes, below the music driver */
+#define AP_NAME_BUF      0x6880  /* AP_TEXT_LEN + 1 bytes, below the music driver at $6900 */
 #define AP_NAME_BANK     3
 #define LOAD_PRG_BANK    0xff91  /* store_and_load_prg_bank: A = bank */
-#define FOUND_NAME_CODE  0xab70  /* the $F7 byte in message $D9 */
+#define FOUND_FRAME      0xab5b  /* message $D9 from its $FD: "<FD>Thou hast found the <F7>.<FC>" */
 #define F9_HANDLER       0x77e8  /* bank 1, $B7E8, 17 bytes */
 _Static_assert(AP_BANK3_NAMES == 0xc000 - AP_TEXT_LOCS * (AP_TEXT_LEN + 1 + 2),
         "AP_BANK3_NAMES must be the room for the longest names");
@@ -239,7 +241,7 @@ size_t ascii2dw(uint8_t *string);
  * with the $FA. */
 static size_t ap_name_tiles(int i, uint8_t *buf)
 {
-    const char *text = ap_have_text && ap_text[i][0] ? ap_text[i] : "APItem";
+    const char *text = ap_have_text && ap_text[i][0] ? ap_text[i] : "Thou hast found the APItem.";
     size_t j, len = strlen(text);
 
     if (len > AP_TEXT_LEN)
@@ -336,8 +338,7 @@ static void ap_chest_and_search(dw_rom *rom)
     );
     ap_show_tail = tail;
 
-    /* $D9 prints its name with $F9, and $F9 prints the text at ($A3). */
-    vpatch(rom, FOUND_NAME_CODE, 1, 0xf9);
+    /* $F9 prints the text at ($A3). dwr_ap_found_frame puts $F9 in message $D9 at the end of the build. */
     vpatch(rom, F9_HANDLER, 17,
         0xa0, 0x00,                         /* ldy #0                    */
         0xb1, 0xa3,                         /* - lda ($a3),y             */
@@ -393,6 +394,39 @@ static void ap_chest_and_search(dw_rom *rom)
     rom->search_table->item[0] = HERB;
     rom->search_table->item[1] = HERB;
     rom->search_table->item[2] = HERB;
+}
+
+/* Message $D9 is "Fortune smiles upon thee, <F8>.<FD>Thou hast found the <F7>.<FC>". The part from
+ * its $FD becomes "<FD><F9><FC>": the sentence from the found buffer or the mailbox, on its own line.
+ * That is 21 bytes shorter, so messages $DA-$DF move down by 21. The game finds a message by counting
+ * $FC and $FF bytes from the start of its block of 16, so the move changes no other block. The 21
+ * bytes freed after $DF are never read. */
+void dwr_ap_found_frame(dw_rom *rom)
+{
+    uint8_t *frame = &rom->content[FOUND_FRAME];
+    const int old_len = 24, new_len = 3;  /* <FD>, 20 letters, <F7>, ".", <FC>  vs  <FD><F9><FC> */
+    int end, ends;
+
+    if (!ap_enabled)
+        return;
+    if (frame[0] != 0xfd || frame[old_len - 3] != 0xf7 || frame[old_len - 1] != 0xfc) {
+        /* Someone changed the message: print the sentence after "Thou hast found the" as before. */
+        printf("AP: unexpected found message, keeping \"Thou hast found the\"\n");
+        if (frame[old_len - 3] == 0xf7)
+            frame[old_len - 3] = 0xf9;
+        return;
+    }
+    /* The end of message $DF: 6 more message ends after $D9's. */
+    for (end = old_len, ends = 0; ends < 6; end++) {
+        if (FOUND_FRAME + end >= 0xc000)
+            dwr_give_up("AP: the messages after the found message run past bank 2.");
+        if (frame[end] == 0xfc || frame[end] == 0xff)
+            ends++;
+    }
+    frame[1] = 0xf9;
+    frame[2] = 0xfc;
+    memmove(&frame[new_len], &frame[old_len], (size_t)(end - old_len));
+    memset(&frame[end - (old_len - new_len)], 0x5f, (size_t)(old_len - new_len));
 }
 
 /*
@@ -616,8 +650,9 @@ static void ap_signature(dw_rom *rom)
 
 /*
  * Mailbox for received items. The client gives the item through RAM, writes
- * its name to AP_MAIL_TEXT and sets AP_MAIL_FLAG. After the hero's next step
- * the game shows "Thou hast found the <name>." and goes back to the field.
+ * a sentence ("Heart Container from Alex.") to AP_MAIL_TEXT and sets AP_MAIL_FLAG.
+ * After the hero's next step the game shows message $D9 with that sentence and goes
+ * back to the field.
  *
  * The hook replaces lda $e4, and #$04 at $CDBF, in the after-step code, which
  * the field loop calls with jsr. Town, cave and stair tiles jump away before

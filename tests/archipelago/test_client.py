@@ -198,6 +198,19 @@ class GiveItem(unittest.TestCase):
         writes, _ = BH.calls[0]
         self.assertIn((C.MAIL_TEXT, C.dw_text("5 items from Al"), "System Bus"), writes)
 
+    def test_rom_version_005_gets_whole_sentences(self):
+        BH.calls.clear(); BH.guard_result = True
+        ctx = FakeCtx(["Herb"])
+        ctx.items_received[0].player = 2
+        ctx.player_names[2] = "Alex"
+        client = C.DWRClient()
+        client.lines = True
+        asyncio.run(client._give_item(ctx, bytes(self.ram), bytes(7), 0))
+        writes, _ = BH.calls[0]
+        self.assertIn((C.MAIL_TEXT, C.tiles("Alex hath sent thee Herb."), "System Bus"), writes)
+        self.assertEqual(C.batch_tiles(5, "Alex", True), C.tiles("5 items from Alex."))
+        self.assertEqual(C.batch_tiles(5, "Alex"), C.tiles("pile from Alex"))
+
     def test_batch_text_fits_the_mailbox(self):
         self.assertEqual(C.batch_text(22, "Alex"), "pile from Alex")
         self.assertEqual(C.batch_text(5, "Alex"), "pile from Alex")

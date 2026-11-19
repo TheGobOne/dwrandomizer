@@ -4,10 +4,16 @@
 
 #include "dwr.h"
 
-/* Locations with a found message: 31 chests, then the 3 search spots. Each name
- * is up to AP_TEXT_LEN letters plus an end byte. */
+/* Locations with a found message: 31 chests, then the 3 search spots. Each text is a whole
+ * sentence ("You sent Heart Container to Alex.") of up to AP_TEXT_LEN letters plus an end byte.
+ * The game copies it into its 40 byte text buffer at $652C, and wraps it at word ends. */
 #define AP_TEXT_LOCS  (CHEST_COUNT + 3)
-#define AP_TEXT_LEN   16
+#define AP_TEXT_LEN   38
+
+/* Rewrites the found message, $D9, so it prints the location's sentence after "Fortune smiles upon
+ * thee, <hero>." Moves the messages after it in the same block, so it runs after every other text
+ * change (sprite names write into those messages at fixed addresses). Does nothing when AP is off. */
+void dwr_ap_found_frame(dw_rom *rom);
 
 /* In AP mode the top of expansion bank 3 holds the AP code (up to 200 bytes), then the
  * found-message data: a low and a high pointer table (one byte per location each), then
