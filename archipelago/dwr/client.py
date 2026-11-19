@@ -92,6 +92,8 @@ def batch_text(count: int, sender: str = "") -> str:
     return text if len(text) <= TEXT_LEN else f"{count} items"
 
 
+X_POS = 0x3A        # the hero's tile on the map
+Y_POS = 0x3B
 MAP = 0x45          # 0 until a game is running
 GOLD = 0xBC         # 2 bytes
 EQUIPMENT = 0xBE
@@ -146,6 +148,8 @@ class DWRClient(BizHawkClient):
         self.notes = []           # warnings from _effect, logged once its write succeeds
         self.off_noted = False    # the Random flags turned off were logged at connect
         self.lines = False        # ROM version 005 or later: the mailbox takes a whole sentence
+        self.mail_sent = False    # a mailbox message was written and its flag not yet seen cleared
+        self.mail_at = None       # (map, x, y) where the last message's window opened, until the hero leaves it
 
     async def validate_rom(self, ctx: "BizHawkClientContext") -> bool:
         try:
@@ -166,6 +170,8 @@ class DWRClient(BizHawkClient):
             self.ahead_noted = False
             self.off_noted = False
             self.last_received = -1
+            self.mail_sent = False
+            self.mail_at = None
             if sig[5:8] not in ROM_VERSIONS:
                 logger.warning("This ROM is DWR AP version %s, the client knows %s. Rebuild the ROM "
                                "from your .apdwr file, or update dwr.apworld.", sig[5:8].decode(errors="replace"),
@@ -288,8 +294,8 @@ class DWRClient(BizHawkClient):
             logger.info("The save's received count went from %d to %d (a New Game or another save), "
                         "so items from number %d on are given again.", self.last_received, received, received + 1)
         self.last_received = received
-        if mail_flag:
-            return  # the last item's message is still open: wait for it to close
+        if self._mail_busy(ram, mail_flag):
+            return
         if received > len(ctx.items_received) and ctx.items_received and not self.ahead_noted:
             self.ahead_noted = True
             logger.warning("This save has received %d items, but the server has sent %d. It belongs to "
@@ -332,12 +338,33 @@ class DWRClient(BizHawkClient):
             if domain == "RAM":
                 guards.append((addr, bytes(ram[addr:addr + len(data)]), "RAM"))
         ok = await bizhawk.guarded_write(ctx.bizhawk_ctx, writes, guards)
+        if ok and any(addr == MAIL_FLAG for addr, _data, _domain in writes):
+            self.mail_sent = True
         if ok:
             for note in self.notes:
                 logger.warning(note)
         if ok and given:
             logger.info("Received %s from %s.", name if self.shown == name else
                         f"{self.shown} (for {name})", sender)
+
+    def _mail_busy(self, ram: bytes, mail_flag: int) -> bool:
+        """True while the last mailbox message waits or is on screen: the next one must not be written yet.
+
+        The ROM clears the flag when it opens the window, then prints the text from $6850 letter by letter,
+        so text written while the window is open shows in it (the Torch's text in the Silver Harp's window).
+        The hero cannot move while the window is open, so a step off the tile it opened on means it closed."""
+        if mail_flag:
+            return True
+        here = (ram[MAP], ram[X_POS], ram[Y_POS])
+        if self.mail_sent:
+            self.mail_sent = False
+            self.mail_at = here
+            return True
+        if self.mail_at is not None:
+            if here == self.mail_at:
+                return True
+            self.mail_at = None
+        return False
 
     async def _give_batch(self, ctx, ram: bytes, block: bytes, received: int) -> None:
         """Gives every waiting item at once and shows one message, "5 items from Alex".
@@ -393,6 +420,8 @@ class DWRClient(BizHawkClient):
             if domain == "RAM":
                 guards.append((addr, bytes(ram[addr:addr + len(data)]), "RAM"))
         ok = await bizhawk.guarded_write(ctx.bizhawk_ctx, writes, guards)
+        if ok and any(addr == MAIL_FLAG for addr, _data, _domain in writes):
+            self.mail_sent = True
         if ok:
             for note in self.notes:
                 logger.warning(note)

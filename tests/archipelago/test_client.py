@@ -137,6 +137,29 @@ class GiveItem(unittest.TestCase):
         self.assertIn((C.AP_RECV, b"\x00\x00", "System Bus"), guards)
         self.assertIn(C.MAIL_FLAG, addrs(writes))
 
+    def test_next_message_waits_until_the_hero_leaves_the_open_window(self):
+        # The ROM clears the flag when it opens the window, then prints $6850 letter by letter.
+        # Writing the next item's text then would print it in this window: Torch instead of Silver Harp.
+        client = C.DWRClient()
+        self.ram[C.X_POS], self.ram[C.Y_POS] = 5, 7
+        writes, _ = give(["Silver Harp", "Torch"], self.ram, client=client)[0]
+        self.assertIn(C.MAIL_FLAG, addrs(writes))
+        self.assertEqual(give(["Silver Harp", "Torch"], self.ram, received=1, mail_flag=1, client=client), [])
+        # The window just opened (flag 0), the hero stands on the tile it opened on: wait
+        self.assertEqual(give(["Silver Harp", "Torch"], self.ram, received=1, client=client), [])
+        self.assertEqual(give(["Silver Harp", "Torch"], self.ram, received=1, client=client), [])
+        # The hero took a step, so the window is closed: the Torch comes now
+        self.ram[C.X_POS] = 6
+        writes, _ = give(["Silver Harp", "Torch"], self.ram, received=1, client=client)[0]
+        self.assertIn((C.MAIL_TEXT, C.dw_text("Torch", "Friend", 2), "System Bus"), writes)
+
+    def test_an_item_without_a_message_does_not_wait_for_a_step(self):
+        client = C.DWRClient()
+        self.ram[C.HERBS] = 3
+        give(["Herb"], self.ram, client=client, sender=1, location=C.BASE, chests=1)  # own chest: no message
+        self.ram[C.HERBS] = 4
+        self.assertEqual(len(give(["Herb", "Herb"], self.ram, received=1, client=client)), 1)
+
     def test_gold_write_guards_both_gold_bytes(self):
         self.ram[C.GOLD] = 0x2C
         self.ram[C.GOLD + 1] = 0x01
@@ -262,6 +285,7 @@ class GiveItem(unittest.TestCase):
         self.ram[C.KEYS] = 8
         writes, _ = give(["Herb"], self.ram, client=client)[0]
         self.assertNotIn(C.HERBS, addrs(writes))
+        client.mail_sent = False  # as if the gold message was shown and closed
         writes, _ = give(["Magic Key"], self.ram, client=client)[0]
         self.assertIn((C.KEYS, bytes([9]), "RAM"), writes)
 
