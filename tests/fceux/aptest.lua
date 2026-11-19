@@ -180,8 +180,17 @@ local function driver()
       if last_count >= 0 and count - last_count >= 4 then batch_at = frame end
       last_count = count; last_change = os.time()
       log(string.format("received %d, mail flag %d", count, rd(0x682e)))
+      -- The mailbox text the client wrote ($6850, DW tiles ended by $FA), as letters.
+      local FONT = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ[]'*>_:=_.,-_?!;)(``/'___________ "
+      local text = ""
+      for i = 0, 20 do
+        local c = rd(0x6850 + i)
+        if c == 0xfa then break end
+        text = text .. (c < string.len(FONT) and string.sub(FONT, c + 1, c + 1) or "?")
+      end
+      log("mailbox text: " .. text)
     end
-    if batch_at and (frame - batch_at == 120 or frame - batch_at == 240 or frame - batch_at == 400) then
+    if batch_at and (frame - batch_at == 30 or frame - batch_at == 60 or frame - batch_at == 120 or frame - batch_at == 240 or frame - batch_at == 400) then
       shot("batch_" .. (frame - batch_at)); log(string.format("batch shot, mail flag %d", rd(0x682e)))
     end
     -- Walk out and back in each direction in turn, so some step lands even next to water.
