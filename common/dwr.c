@@ -5902,6 +5902,11 @@ static BOOL drop_personal(char *flags)
     return TRUE;
 }
 
+/* One build attempt. A pointer only so tests/c/fallback_order_check.c can stand in for it and force each way of
+ * running out of room. */
+static uint64_t (*build_once)(const char *, uint64_t, char *, const char *, const char *, BOOL, BOOL) =
+        dwr_randomize_once;
+
 /**
  * Randomizes a Dragon Warrior rom file. If the code does not fit, the build is tried again with
  * the code packed more tightly, first for what comes after the checksum, then for everything.
@@ -5921,7 +5926,7 @@ static uint64_t dwr_randomize_tries(const char* input_file, uint64_t seed, char 
     out_flags[sizeof(out_flags) - 1] = '\0';
     for (;;) {
         ran_out_of_room = FALSE;
-        crc = dwr_randomize_once(input_file, seed, flags, sprite_name, output_dir, fit_game, fit_extras);
+        crc = build_once(input_file, seed, flags, sprite_name, output_dir, fit_game, fit_extras);
         fit_best = FALSE;
         if (crc || !ran_out_of_room)
             return crc;

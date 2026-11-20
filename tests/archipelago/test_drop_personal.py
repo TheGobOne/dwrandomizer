@@ -1,6 +1,7 @@
 """drop_personal (common/dwr.c) leaves out the personal options that change no flashing or shaking, and nothing else.
+The retry order in dwr_randomize_tries is checked too, with a stand-in for the build that runs out of room.
 
-Builds tests/c/drop_personal_check.c with gcc; skipped when gcc is missing (set DWR_REQUIRE_CLI=1 to fail instead).
+Builds tests/c/drop_personal_check.c and tests/c/fallback_order_check.c with gcc; skipped when gcc is missing (set DWR_REQUIRE_CLI=1 to fail instead).
 """
 import glob
 import importlib.util
@@ -33,11 +34,13 @@ class DropPersonal(unittest.TestCase):
         cls.dir = tempfile.mkdtemp()
         cls.exe = os.path.join(cls.dir, "drop_personal_check.exe")
         sources = [f for f in glob.glob(os.path.join(ROOT, "common", "*.c")) if os.path.basename(f) != "dwr.c"]
-        run = subprocess.run([GCC, "-std=gnu99", "-O0", "-I", os.path.join(ROOT, "common"), "-o", cls.exe,
-                              os.path.join(ROOT, "tests", "c", "drop_personal_check.c")] + sources,
-                             capture_output=True, text=True)
-        if run.returncode:
-            raise RuntimeError(run.stderr[-2000:])
+        cls.order_exe = os.path.join(cls.dir, "fallback_order_check.exe")
+        for exe, src in ((cls.exe, "drop_personal_check.c"), (cls.order_exe, "fallback_order_check.c")):
+            run = subprocess.run([GCC, "-std=gnu99", "-O0", "-I", os.path.join(ROOT, "common"), "-o", exe,
+                                  os.path.join(ROOT, "tests", "c", src)] + sources,
+                                 capture_output=True, text=True)
+            if run.returncode:
+                raise RuntimeError(run.stderr[-2000:])
 
     @classmethod
     def tearDownClass(cls):
@@ -65,6 +68,45 @@ class DropPersonal(unittest.TestCase):
         # After one drop only the flashing and shake options are left, so a second drop changes nothing.
         _, once = self.drop(GOB)
         self.assertEqual(self.drop(once), (False, once))
+
+    def tries(self, code, stage, succeed_at=0):
+        """Runs the retry loop. Returns ([(fit_game, fit_extras, flags) per attempt], (crc, repacked, flags))."""
+        out = subprocess.run([self.order_exe, code, str(stage), str(succeed_at)], capture_output=True, text=True,
+                             timeout=30)
+        self.assertEqual(out.returncode, 0)
+        calls, result = [], None
+        for line in out.stdout.splitlines():
+            parts = line.split()
+            if parts and parts[0] == "call":
+                calls.append((int(parts[1]), int(parts[2]), parts[3]))
+            elif parts and parts[0] == "result":
+                result = (int(parts[1]), int(parts[2]), parts[3])
+        return calls, result
+
+    def test_after_the_checksum_personal_options_go_before_the_game_code_is_repacked(self):
+        _, dropped = self.drop(GOB)
+        calls, result = self.tries(GOB, 2)
+        self.assertEqual(calls, [(0, 0, GOB), (0, 1, GOB),             # packed tighter after the checksum
+                                 (0, 0, dropped), (0, 1, dropped),     # personal options left out, tried again
+                                 (1, 0, dropped), (1, 1, dropped)])    # only then the game code is repacked
+        self.assertEqual(result, (0, 1, dropped))
+
+    def test_a_build_that_fits_once_the_options_are_gone_is_not_repacked(self):
+        _, dropped = self.drop(GOB)
+        calls, result = self.tries(GOB, 2, succeed_at=3)
+        self.assertEqual(calls[-1], (0, 0, dropped))
+        self.assertEqual(result, (1, 0, dropped))                      # same checksum as without the options
+
+    def test_with_no_personal_options_the_game_code_is_repacked_at_once(self):
+        calls, result = self.tries(BOX, 2)
+        self.assertEqual(calls, [(0, 0, BOX), (0, 1, BOX), (1, 0, BOX), (1, 1, BOX)])
+        self.assertEqual(result, (0, 1, BOX))
+
+    def test_before_the_checksum_best_fit_comes_first_and_then_the_options_go(self):
+        _, dropped = self.drop(GOB)
+        calls, result = self.tries(GOB, 1)
+        self.assertEqual(calls, [(0, 0, GOB), (1, 0, GOB), (1, 0, dropped)])
+        self.assertEqual(result, (0, 0, dropped))                      # not repacked: that is only for stage 2
 
 
 if __name__ == "__main__":
