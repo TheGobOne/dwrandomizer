@@ -931,6 +931,8 @@ function matches(it,q){ q=q.toLowerCase(); return !q||it[1].toLowerCase().includ
 
 /* Shared chrome pieces */
 const AP_REJECT=['chestloc','stairs','cursed','three','radish','disguised'];
+/* Archipelago is left out of this release: no Archipelago tab, and no refused-flag notes. Set to true to bring it back. */
+const AP_SHOWN=false;
 function itemLabel(id){ for(const t of TABS) for(const it of t.items) if(it[0]===id) return it[1]; return id; }
 /* "A, B and C". */
 function joinNames(a){ return a.length>1?a.slice(0,-1).join(', ')+' and '+a[a.length-1]:a.join(''); }
@@ -1016,7 +1018,7 @@ function flagsBlock(){
     el('div',{class:'apbtns'},fullBtn),
     el('p',{class:'secnote',text:'The flag code alone, with your personal options, for the dwr_flags line of a hand-written YAML.'}),
     el('p',{class:'secnote',text:'Put the file in the Players folder of your Archipelago install, then click Generate in the Archipelago Launcher.'}));
-  const apPaint=()=>{ const on=AP_REJECT.filter(id=>(State.v[id]|0)===1).map(itemLabel), rnd=AP_REJECT.filter(id=>(State.v[id]|0)===2).map(itemLabel);
+  const apPaint=()=>{ const on=AP_SHOWN?AP_REJECT.filter(id=>(State.v[id]|0)===1).map(itemLabel):[], rnd=AP_SHOWN?AP_REJECT.filter(id=>(State.v[id]|0)===2).map(itemLabel):[];
     // At most three names fit the two lines kept for this row, so the rows below do not jump.
     // The title and the screen reader label have them all.
     const few=a=>a.length>3?a.slice(0,2).join(', ')+' and '+(a.length-2)+' more':joinNames(a);
@@ -1424,7 +1426,7 @@ const panel=el('div',{class:'win panel'});
 const tabs=TABS.map(t=>({id:t.id,label:t.label,head:t.head,contents:()=>[document.createTextNode(t.label),liveBadge(t)]}));
 /* Archipelago has no flags of its own: its tab checks the flags and makes the player file. */
 const apCount=()=>{ const n=AP_REJECT.filter(id=>(State.v[id]|0)===1).length; const s=el('span',{class:'count'}); const p=()=>{ const k=AP_REJECT.filter(id=>(State.v[id]|0)===1).length; s.replaceChildren(String(k),el('span',{class:'sr',text:' refused'})); }; State.on(p); p(); return s; };
-tabs.push({id:'ap',label:'Archipelago',contents:()=>[document.createTextNode('Archipelago'),apCount()]});
+if(AP_SHOWN) tabs.push({id:'ap',label:'Archipelago',contents:()=>[document.createTextNode('Archipelago'),apCount()]});
 const tabsApi=makeTabs(tabList,panel,tabs,(t,p)=>{
   if(t.id==='ap'){ p.append(el('h2',{text:'Archipelago'}),
     el('p',{class:'blurb',text:'Makes the player file for an Archipelago game from your flags and personal options.'}),
