@@ -4,6 +4,8 @@
 - ROM is 256 KB (16 banks, MMC1 as before). The fixed bank is last, bank 7 holds far-call routines, bank 6 holds music packs, and banks 8 to 14 are empty for later features.
 - Routines that don't fit the fixed bank run from bank 7 behind a far call. In 300 random flag codes, "Not enough space" failures dropped from 5 to 1.
 - The step counter and vertical bridge code use spare bank 0 space, and three patches are 1 to 2 bytes smaller.
+- The stat build code runs over unused vanilla penalty code, and the header area ($FFE0-$FFF9) is cleared in every build.
+- A build that runs out of room drops the music pack first, then harmless personal options, before the game code is repacked.
 - Every empty expansion bank has the original game's reset stub and vectors, so a cart that powers on in 32 KB mode resets the way the original game does.
 
 ## Gameplay
@@ -19,7 +21,6 @@
 ## Fixes
 
 - Fighter's Ring adds exactly 2. Before, it could add 3.
-- The Disguised Dragonlord hint is stored in free space, so it no longer overwrites the message after it.
 - Build Options text: Original builds are -10%/+3 on their stats, not -3/+10%.
 - The Westeros mountain pass stays inside the map edges.
 

@@ -3538,14 +3538,7 @@ static void npc_shenanigans(dw_rom *rom)
         strcat(hint, " disguised as ");
         strcat(hint, disguise);
         strcat(hint, ".'\xfc");
-        /* The vanilla text at $8CC0 is 16 bytes and the next message starts at $8CD0, so the hint
-         * (up to about 80 bytes) cannot be written there. It goes in free space in the same range, and
-         * the one pointer to $8CC0 (content offset $5C35, text table entry 8) is moved to it. */
-        {
-            uint16_t hint_at = find_free_space_in(rom->content, 0x8000, 0xc000, (uint8_t)strlen(hint));
-            set_text(rom, hint_at, hint);
-            vpatch(rom, 0x5c35, 2, LO(hint_at), HI(hint_at));
-        }
+        set_text(rom, 0x8cc0, hint);
 
         // If Gwaelin was the Dragonlord...
         if(chosen_NPC == 24)
