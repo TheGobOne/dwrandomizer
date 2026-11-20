@@ -23,6 +23,8 @@
 - Fighter's Ring adds exactly 2. Before, it could add 3.
 - Disguised Dragonlord: the hint now names the Tantegel throne room, the Tantegel basement and the two shrines instead of "a cave", and reads "The Dragonlord is in *place*, disguised as *look*."
 - Disguised Dragonlord: when Princess Gwaelin is the Dragonlord, the King's new line no longer removes the button wait after it.
+- Disguised Dragonlord: when the Dragonlord stays in Charlock, the Tantegel merchant keeps his own line.
+- Disguised Dragonlord: with Three's Company on, Princess Gwaelin is never the Dragonlord, since you could not bring her to him.
 - Build Options text: Original builds are -10%/+3 on their stats, not -3/+10%.
 - The Westeros mountain pass stays inside the map edges.
 

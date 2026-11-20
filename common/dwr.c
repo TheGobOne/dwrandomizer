@@ -3234,6 +3234,20 @@ static void formidable_flute(dw_rom *rom)
 }
 
 /**
+ * Sets where the hero goes after the Dragonlord's second form dies: $EA04 is the warp index * 3
+ * in the vanilla code (ldx #$12 : lda #$02 : jmp $d9e2 at $EA03). With Auto Return on, auto_return
+ * replaces $EA03-$EA09 with a JMP, so $EA04 is the JMP's low byte and must not be written here.
+ *
+ * @param rom The rom struct
+ * @param warp The warp index * 3
+ */
+static void set_dl_warp(dw_rom *rom, uint8_t warp)
+{
+    if (!AUTO_RETURN(rom))
+        vpatch(rom, 0xea04, 1, warp);
+}
+
+/**
  * Makes a random NPC the Dragonlord, inn in Charlock, vendor shuffle
  *
  * @param rom The rom struct
@@ -3242,6 +3256,7 @@ static void npc_shenanigans(dw_rom *rom)
 {
     const uint16_t NPCPointerTableStart = 0x1734;
     uint8_t chosen_NPC, u = 0;
+    int hint_merchant = -1;   /* the Tantegel merchant whose dialogue ($20) the hint takes */
     uint8_t swappable_check;
     int i = 0, j = 0, k = 0;
 
@@ -3263,7 +3278,7 @@ static void npc_shenanigans(dw_rom *rom)
     */
     uint8_t NPCData[136][6];
 
-    char disguise[18], location[32] = "this ROM", hint[128];
+    char disguise[24], location[32] = "this ROM", hint[128];
     uint8_t vendorID[17], vendorBytes[17][2]; // id from above list. Seventeen vendors in total (including radish guy, excluding rim key vendor). 2 bytes are control byte and swap info
 
     // i is the "area" (doubles, as there is one for static, one for mobile NPCs)
@@ -3317,8 +3332,10 @@ static void npc_shenanigans(dw_rom *rom)
             }
             else if(NPCData[k][2] == 0x67 || NPCData[k][2] == 0x6b || NPCData[k][2] == 0x6e)
                 NPCData[k][3] = 0x00; // King, coords guy, uncurse guy
-            else if(NPCData[k][2] == 0x20 && DISGUISED_DRAGONLORD(rom))
-                NPCData[k][2] = 0x1f; // Hijacked his dialogue for hint, control byte used to be 0x20 but is now 0x1f like the other nearby shopkeeper
+            else if(NPCData[k][2] == 0x20 && DISGUISED_DRAGONLORD(rom) && hint_merchant < 0) {
+                hint_merchant = k;
+                NPCData[k][2] = 0x1f;
+            } // Hijacked his dialogue for hint, control byte used to be 0x20 but is now 0x1f like the other nearby shopkeeper
             else if(NPCData[k][2] == 0x65) {
                 NPCData[k][2] = 0x24; // Control byte is usually 0x65 but that is now used for cursed princess.
                 NPCData[k][3] = 0xc1; // May eventually become Charlock innkeeper
@@ -3374,10 +3391,16 @@ static void npc_shenanigans(dw_rom *rom)
         else
             swappable_check = 0x80;
 
+        /* Gwaelin (index 24) only stands in the throne room after her rescue. The rescue is always possible:
+           places_reachable needs every cave entrance, random_princess_location checks stair shuffle, and keys
+           come from the Rimuldar vendor (never the Dragonlord) or No Keys opens the doors. Three's Company needs
+           her carried to the Dragonlord, which cannot happen if she is the Dragonlord, so she stays out of the
+           pool with that goal. Cursed Princess wins when she is returned, so it is fine. */
         do
         {
             chosen_NPC = mt_rand(0, sizeof(NPCData) / (6*sizeof(uint8_t)) - 1);
-        } while(!(NPCData[chosen_NPC][3] & swappable_check) || NPCData[chosen_NPC][4] == 0xff);
+        } while(!(NPCData[chosen_NPC][3] & swappable_check) || NPCData[chosen_NPC][4] == 0xff
+                || (chosen_NPC == 24 && THREES_COMPANY(rom)));
 
         switch((0xe0 & NPCData[chosen_NPC][0]) >> 5)
         {
@@ -3421,6 +3444,8 @@ static void npc_shenanigans(dw_rom *rom)
             // Hint is constructed below, after rebuilding the pointer tables
             NPCData[25][2] = 0x20;
         }
+        else if(hint_merchant >= 0)
+            NPCData[hint_merchant][2] = 0x20; // No hint, so the merchant keeps his own line
 
         // TODO: update Dragonlord dialog with Mand and Archfield's
         // #include "DL_text.h"
@@ -3468,43 +3493,43 @@ static void npc_shenanigans(dw_rom *rom)
                     if(i < 2 || i == 11) {
                         // 0 is main floor, 1 is throne room, 11 is post-win tantegel (which shouldn't happen)
                         strcpy(location, i == 1 ? "the Tantegel throne room" : "Tantegel");
-                        vpatch(rom, 0xea04, 1, 0x0c);
+                        set_dl_warp(rom, 0x0c);
                     }
                     else if(i == 2)
                         strcpy(location, "Charlock"); // leave the warp alone then
                     else if(i == 3) {
                         strcpy(location, "Kol");
-                        vpatch(rom, 0xea04, 1, 0x06);
+                        set_dl_warp(rom, 0x06);
                     }
                     else if(i == 4) {
                         strcpy(location, "Brecconary");
-                        vpatch(rom, 0xea04, 1, 0x09);
+                        set_dl_warp(rom, 0x09);
                     }
                     else if(i == 5) {
                         strcpy(location, "Garinham");
-                        vpatch(rom, 0xea04, 1, 0x00);
+                        set_dl_warp(rom, 0x00);
                     }
                     else if(i == 6) {
                         strcpy(location, "Cantlin");
-                        vpatch(rom, 0xea04, 1, 0x21);
+                        set_dl_warp(rom, 0x21);
                     }
                     else if(i == 7) {
                         strcpy(location, "Rimuldar");
-                        vpatch(rom, 0xea04, 1, 0x1b);
+                        set_dl_warp(rom, 0x1b);
                     }
                     /* The warp bytes are 3 * the warp index: 17 is WARP_TANTEGEL_BASEMENT,
                        1 is WARP_STAFF_SHRINE and 12 is WARP_JERK_CAVE (the Rainbow Drop shrine). */
                     else if(i == 8) {
                         strcpy(location, "the Tantegel basement");
-                        vpatch(rom, 0xea04, 1, 0x33);
+                        set_dl_warp(rom, 0x33);
                     }
                     else if(i == 9) {
                         strcpy(location, "the Staff of Rain shrine");
-                        vpatch(rom, 0xea04, 1, 0x03);
+                        set_dl_warp(rom, 0x03);
                     }
                     else if(i == 10) {
                         strcpy(location, "the Rainbow Drop shrine");
-                        vpatch(rom, 0xea04, 1, 0x24);
+                        set_dl_warp(rom, 0x24);
                     }
                     /* Other places:
                         0f = Swamp cave north

@@ -1,12 +1,16 @@
 """Disguised Dragonlord: builds ROMs with the CLI and reads the hint back from the ROM.
 
 Flags: Gob Standard plus Disguised Dragonlord, Run Bank, Hurtmore Doors and Warp Whistle (Free Charlock off),
-then the same with Open Charlock and Inn in Charlock. Each set runs [seeds] seeds.
+then the same with Open Charlock and Inn in Charlock, then with Three's Company.
+Each set runs [seeds] seeds.
 For each seed it checks that:
 - the hint at $8CC0 has the expected form and ends with $FC within the 82-byte slot,
 - the two bytes at $5C35 (Wolf, Wolflord and Werewolf sprite data) are untouched,
 - the button wait ($FB) at $B8E6 after the King's line is still there,
-- if Gwaelin is the Dragonlord, the King's line is the 30-byte replacement.
+- if Gwaelin is the Dragonlord, the King's line is the 30-byte replacement,
+- the Tantegel merchant keeps his line ($20) only when the Dragonlord stays in Charlock,
+- with Auto Return, $EA03 is still JMP $DB00,
+- with Three's Company, Gwaelin is never the Dragonlord.
 
 Run from the repo root after cmake --build build:
     python tests/test_disguised_dragonlord.py [vanilla rom] [seeds]
@@ -58,17 +62,30 @@ def set_bits(raw, byte, mask, shift, value):
     raw[byte] = (raw[byte] & ~mask & 0xFF) | ((value << shift) & mask)
 
 
-def flags(charlock_extras):
+def flags(group):
     raw = decode(GOB_STANDARD)
-    if charlock_extras:
+    if group == 1:
         set_bits(raw, 7, 0x0C, 2, 1)    # OPEN_CHARLOCK on: the shrine old men can be the Dragonlord
         set_bits(raw, 15, 0xC0, 6, 1)   # INN_IN_CHARLOCK on: the Charlock innkeeper can be the Dragonlord
+    if group == 2:
+        set_bits(raw, 8, 0x03, 0, 1)    # THREES_COMPANY on
     set_bits(raw, 11, 0x02, 1, 0)   # FREE_CHARLOCK off (it turns Disguised Dragonlord off)
     set_bits(raw, 16, 0x0C, 2, 1)   # DISGUISED_DRAGONLORD on
     set_bits(raw, 11, 0x0C, 2, 1)   # RUN_BANK on
     set_bits(raw, 23, 0x30, 4, 1)   # HURTMORE_DOORS on
     set_bits(raw, 19, 0x30, 4, 1)   # WARP_WHISTLE on
     return encode(raw)
+
+
+def tantegel_controls(rom):
+    """Dialogue bytes of Tantegel's (area 0) mobile and static NPCs."""
+    out = []
+    for entry in (0, 12):
+        p = rom[0x1734 + 2 * entry] | rom[0x1734 + 2 * entry + 1] << 8
+        at = p - 0x8000
+        while rom[at] != 0xFF:
+            out.append(rom[at + 2]); at += 3
+    return out
 
 
 def text(rom, start, end):
@@ -85,8 +102,9 @@ def main():
         vanilla = f.read()[16:]
     failures, seen = [], {}
     work = tempfile.mkdtemp(prefix="dwr_dd_")
-    for seed in range(1, 2 * SEEDS + 1):
-        code = flags(seed > SEEDS)
+    for seed in range(1, 3 * SEEDS + 1):
+        group = (seed - 1) // SEEDS
+        code = flags(group)
         out_dir = os.path.join(work, str(seed))
         os.makedirs(out_dir)
         run = subprocess.run([EXE, ROM, code, str(seed), "Loto", out_dir], capture_output=True, text=True)
@@ -105,9 +123,16 @@ def main():
         if rom[0xB8E6] != 0xFB:
             failures.append("seed %d: button wait at $B8E6 is %02x" % (seed, rom[0xB8E6]))
 
+        if rom[0xEA03] == 0x4C and rom[0xEA04:0xEA06] != bytes([0x00, 0xDB]):
+            failures.append("seed %d: Auto Return JMP at $EA03 is %s" % (seed, rom[0xEA03:0xEA06].hex()))
+        merchant = 0x20 in tantegel_controls(rom)
         if rom[HINT_AT:HINT_END] == vanilla[HINT_AT:HINT_END]:
             seen["(vanilla Dragonlord)"] = seen.get("(vanilla Dragonlord)", 0) + 1
+            if not merchant:
+                failures.append("seed %d: vanilla Dragonlord, but the Tantegel merchant lost his line ($20)" % seed)
             continue
+        if merchant:
+            failures.append("seed %d: the hint is used, but a Tantegel NPC still has dialogue $20" % seed)
         hint, ended = text(rom, HINT_AT, HINT_END)
         m = HINT_RE.match(hint)
         if not ended or not m or m.group(1) not in PLACES or m.group(2) not in LOOKS:
@@ -115,6 +140,8 @@ def main():
             continue
         seen[m.group(1)] = seen.get(m.group(1), 0) + 1
         if m.group(2) == "Princess Gwaelin":
+            if group == 2:
+                failures.append("seed %d: Gwaelin is the Dragonlord with Three's Company" % seed)
             king, _ = text(rom, 0xB8C8, 0xB8E6 + 1)
             if not king.startswith(KING_LINE):
                 failures.append("seed %d: King's line is %r" % (seed, king))
@@ -125,7 +152,7 @@ def main():
         failures.append("no seed had a moved Dragonlord; is the flag being turned off?")
     for f in failures:
         print("FAIL " + f)
-    print("%d seeds, %d failures" % (2 * SEEDS, len(failures)))
+    print("%d seeds, %d failures" % (3 * SEEDS, len(failures)))
     return 1 if failures else 0
 
 

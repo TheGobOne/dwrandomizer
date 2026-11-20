@@ -144,17 +144,17 @@ Additionally, if the `Open Charlock` flag is off, it cannot be:
 - the Staff of Rain old man;
 - the Rainbow Drop old man.
 
-Also, if the `Don't Require Magic Keys` flag is on, it obviously cannot be a key vendor, and if the `Radish Finish` flag is on, it cannot be the radish vendor.
+Also, if the `Don't Require Magic Keys` flag is on, it obviously cannot be a key vendor, if the `Radish Finish` flag is on, it cannot be the radish vendor, and if the `Three's Company` flag is on, it cannot be Princess Gwaelin (you could not bring her to the Dragonlord).
 
 This makes an approximate probability of 1/120 that a specific NPC is the Dragonlord.
 
 The hint reads "The Dragonlord is in *place*, disguised as *sprite*." The place is a town, Tantegel, the Tantegel throne room, the Tantegel basement, the Staff of Rain shrine or the Rainbow Drop shrine. The sprite is the NPC's look (a male villager, a female villager, a soldier, a guard, a shopkeeper, an old man or Princess Gwaelin), so the hint names the area and the look, not the exact NPC.
 
-The hint uses the text of one of the two merchants in the bottom left corner of Tantegel, so that merchant now says the same thing as the other one. If both say the same thing, the flag is on.
+The hint uses the text of one of the two merchants in the bottom left corner of Tantegel, so that merchant now says the same thing as the other one. If both say the same thing, the Dragonlord has moved.
 
-If the Dragonlord stays in his vanilla spot (a small chance), there is no hint: he is at the bottom of Charlock as usual.
+If the Dragonlord stays in his vanilla spot (a small chance), there is no hint: he is at the bottom of Charlock as usual, and both merchants keep their own lines.
 
-If Princess Gwaelin is the Dragonlord, she does not come down the stairs at the end, and the King says something different.
+If Princess Gwaelin is the Dragonlord, rescue her and return her to the King first: she only stands in the throne room after that. She does not come down the stairs at the end, and the King says something different.
 
 
 #### Randomized Flute Music ####
