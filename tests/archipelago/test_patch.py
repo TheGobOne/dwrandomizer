@@ -90,5 +90,59 @@ class RomVersion(unittest.TestCase):
             self.check(b"NOTDWR00")
 
 
+EXE = os.path.join(test_client.ROOT if hasattr(test_client, "ROOT") else
+                   os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+                   "build", "dwrandomizer.exe")
+VANILLA = os.environ.get("DWR_VANILLA_ROM", "C:/ROMs/Dragon_warrior.nes")
+
+
+def dw_text(s):
+    """The game's letter codes for digits, letters and spaces."""
+    out = bytearray()
+    for c in s:
+        if c.isdigit():
+            out.append(ord(c) - 48)
+        elif c.islower():
+            out.append(0x0a + ord(c) - 97)
+        elif c.isupper():
+            out.append(0x24 + ord(c) - 65)
+        else:
+            out.append(0x5f)
+    return bytes(out)
+
+
+@unittest.skipUnless(os.path.isfile(EXE) and os.path.isfile(VANILLA), "needs build/dwrandomizer.exe and the vanilla ROM")
+class FoundText(unittest.TestCase):
+    """The CLI puts "Thou hast found the" in front of item names from older patches, and never in front of a sentence."""
+    HEADER = "slot Gob-DWR\nflags IVIAAV2EKADECMAAAACYKEBWAAAJACAEAAIBQAAM75QA\nseed 8405305744900762302\nfree_charlock 0\n"
+
+    def build(self, lines):
+        import glob
+        import subprocess
+        with tempfile.TemporaryDirectory() as work:
+            path = os.path.join(work, "dwr.txt")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(self.HEADER + lines)
+            r = subprocess.run([EXE, "--ap-patch", path, VANILLA, work], capture_output=True, text=True)
+            built = glob.glob(os.path.join(work, "DWR.*.nes"))
+            self.assertTrue(built, r.stdout + r.stderr)
+            with open(built[0], "rb") as f:
+                return f.read()
+
+    def test_sentences_without_the_text_2_line_are_not_doubled(self):
+        rom = self.build("loc d0002 Thou hast found the Herb.\nloc d0003 Flute for Alex.\n")
+        self.assertEqual(rom.count(dw_text("found the Thou")), 0)
+        self.assertEqual(rom.count(dw_text("Thou hast found the Herb")), 1)
+
+    def test_sentences_with_the_text_2_line(self):
+        rom = self.build("text 2\nloc d0002 Thou hast found the Herb.\n")
+        self.assertEqual(rom.count(dw_text("found the Thou")), 0)
+        self.assertEqual(rom.count(dw_text("Thou hast found the Herb")), 1)
+
+    def test_item_names_from_an_older_patch_get_the_sentence(self):
+        rom = self.build("loc d0002 Herb\n")
+        self.assertEqual(rom.count(dw_text("Thou hast found the Herb")), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

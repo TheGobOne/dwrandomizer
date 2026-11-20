@@ -181,6 +181,10 @@ BOOL dwr_load_ap_patch(const char *path)
             memcpy(ap_text[n], line + pos, len);
             ap_text[n][len] = '\0';
             ap_have_text = TRUE;
+            /* Version 005 patches made before the "text 2" line existed still hold sentences, and every
+             * sentence ends in ".". The item names in older patches never do. */
+            if (len && ap_text[n][len - 1] == '.')
+                whole_sentences = 1;
         }
     }
     fclose(f);
