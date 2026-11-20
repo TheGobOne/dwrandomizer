@@ -386,7 +386,7 @@ int main(int argc, char **argv)
         encoded[length] = '\0';
         flags = encoded;
         if (odd_flags)
-            printf("Fixed flag code: %s\n", flags);
+            printf("Fixed flag code (the code you gave was repaired): %s\n", flags);
     }
 
     printf("Randomizing using seed: %"PRIu64" with flags %s\n", seed, flags);

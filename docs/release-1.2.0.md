@@ -7,7 +7,7 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 ## New flags
 
 - Fast Hills: a step onto a hill takes as long as a step onto grass (16 frames instead of 19). This used to be part of Responsive Controls. Command line: `--fast-hills on`.
-- Disable Cursor Blink: the menu cursor arrow stays on instead of blinking. It is a comfort option, so presets and pasted codes keep it. Command line: `--cursor-blink off`.
+- Disable Cursor Blink: the menu cursor arrow stays on instead of blinking. It is a personal option, so presets and pasted codes keep it. Command line: `--cursor-blink off`.
 - Swap Quick Spell: with Quick Spell on, SPELL takes the top right slot of the battle window and the quick spell goes under it. Command line: `--quick-spell-swap on`.
 
 ## Random maps

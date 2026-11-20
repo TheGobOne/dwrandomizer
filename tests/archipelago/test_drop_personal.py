@@ -46,8 +46,9 @@ class DropPersonal(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.dir, ignore_errors=True)
 
-    def drop(self, code):
-        out = subprocess.run([self.exe, code], capture_output=True, text=True, timeout=30)
+    def drop(self, code, flashing=False):
+        args = [self.exe, code] + (["1"] if flashing else [])
+        out = subprocess.run(args, capture_output=True, text=True, timeout=30)
         self.assertEqual(out.returncode, 0)
         # drop_personal prints its own message first; the harness's line is the last one.
         changed, new = out.stdout.strip().splitlines()[-1].split()
@@ -62,6 +63,14 @@ class DropPersonal(unittest.TestCase):
             self.assertEqual(b, a & ~dropped & 0xFF, f"byte {i}: {a:02x} became {b:02x}")
         for index, bits in KEPT:
             self.assertEqual(after[index] & bits, before[index] & bits)
+
+    def test_flashing_and_shake_go_only_when_asked(self):
+        changed, new = self.drop(GOB, flashing=True)
+        self.assertTrue(changed)
+        before, after = F.decode(GOB), F.decode(new)
+        self.assertEqual(after[14] & 0x22, 0)
+        self.assertEqual(after[17] & 0x80, 0)
+        self.assertEqual(self.drop(new, flashing=True), (False, new))
 
     def test_a_code_with_nothing_to_drop_is_unchanged(self):
         self.assertEqual(self.drop(BOX), (False, BOX))
@@ -85,11 +94,13 @@ class DropPersonal(unittest.TestCase):
 
     def test_after_the_checksum_personal_options_go_before_the_game_code_is_repacked(self):
         _, dropped = self.drop(GOB)
+        _, everything = self.drop(dropped, flashing=True)
         calls, result = self.tries(GOB, 2)
         self.assertEqual(calls, [(0, 0, GOB), (0, 1, GOB),             # packed tighter after the checksum
-                                 (0, 0, dropped), (0, 1, dropped),     # personal options left out, tried again
-                                 (1, 0, dropped), (1, 1, dropped)])    # only then the game code is repacked
-        self.assertEqual(result, (0, 1, dropped))
+                                 (0, 0, dropped), (0, 1, dropped),     # harmless options left out, tried again
+                                 (0, 0, everything), (0, 1, everything),  # then the flashing options too
+                                 (1, 0, everything), (1, 1, everything)])  # only then the game code is repacked
+        self.assertEqual(result, (0, 1, everything))
 
     def test_a_build_that_fits_once_the_options_are_gone_is_not_repacked(self):
         _, dropped = self.drop(GOB)
@@ -104,9 +115,10 @@ class DropPersonal(unittest.TestCase):
 
     def test_before_the_checksum_best_fit_comes_first_and_then_the_options_go(self):
         _, dropped = self.drop(GOB)
+        _, everything = self.drop(dropped, flashing=True)
         calls, result = self.tries(GOB, 1)
-        self.assertEqual(calls, [(0, 0, GOB), (1, 0, GOB), (1, 0, dropped)])
-        self.assertEqual(result, (0, 0, dropped))                      # not repacked: that is only for stage 2
+        self.assertEqual(calls, [(0, 0, GOB), (1, 0, GOB), (1, 0, dropped), (1, 0, everything)])
+        self.assertEqual(result, (0, 0, everything))                   # not repacked: that is only for stage 2
 
 
 if __name__ == "__main__":

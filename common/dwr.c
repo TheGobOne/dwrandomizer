@@ -5865,10 +5865,11 @@ BOOL dwr_last_repacked(void)
     return last_repacked;
 }
 
-/* Turns off the personal options in a flag string (the ones the race card leaves out), so a build that
- * is out of room can go without them. Returns FALSE when none was on. The same bits as print_race_card in
- * cli/main.c. */
-static BOOL drop_personal(char *flags)
+/* Turns off personal options in a flag string (the ones the race card leaves out), so a build that is out
+ * of room can go without them. The harmless ones go first. With flashing TRUE, Spell Flashing, Red Flashes and
+ * Screen Shake are turned off too, and only once the harmless ones are gone. Returns FALSE when none was on.
+ * The same bits as print_race_card in cli/main.c. */
+static BOOL drop_personal(char *flags, BOOL flashing)
 {
     uint8_t raw[28] = {0};
     char code[64] = {0};
@@ -5877,8 +5878,6 @@ static BOOL drop_personal(char *flags)
 
     strncpy(code, flags, 44);
     base32_decode((const unsigned char *)code, raw);
-    /* Only the options that change no flashing or shaking. Spell Flashing, Red Flashes and Screen Shake stay as
-     * the player set them, so a build that is out of room never loses them. */
     if (raw[14] & 0x40) strcat(names, ", Disable Music");
     if (raw[14] & 0x08) strcat(names, ", Custom Spell Names");
     if (raw[14] & 0x04) strcat(names, ", Skip Original Credits");
@@ -5886,13 +5885,22 @@ static BOOL drop_personal(char *flags)
     if (raw[22] & 0x01) strcat(names, ", Winter Theme");
     if (raw[26] & 0x40) strcat(names, ", Disable Cursor Blink");
     if (raw[3] & 0xc0) strcat(names, ", Menu Wrapping");
+    if (flashing) {
+        if (raw[14] & 0x20) strcat(names, ", Disable Spell Flashing");
+        if (raw[17] & 0x80) strcat(names, ", Disable Red Flashes");
+        if (raw[14] & 0x02) strcat(names, ", Disable Screen Shake");
+    }
     if (!names[0])
         return FALSE;
     raw[3] &= 0x3f;     /* Menu Wrapping */
-    raw[14] &= 0xb3;    /* keeps Spell Flashing (0x20), Screen Shake (0x02) and the rest */
+    raw[14] &= 0xb3;    /* Disable Music, Custom Spell Names, Skip Credits; keeps 0x20 and 0x02 unless flashing */
     raw[16] &= 0xef;    /* Don't Mute Jingles */
     raw[22] &= 0xfe;    /* Winter Theme */
     raw[26] &= 0xbf;    /* Disable Cursor Blink */
+    if (flashing) {
+        raw[14] &= 0xd1;    /* Spell Flashing (0x20), Screen Shake (0x02) */
+        raw[17] &= 0x7f;    /* Red Flashes */
+    }
     raw[27] = 0;        /* the spare bits of a 44 letter code, as cli/main.c clears them */
     length = FLAG_CODE_LENGTH(raw);
     base32_encode(raw, 27, (unsigned char *)code);
@@ -5936,7 +5944,7 @@ static uint64_t dwr_randomize_tries(const char* input_file, uint64_t seed, char 
              * from its own build without Winter, so this order cannot change a checksum. */
             if (fit_game) {
                 /* Out of room before the checksum even with best fit: personal options can still go. */
-                if (!drop_personal(flags))
+                if (!drop_personal(flags, FALSE) && !drop_personal(flags, TRUE))
                     return 0;
                 continue;
             }
@@ -5952,7 +5960,7 @@ static uint64_t dwr_randomize_tries(const char* input_file, uint64_t seed, char 
             fit_extras = FALSE;
             printf("Out of room with the music pack, keeping the original music.\n");
             continue;
-        } else if (drop_personal(flags)) {
+        } else if (drop_personal(flags, FALSE) || drop_personal(flags, TRUE)) {
             /* Personal options are not in the checksum, so leaving them out keeps the checksum of a build
              * without them. The flags string is shortened to match, so the file name and race card follow it. */
             fit_extras = FALSE;
