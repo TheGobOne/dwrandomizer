@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from Options import FreeText, PerGameCommonOptions
+from Options import FreeText, PerGameCommonOptions, Toggle
 
 
 class DWRFlags(FreeText):
@@ -14,6 +14,14 @@ class DWRFlags(FreeText):
     default = "IVIAAV2EKADEAMAAAADYKEBWAAAJACAAAAIBQAAM75QA"  # Gob Standard
 
 
+class ProgressionMark(Toggle):
+    """Ends the sentence about a progression item with "!" instead of ".", so the player can tell
+    it from filler in the game text (the found message and the mailbox). Off by default."""
+    display_name = "Progression Mark"
+    default = 0
+
+
 @dataclass
 class DWROptions(PerGameCommonOptions):
     dwr_flags: DWRFlags
+    progression_mark: ProgressionMark

@@ -149,14 +149,17 @@ BOOL dwr_load_ap_patch(const char *path)
     FILE *f = fopen(path, "r");
     char line[256];
     unsigned long id;
-    int n, pos, len;
+    int n, pos, len, whole_sentences = 0, i;
 
     if (!f)
         return FALSE;
     memset(ap_text, 0, sizeof(ap_text));
     while (fgets(line, sizeof(line), f)) {
         line[strcspn(line, "\r\n")] = '\0';
-        if (!strncmp(line, "slot ", 5)) {
+        if (!strcmp(line, "text 2")) {
+            /* The patch holds whole sentences (written by DWR AP version 005 and later). */
+            whole_sentences = 1;
+        } else if (!strncmp(line, "slot ", 5)) {
             dwr_set_ap(TRUE, line + 5);
         } else if (!strncmp(line, "flags ", 6)) {
             strncpy(ap_flags, line + 6, sizeof(ap_flags) - 1);
@@ -181,6 +184,16 @@ BOOL dwr_load_ap_patch(const char *path)
         }
     }
     fclose(f);
+    if (ap_have_text && !whole_sentences) {
+        /* An older patch holds only the item name ("Herb"): make it the sentence "Thou hast found the Herb." */
+        char sentence[AP_TEXT_LEN + 1];
+        for (i = 0; i < AP_TEXT_LOCS; i++) {
+            if (ap_text[i][0]) {
+                snprintf(sentence, sizeof(sentence), "Thou hast found the %s.", ap_text[i]);
+                memcpy(ap_text[i], sentence, sizeof(sentence));
+            }
+        }
+    }
     return ap_enabled;
 }
 
@@ -406,15 +419,18 @@ void dwr_ap_found_frame(dw_rom *rom)
     uint8_t *frame = &rom->content[FOUND_FRAME];
     const int old_len = 24, new_len = 3;  /* <FD>, 20 letters, <F7>, ".", <FC>  vs  <FD><F9><FC> */
     int end, ends;
+    /* <FD>Thou hast found the <F7>.<FC>, as in the vanilla ROM. */
+    static const uint8_t vanilla[24] = {
+        0xfd, 0x37, 0x11, 0x18, 0x1e, 0x5f, 0x11, 0x0a, 0x1c, 0x1d, 0x5f, 0x0f,
+        0x18, 0x1e, 0x17, 0x0d, 0x5f, 0x1d, 0x11, 0x0e, 0x5f, 0xf7, 0x47, 0xfc };
+    _Static_assert(sizeof vanilla == 24, "old_len bytes of message $D9");
 
     if (!ap_enabled)
         return;
-    if (frame[0] != 0xfd || frame[old_len - 3] != 0xf7 || frame[old_len - 1] != 0xfc) {
-        /* Someone changed the message: print the sentence after "Thou hast found the" as before. */
-        printf("AP: unexpected found message, keeping \"Thou hast found the\"\n");
-        if (frame[old_len - 3] == 0xf7)
-            frame[old_len - 3] = 0xf9;
-        return;
+    if (memcmp(frame, vanilla, old_len)) {
+        /* The vanilla message is not where the rewrite expects it: a broken ROM would print doubled
+         * text while its signature says version 005, so stop the build instead. */
+        dwr_give_up("AP: the found message is not the one this build expects.");
     }
     /* The end of message $DF: 6 more message ends after $D9's. */
     for (end = old_len, ends = 0; ends < 6; end++) {
@@ -669,6 +685,9 @@ static void ap_signature(dw_rom *rom)
  */
 #define AP_MAIL_TEXT 0x6850
 _Static_assert(((AP_MAIL_TEXT) >> 8) == ((AP_NAME_BUF) >> 8), "the mailbox shares the show routine's $A4");
+_Static_assert(AP_TEXT_LEN + 1 <= 40, "a sentence and its $FA fit the game's text buffer at $652C-$6553");
+_Static_assert(AP_MAIL_TEXT + AP_TEXT_LEN < AP_NAME_BUF, "the mailbox text ends below the found buffer");
+_Static_assert(AP_NAME_BUF + AP_TEXT_LEN < 0x6900, "the found buffer ends below the music driver at $6900");
 
 static void ap_mailbox(dw_rom *rom)
 {

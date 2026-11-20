@@ -38,6 +38,7 @@ def _stub_archipelago():
     options.OptionError = type("OptionError", (Exception,), {})
     options.FreeText = type("FreeText", (), {})
     options.PerGameCommonOptions = type("PerGameCommonOptions", (), {})
+    options.Toggle = type("Toggle", (), {})
     sys.modules["Options"] = options
     host = types.ModuleType("settings")
     host.Group = type("Group", (), {})
@@ -408,6 +409,165 @@ class GiveItem(unittest.TestCase):
             self.assertLessEqual(len(shown), 16, name)
 
 
+def mail_texts(writes):
+    return [w[1] for w in writes if w[0] == C.MAIL_TEXT]
+
+
+class GameNotes(unittest.TestCase):
+    """ROM version 005: the game says what happened to an item that was not given as named."""
+    def setUp(self):
+        self.ram = bytearray(0x100)
+        self.ram[C.MAP] = 1
+        self.client = C.DWRClient()
+        self.client.lines = True
+
+    def test_herb_at_the_cap_names_the_herb_then_explains(self):
+        self.ram[C.HERBS] = 6
+        with self.assertLogs("Client", level="WARNING"):
+            writes, _ = give(["Herb"], self.ram, client=self.client)[0]
+        self.assertEqual(mail_texts(writes), [C.tiles("Herb from Friend.")])
+        self.assertEqual(self.client.mail_queue, [C.tiles("No room for the Herb: 100 Gold.")])
+
+    def test_own_chest_herb_at_the_cap_explains_in_one_window(self):
+        self.ram[C.HERBS] = 6
+        with self.assertLogs("Client", level="WARNING"):
+            writes, _ = give(["Herb"], self.ram, client=self.client, sender=1, location=C.BASE + 4, chests=1 << 4)[0]
+        self.assertEqual(mail_texts(writes), [C.tiles("No room for the Herb: 100 Gold.")])
+        self.assertEqual(self.client.mail_queue, [])
+
+    def test_dropped_item_is_said_in_the_game(self):
+        for i in range(4):
+            self.ram[C.INVENTORY + i] = 0x11
+        with self.assertLogs("Client", level="WARNING"):
+            writes, _ = give(["Wings"], self.ram, client=self.client)[0]
+        self.assertEqual(mail_texts(writes), [C.tiles("Thy pack is full: Wings is lost.")])
+        self.assertIn((C.AP_RECV, b"\x01\x00", "System Bus"), writes)
+
+    def test_swap_gets_a_second_window_and_it_waits_for_a_step(self):
+        for i in range(4):
+            self.ram[C.INVENTORY + i] = 0x33  # Wings everywhere
+        self.ram[C.X_POS] = 5
+        with self.assertLogs("Client", level="WARNING"):
+            writes, _ = give(["Staff of Rain"], self.ram, client=self.client)[0]
+        self.assertEqual(mail_texts(writes), [C.tiles("Staff of Rain from Friend.")])
+        # The first window is open on this tile: nothing yet.
+        self.assertEqual(give(["Staff of Rain"], self.ram, received=1, client=self.client), [])
+        self.ram[C.X_POS] = 6
+        writes, guards = give(["Staff of Rain"], self.ram, received=1, client=self.client)[0]
+        self.assertEqual(mail_texts(writes), [C.tiles("Staff of Rain took thy Wings.")])
+        self.assertEqual(self.client.mail_queue, [])
+
+    def test_stuck_item_is_said_once_without_giving_it(self):
+        for i in range(4):
+            self.ram[C.INVENTORY + i] = 0xAA
+        with self.assertLogs("Client", level="INFO") as log:
+            writes, _ = give(["Staff of Rain"], self.ram, client=self.client)[0]
+            self.client.mail_sent = False
+            self.client.mail_at = None
+            self.assertEqual(give(["Staff of Rain"], self.ram, client=self.client), [])
+        self.assertEqual(mail_texts(writes), [C.tiles("No room for the Staff of Rain yet.")])
+        self.assertNotIn(C.AP_RECV, addrs(writes))
+        self.assertEqual(sum("No room for Staff of Rain" in line for line in log.output), 1)
+
+    def test_batch_sums_up_several_notes_in_one_window(self):
+        for i in range(4):
+            self.ram[C.INVENTORY + i] = 0x11
+        with self.assertLogs("Client", level="WARNING"):
+            writes, _ = give(["Wings", "Torch", "Wings", "Herb"], self.ram, client=self.client)[0]
+        # Only the Herb was given, so only it gets a mention; the three lost items share a window.
+        self.assertEqual(mail_texts(writes), [C.tiles("Herb from Friend.")])
+        self.assertEqual(self.client.mail_queue, [C.tiles("Thy pack was full for 3 items.")])
+
+    def test_batch_names_the_key_items_in_their_own_window(self):
+        writes, _ = give(["Silver Harp", "Herb", "Erdrick's Token", "Herb"], self.ram, client=self.client)[0]
+        self.assertEqual(mail_texts(writes), [C.tiles("4 items from Friend.")])
+        self.assertEqual(self.client.mail_queue, [C.tiles("Includes Silver Harp and 1 more.")])
+
+    def test_batch_of_herbs_has_no_includes_window(self):
+        self.client.lines = True
+        writes, _ = give(["Herb", "Herb", "Herb", "Herb"], self.ram, client=self.client)[0]
+        self.assertEqual(self.client.mail_queue, [])
+
+    def test_older_roms_keep_the_old_text(self):
+        self.client.lines = False
+        for i in range(4):
+            self.ram[C.INVENTORY + i] = 0x11
+        with self.assertLogs("Client", level="WARNING"):
+            writes, _ = give(["Wings"], self.ram, client=self.client)[0]
+        self.assertEqual(mail_texts(writes), [])
+
+
+class MarksAndNames(unittest.TestCase):
+    def setUp(self):
+        self.ram = bytearray(0x100)
+        self.ram[C.MAP] = 1
+
+    def send(self, names, client, player_names=None, flags=0):
+        BH.calls.clear(); BH.guard_result = True
+        ctx = FakeCtx(names)
+        ctx.items_received[0].flags = flags
+        if player_names:
+            ctx.player_names.update(player_names)
+        asyncio.run(client._give_item(ctx, bytes(self.ram), bytes(7), 0))
+        return BH.calls[0][0]
+
+    def test_progression_item_ends_in_an_exclamation_mark_when_the_mark_is_on(self):
+        client = C.DWRClient()
+        client.lines = True
+        client.mark = True
+        writes = self.send(["Herb"], client, flags=1)
+        self.assertIn((C.MAIL_TEXT, C.tiles("Herb from Friend!"), "System Bus"), writes)
+
+    def test_filler_and_an_off_mark_keep_the_period(self):
+        client = C.DWRClient()
+        client.lines = True
+        client.mark = True
+        self.assertIn((C.MAIL_TEXT, C.tiles("Herb from Friend."), "System Bus"), self.send(["Herb"], client, flags=0))
+        off = C.DWRClient()
+        off.lines = True
+        self.assertIn((C.MAIL_TEXT, C.tiles("Herb from Friend."), "System Bus"), self.send(["Herb"], off, flags=1))
+
+    def test_two_names_that_cut_alike_show_the_player_number(self):
+        client = C.DWRClient()
+        client.lines = True
+        names = {2: "TheGobOneRandomzA", 3: "TheGobOneRandomzB"}
+        writes = self.send(["Herb"], client, player_names=names)
+        self.assertIn((C.MAIL_TEXT, C.tiles("Herb from P2."), "System Bus"), writes)
+
+    def test_a_short_name_is_kept_even_if_another_starts_the_same(self):
+        client = C.DWRClient()
+        client.lines = True
+        writes = self.send(["Herb"], client, player_names={3: "Alex"})
+        self.assertIn((C.MAIL_TEXT, C.tiles("Herb from Friend."), "System Bus"), writes)
+
+
+class LowFixes(unittest.TestCase):
+    def setUp(self):
+        self.ram = bytearray(0x100)
+        self.ram[C.MAP] = 1
+
+    def test_mailbox_text_over_the_buffer_is_refused(self):
+        with self.assertRaises(ValueError):
+            C.tiles("x" * (C.LINE_LEN + 1))
+
+    def test_server_is_called_ap_when_a_player_is_named_server(self):
+        client = C.DWRClient()
+        ctx = FakeCtx(["Herb"], sender=0)
+        self.assertEqual(client._sender(ctx, 0), "Server")
+        ctx.player_names[3] = "Server"
+        self.assertEqual(client._sender(ctx, 0), "AP")
+
+    def test_title_screen_forgets_the_open_window(self):
+        client = C.DWRClient()
+        client.mail_at = (1, 5, 7)
+        self.ram[C.MAP] = 0
+        BH.reads[:] = [[bytes(self.ram), bytes(7), b"\x00", bytes(4), b"\x00", bytes(6)]]
+        ctx = FakeCtx(["Herb"])
+        ctx.server, ctx.slot_data = object(), {}
+        asyncio.run(client.game_watcher(ctx))
+        self.assertIsNone(client.mail_at)
+
+
 class SeedCheck(unittest.TestCase):
     ROM = b"\x01\x02\x03\x04"
 
@@ -500,7 +660,8 @@ class SlotData(unittest.TestCase):
     def world(self, code):
         world = self.W.DWRWorld.__new__(self.W.DWRWorld)
         world.player_name = "Tester"
-        world.options = types.SimpleNamespace(dwr_flags=types.SimpleNamespace(value=code))
+        world.options = types.SimpleNamespace(dwr_flags=types.SimpleNamespace(value=code),
+                                              progression_mark=types.SimpleNamespace(value=0))
         world.generate_early()
         return world
 

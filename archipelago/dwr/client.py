@@ -22,8 +22,9 @@ from NetUtils import ClientStatus
 import worlds._bizhawk as bizhawk
 from worlds._bizhawk.client import BizHawkClient
 
-from .data import BASE, GAME, GWAELIN, LOCATION_NAME_TO_ID, SLOT_FLAGS_OFF
-from .text import TEXT_LEN, batch_line, fold, received_line, received_text
+from .data import BASE, GAME, GWAELIN, LOCATION_NAME_TO_ID, SLOT_FLAGS_OFF, SLOT_PROGRESSION_MARK
+from .text import (LINE_LEN, TEXT_LEN, batch_line, cap_line, dropped_line, fold, full_line, includes_line,
+                   received_line, received_text, replaced_line, waiting_line)
 
 if TYPE_CHECKING:
     from worlds._bizhawk.context import BizHawkClientContext
@@ -65,19 +66,22 @@ def untagged(tag: bytes) -> bool:
 
 def tiles(text: str) -> bytes:
     """Text as DW tiles, ended by $FA, for the mailbox."""
+    if len(text) > LINE_LEN:
+        raise ValueError(f"Mailbox text over {LINE_LEN} characters: {text!r}")
     return bytes([DW_FONT.index(c) if c in DW_FONT else DW_FONT.index(" ") for c in text] + [0xFA])
 
 
-def dw_text(name: str, sender: str = "", player: int = 0, lines: bool = False) -> bytes:
+def dw_text(name: str, sender: str = "", player: int = 0, lines: bool = False, progression: bool = False) -> bytes:
     """The mailbox text for one item, as DW tiles. ROM version 005 and later (lines) show a whole sentence,
     "Heart Container from Alex."; older ROMs add "Thou hast found the" to "Herb from Alex"."""
-    return tiles(received_line(name, sender, player) if lines else received_text(name, sender, player))
+    return tiles(received_line(name, sender, player, progression) if lines else received_text(name, sender, player))
 
 
-def batch_tiles(count: int, sender: str = "", lines: bool = False) -> bytes:
+def batch_tiles(count: int, sender: str = "", lines: bool = False, player: int = 0) -> bytes:
     """The mailbox text for a batch of 2 or more, as DW tiles: "5 items from Alex." on ROM version 005 and
     later, batch_text on older ROMs."""
-    return tiles(batch_line(count, sender) if lines else batch_text(count, sender))
+    return tiles(batch_line(count, sender, player) if lines else batch_text(count, sender))
+
 
 def batch_text(count: int, sender: str = "") -> str:
     """The mailbox text for a batch of 2 or more, shown as "Thou hast found the <text>.". The first option that fits
@@ -111,6 +115,8 @@ INVENTORY_ITEMS = {
 }
 QUEST = {0x5, 0x7, 0xA, 0xC, 0xD}
 UNIQUE = QUEST | {0x4, 0x6}  # one of each in the pool: they wait for room instead of being dropped
+# Named in the "Includes" window after a batch: the unique items and Erdrick's gear.
+KEY_NAMES = {n for n, v in INVENTORY_ITEMS.items() if v in UNIQUE} | {"Erdrick's Sword", "Erdrick's Armor"}
 # Given up to make room for a quest item, in this order. Not the Dragon's Scale or Fighter's Ring:
 # there is one of each, and a worn one would leave its bonus behind.
 REPLACEABLE = (0x1, 0x2, 0x3)
@@ -146,7 +152,10 @@ class DWRClient(BizHawkClient):
         self.ahead_noted = False
         self.last_received = -1   # the save's received count at the last poll, -1 before the first
         self.notes = []           # warnings from _effect, logged once its write succeeds
+        self.say = []             # sentences from _effect for the game (ROM version 005 and later)
+        self.mail_queue = []      # mailbox texts still to show, one window per step
         self.off_noted = False    # the Random flags turned off were logged at connect
+        self.mark = False         # the progression mark is on: progression items end in "!"
         self.lines = False        # ROM version 005 or later: the mailbox takes a whole sentence
         self.mail_sent = False    # a mailbox message was written and its flag not yet seen cleared
         self.mail_at = None       # (map, x, y) where the last message's window opened, until the hero leaves it
@@ -172,6 +181,7 @@ class DWRClient(BizHawkClient):
             self.last_received = -1
             self.mail_sent = False
             self.mail_at = None
+            self.mail_queue = []
             if sig[5:8] not in ROM_VERSIONS:
                 logger.warning("This ROM is DWR AP version %s, the client knows %s. Rebuild the ROM "
                                "from your .apdwr file, or update dwr.apworld.", sig[5:8].decode(errors="replace"),
@@ -217,6 +227,7 @@ class DWRClient(BizHawkClient):
         except bizhawk.RequestFailedError:
             return
         if ram[MAP] == 0:
+            self.mail_at = None  # a reset or the title screen: no window is open on the hero's tile
             return  # title screen or menus: nothing in RAM is the game yet
         tag = bytes(tags[slot[0] * 2:slot[0] * 2 + len(self.slot_tag)]) if slot[0] < 3 else b""
         if not await self._check_seed(ctx, bytes(saved_hash), tag):
@@ -228,6 +239,7 @@ class DWRClient(BizHawkClient):
     def note_flags_off(self, ctx) -> None:
         """Logs the Random flags generation turned off, once per ROM."""
         slot_data = getattr(ctx, "slot_data", None) or {}
+        self.mark = bool(slot_data.get(SLOT_PROGRESSION_MARK))
         if not self.off_noted and slot_data.get(SLOT_FLAGS_OFF):
             self.off_noted = True
             logger.warning("These DWR flags were set to Random and are off, because Archipelago does not "
@@ -296,6 +308,16 @@ class DWRClient(BizHawkClient):
         self.last_received = received
         if self._mail_busy(ram, mail_flag):
             return
+        if self.mail_queue:
+            # A second window for the last item (what happened to it), before the next item.
+            ok = await bizhawk.guarded_write(
+                ctx.bizhawk_ctx,
+                [(MAIL_TEXT, self.mail_queue[0], "System Bus"), (MAIL_FLAG, b"\x01", "System Bus")],
+                [(MAIL_FLAG, b"\x00", "System Bus")])
+            if ok:
+                self.mail_queue.pop(0)
+                self.mail_sent = True
+            return
         if received > len(ctx.items_received) and ctx.items_received and not self.ahead_noted:
             self.ahead_noted = True
             logger.warning("This save has received %d items, but the server has sent %d. It belongs to "
@@ -309,27 +331,32 @@ class DWRClient(BizHawkClient):
         item = ctx.items_received[received]
         name = ctx.item_names.lookup_in_game(item.item)
         self.notes = []
+        self.say = []
         self.shown = name   # what the game gives, when it is not the item itself
         writes = self._effect(name, ram)
         if writes is None:
-            if self.waiting_noted != received:
-                self.waiting_noted = received
-                logger.info("No room for %s yet. Make space in the inventory to receive it.", name)
+            await self._note_waiting(ctx, block, received, name)
             return
         nxt = received + 1
         given = bool(writes)
         writes.append((AP_RECV, bytes([nxt & 0xFF, nxt >> 8]), "System Bus"))
-        # The game already said "Thou hast found" for your own opened chests and search spots
-        # (unless it gives something else), and an item that was not given gets no message at all.
+        # The game already said "Thou hast found" for your own opened chests and search spots.
         found_here = item.player == ctx.slot and opened_in_game(item.location, block)
         # Player 0 is the Archipelago server (starting items, !getitem), named "Archipelago" in the client
         # library. A release or !collect keeps the slot that found the item, so those name that player. "Server" is shorter, so it leaves room for the item name in the mailbox.
-        sender = "Server" if item.player == 0 else ctx.player_names.get(item.player, "?")
-        if given and (not found_here or self.shown != name):
-            # Another player's item names them in the message. Your own items do not.
-            from_other = item.player != ctx.slot
-            writes.append((MAIL_TEXT, dw_text(self.shown, sender if from_other else "", item.player, self.lines),
-                           "System Bus"))
+        sender = self._sender(ctx, item.player)
+        from_other = item.player != ctx.slot
+        msgs = []
+        if self.lines:
+            # The item as sent, then a window for what happened to it: lost, swapped, or gold.
+            if given and not found_here:
+                msgs.append(dw_text(name, sender if from_other else "", item.player, True, self._mark(item)))
+            msgs += [tiles(line) for line in self.say]
+        elif given and (not found_here or self.shown != name):
+            # Older ROMs: the one text names what the game gave.
+            msgs.append(dw_text(self.shown, sender if from_other else "", item.player, False, self._mark(item)))
+        if msgs:
+            writes.append((MAIL_TEXT, msgs[0], "System Bus"))
             writes.append((MAIL_FLAG, b"\x01", "System Bus"))
         # Only write if nothing changed since the snapshot: the counter (a save loaded, a reset),
         # and every game byte the effect rewrites (a shop purchase or herb use in between).
@@ -340,6 +367,7 @@ class DWRClient(BizHawkClient):
         ok = await bizhawk.guarded_write(ctx.bizhawk_ctx, writes, guards)
         if ok and any(addr == MAIL_FLAG for addr, _data, _domain in writes):
             self.mail_sent = True
+            self.mail_queue.extend(msgs[1:])
         if ok:
             for note in self.notes:
                 logger.warning(note)
@@ -375,6 +403,7 @@ class DWRClient(BizHawkClient):
         sim = bytearray(ram)
         final: dict = {}   # address -> last bytes written
         self.notes = []
+        self.say = []
         mentions = []      # (item, shown name, sender) of the items that get a mention in the message
         arrived = []       # (shown text, sender) of every item given, for the log
         given = 0
@@ -391,29 +420,36 @@ class DWRClient(BizHawkClient):
                 final[addr] = data
             if writes:
                 given += 1
-                sender = "Server" if item.player == 0 else ctx.player_names.get(item.player, "?")
+                sender = self._sender(ctx, item.player)
                 arrived.append((name if self.shown == name else f"{self.shown} (for {name})", sender))
                 if not (item.player == ctx.slot and opened_in_game(item.location, block)) or self.shown != name:
                     mentions.append((item, self.shown, sender))
             n += 1
         if n == received:
-            if self.waiting_noted != received:
-                self.waiting_noted = received
-                logger.info("No room for %s yet. Make space in the inventory to receive it.",
-                            ctx.item_names.lookup_in_game(ctx.items_received[received].item))
+            await self._note_waiting(ctx, block, received,
+                                     ctx.item_names.lookup_in_game(ctx.items_received[received].item))
             return
         writes = [(addr, data, "RAM") for addr, data in final.items()]
         writes.append((AP_RECV, bytes([n & 0xFF, n >> 8]), "System Bus"))
+        msgs = []
         if len(mentions) == 1:
             # One item to mention: the same text the one-at-a-time path shows.
             item, shown, sender = mentions[0]
             from_other = item.player != ctx.slot
-            writes.append((MAIL_TEXT, dw_text(shown, sender if from_other else "", item.player, self.lines),
-                           "System Bus"))
-            writes.append((MAIL_FLAG, b"\x01", "System Bus"))
+            msgs.append(dw_text(shown, sender if from_other else "", item.player, self.lines, self._mark(item)))
         elif mentions:
-            writes.append((MAIL_TEXT, batch_tiles(len(mentions), self._batch_sender(ctx, mentions), self.lines),
-                           "System Bus"))
+            sender = self._batch_sender(ctx, mentions)
+            msgs.append(batch_tiles(len(mentions), sender, self.lines, mentions[0][0].player if sender else 0))
+        if self.lines and len(mentions) > 1:
+            # A batch hides which items came, so name the key items in a window of their own.
+            keys = [shown for _item, shown, _sender in mentions if shown in KEY_NAMES]
+            if keys:
+                msgs.append(tiles(includes_line(keys)))
+        if self.lines and self.say:
+            # One more window for what was lost, swapped or turned to gold; the log has each one.
+            msgs.append(tiles(self.say[0] if len(self.say) == 1 else full_line(len(self.say))))
+        if msgs:
+            writes.append((MAIL_TEXT, msgs[0], "System Bus"))
             writes.append((MAIL_FLAG, b"\x01", "System Bus"))
         guards = [(AP_RECV, bytes(block[0:2]), "System Bus")]
         for addr, data, domain in writes:
@@ -422,12 +458,52 @@ class DWRClient(BizHawkClient):
         ok = await bizhawk.guarded_write(ctx.bizhawk_ctx, writes, guards)
         if ok and any(addr == MAIL_FLAG for addr, _data, _domain in writes):
             self.mail_sent = True
+            self.mail_queue.extend(msgs[1:])
         if ok:
             for note in self.notes:
                 logger.warning(note)
             for text, sender in arrived:
                 logger.info("Received %s from %s.", text, sender)
             logger.info("Received %d items at once (%d given).", n - received, given)
+
+    async def _note_waiting(self, ctx, block: bytes, received: int, name: str) -> None:
+        """Says once per item that it waits for room: in the log, and in the game from ROM version 005."""
+        if self.waiting_noted == received:
+            return
+        if self.lines:
+            ok = await bizhawk.guarded_write(
+                ctx.bizhawk_ctx,
+                [(MAIL_TEXT, tiles(waiting_line(name)), "System Bus"), (MAIL_FLAG, b"\x01", "System Bus")],
+                [(AP_RECV, bytes(block[0:2]), "System Bus")])
+            if not ok:
+                return
+            self.mail_sent = True
+        self.waiting_noted = received
+        logger.info("No room for %s yet. Make space in the inventory to receive it.", name)
+
+    def _mark(self, item) -> bool:
+        """True for a progression item when the progression mark is on (AP item flags bit 1)."""
+        return self.mark and bool(getattr(item, "flags", 0) & 1)
+
+    def _sender(self, ctx, player: int) -> str:
+        """Who sent an item, as the message names them. Player 0 is the Archipelago server (starting items,
+        !getitem), named "Archipelago" in the client library; "Server" is shorter, or "AP" when a player
+        is called Server."""
+        if player == 0:
+            taken = any(fold(n).lower() == "server" for n in ctx.player_names.values())
+            return "AP" if taken else "Server"
+        return self._sender_label(ctx, player)
+
+    @staticmethod
+    def _sender_label(ctx, player: int) -> str:
+        """The player's name, or "P<n>" when its first 15 letters match another player's: two names cut the same
+        way would read the same in the message."""
+        names = ctx.player_names
+        name = names.get(player, "?")
+        key = fold(name)[:15]
+        if len(fold(name)) > 15 and any(other != player and fold(n)[:15] == key for other, n in names.items()):
+            return f"P{player}"
+        return name
 
     @staticmethod
     def _batch_sender(ctx, mentions) -> str:
@@ -448,6 +524,7 @@ class DWRClient(BizHawkClient):
                 return [(addr, bytes([ram[addr] + 1]), "RAM")]
             self.notes.append(f"You already hold {cap} of {name}, the most this seed allows: "
                               "100 Gold instead.")
+            self.say.append(cap_line(name))
             self.shown = name = "100 Gold"
         if name == "100 Gold":
             gold = min(ram[GOLD] | ram[GOLD + 1] << 8, 0xFFFF - 100) + 100
@@ -464,7 +541,9 @@ class DWRClient(BizHawkClient):
         slots = [(i, shift) for i in range(4) for shift in (0, 4)]
         held = [(inv[i] >> shift) & 0xF for i, shift in slots]
         if value in UNIQUE and value in held:
-            return []  # already held
+            # No game message: loading an older save gives earlier items again, and most are held.
+            self.notes.append(f"You already hold {name}, so it was skipped.")
+            return []
         target = next((k for k, v in enumerate(held) if v == 0), None)
         if target is None and value in UNIQUE:
             for give_up in REPLACEABLE:
@@ -472,11 +551,13 @@ class DWRClient(BizHawkClient):
                     target = held.index(give_up)
                     lost = next(n for n, v in INVENTORY_ITEMS.items() if v == give_up)
                     self.notes.append(f"The inventory is full: {name} replaces your {lost}.")
+                    self.say.append(replaced_line(name, lost))
                     break
         if target is None:
             if value in UNIQUE:
                 return None  # quest items, the Dragon's Scale and Fighter's Ring wait for room
             self.notes.append(f"Dropped {name}: the inventory is full.")
+            self.say.append(dropped_line(name))
             return []
         i, shift = slots[target]
         inv[i] = (inv[i] & (0xF0 >> shift)) | (value << shift)

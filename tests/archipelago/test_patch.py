@@ -63,5 +63,32 @@ class Music(unittest.TestCase):
                 self.assertIn("Hauksness", f.read())
 
 
+class RomVersion(unittest.TestCase):
+    def rom(self, sig: bytes) -> str:
+        with tempfile.NamedTemporaryFile(suffix=".nes", delete=False) as f:
+            f.write(bytes(P.SIGNATURE_AT) + sig + bytes(32))
+            return f.name
+
+    def check(self, sig: bytes) -> None:
+        path = self.rom(sig)
+        try:
+            P.check_rom_version(path, "dwrandomizer.exe")
+        finally:
+            os.remove(path)
+
+    def test_current_version_passes(self):
+        self.check(b"DWRAP005")
+        self.check(b"DWRAP006")
+
+    def test_older_cli_stops_the_build(self):
+        with self.assertRaises(RuntimeError) as err:
+            self.check(b"DWRAP004")
+        self.assertIn("version 004", str(err.exception))
+
+    def test_rom_without_a_signature_stops_the_build(self):
+        with self.assertRaises(RuntimeError):
+            self.check(b"NOTDWR00")
+
+
 if __name__ == "__main__":
     unittest.main()

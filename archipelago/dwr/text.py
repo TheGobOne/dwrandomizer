@@ -12,7 +12,8 @@ LINE_LEN = 38  # common/archipelago.h AP_TEXT_LEN
 SHORT_NAMES = {"Stones of Sunlight": "Sunlight Stones"}
 
 # Words shortened first when a name is too long. The rest are kept whole.
-ABBREV = {"Progressive": "Prog.", "Upgrade": "Upgr"}
+# No periods: "Upgr." would end a sentence in "Upgr..".
+ABBREV = {"Progressive": "Prog", "Upgrade": "Upgr"}
 
 # Characters the DW font has besides letters and digits (common/archipelago.c ap_name_tiles).
 PUNCTUATION = set(" '.,-!?")
@@ -102,10 +103,13 @@ def _sentence(head: str, owner: str, tail: str = ".") -> str:
     never cut: an item is at most TEXT_LEN characters, which leaves room for at least 15 letters
     of the owner."""
     room = LINE_LEN - len(head) - len(tail)
-    return f"{head}{owner[:room].rstrip()}{tail}"
+    if len(owner) > room:
+        # A cut name ends in "-", so "Bartholo-." is not read as a player called "Bartholo".
+        owner = owner[:room - 1].rstrip(" '.,-") + "-"
+    return f"{head}{owner}{tail}"
 
 
-def found_text(item: str, owner: str = "", player: int = 0) -> str:
+def found_text(item: str, owner: str = "", player: int = 0, progression: bool = False) -> str:
     """The whole sentence a chest or search spot shows, after "Fortune smiles upon thee, <hero>."
     (ROM version 005 and later).
 
@@ -115,21 +119,66 @@ def found_text(item: str, owner: str = "", player: int = 0) -> str:
     item = game_name(item)
     if not owner:
         return f"Thou hast found the {item}."
-    return _sentence(f"{item} for ", _owner(owner, player))
+    return _sentence(f"{item} for ", _owner(owner, player), "!" if progression else ".")
 
 
-def received_line(item: str, sender: str = "", player: int = 0) -> str:
+def received_line(item: str, sender: str = "", player: int = 0, progression: bool = False) -> str:
     """The mailbox sentence for an item from another player: "Heart Container from Alex."
     (ROM version 005 and later). The sender is cut to fit; the item is not. Without a sender (the
     server, a !collect): "Thou hast found the Herb." """
     if not sender:
         return found_text(item)
     item = game_name(item)
-    return _sentence(f"{item} from ", _owner(sender, player))
+    return _sentence(f"{item} from ", _owner(sender, player), "!" if progression else ".")
 
 
-def batch_line(count: int, sender: str = "") -> str:
+# What happened to an item that was not given as named (ROM version 005 and later). Each fits
+# LINE_LEN with any item name of up to TEXT_LEN characters.
+
+def cap_line(item: str) -> str:
+    """A Herb or Magic Key past the seed's cap: "No room for the Herb: 100 Gold." """
+    return f"No room for the {game_name(item)}: 100 Gold."
+
+
+def replaced_line(item: str, lost: str) -> str:
+    """A unique item that took the place of a Torch, Fairy Water or Wings:
+    "Staff of Rain took thy Wings." """
+    return f"{game_name(item)} took thy {game_name(lost)}."
+
+
+def dropped_line(item: str) -> str:
+    """A Torch, Fairy Water or Wings with the pack full: "Thy pack is full: Torch is lost." """
+    return f"Thy pack is full: {game_name(item)} is lost."
+
+
+def waiting_line(item: str) -> str:
+    """A unique item that waits for an empty slot: "No room for the Staff of Rain yet." """
+    return f"No room for the {game_name(item)} yet."
+
+
+def full_line(count: int) -> str:
+    """More than one item in a batch was lost, swapped or turned to gold."""
+    return f"Thy pack was full for {count} items."
+
+
+def includes_line(names: list) -> str:
+    """The key items in a batch of 2 or more, after the batch line: "Includes Silver Harp." Names that
+    do not fit are counted: "Includes Silver Harp and 1 more."."""
+    names = [game_name(n) for n in names]
+    n = len(names)
+    if n == 1:
+        candidates = [f"Includes {names[0]}."]
+    else:
+        candidates = [f"Includes {names[0]} and {names[1]}."] if n == 2 else []
+        candidates.append(f"Includes {names[0]} and {n - 1} more.")
+    for text in candidates:
+        if len(text) <= LINE_LEN:
+            return text
+    return f"Includes {n} key items."
+
+
+def batch_line(count: int, sender: str = "", player: int = 0) -> str:
     """The mailbox sentence for a batch of 2 or more: "5 items from Alex." or "12 items."
     (ROM version 005 and later)."""
-    name = fold(sender) if sender else ""
-    return _sentence(f"{count} items from ", name) if name else f"{count} items."
+    name = _owner(sender, player) if sender else ""
+    return _sentence(f"{count} items from ", name) if name else f"Thou hast received {count} items."

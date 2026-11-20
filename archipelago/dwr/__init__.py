@@ -32,7 +32,7 @@ from .host_settings import DWRSettings
 from .options import DWROptions
 from .patch import DWRPatch
 from .data import (CHARLOCK_CHESTS, FILLER, GAME, GOAL, ITEM_NAME_TO_ID, ITEMS,
-                   LOCATION_NAME_TO_ID, SLOT_FLAGS_OFF)
+                   LOCATION_NAME_TO_ID, SLOT_FLAGS_OFF, SLOT_PROGRESSION_MARK)
 
 
 class DWRItem(Item):
@@ -61,7 +61,10 @@ class DWRWorld(World):
     def fill_slot_data(self) -> Dict[str, Any]:
         # The client shows these once the player connects. Empty when nothing was turned off.
         turned_off = getattr(self, "flags_turned_off", [])
-        return {SLOT_FLAGS_OFF: list(turned_off)} if turned_off else {}
+        data = {SLOT_FLAGS_OFF: list(turned_off)} if turned_off else {}
+        if self.options.progression_mark.value:
+            data[SLOT_PROGRESSION_MARK] = True
+        return data
 
     def write_spoiler_header(self, spoiler_handle) -> None:
         # The spoiler log is the only place a player can see this without the client. Nothing is written
@@ -153,13 +156,15 @@ class DWRWorld(World):
             f"flags {self.flags_text}",
             f"seed {self.random.getrandbits(63)}",
             f"free_charlock {1 if self.free_charlock else 0}",
+            "text 2",  # the texts below are whole sentences (DWR AP version 005); older patches lack this line
         ]
         for location in self.multiworld.get_locations(player):
             if location.address is None or location.item is None:
                 continue
             item = location.item
             owner = self.multiworld.player_name[item.player] if item.player != player else ""
-            lines.append(f"loc {location.address:x} {found_text(item.name, owner, item.player)}")
+            mark = bool(self.options.progression_mark.value) and bool(item.advancement)
+            lines.append(f"loc {location.address:x} {found_text(item.name, owner, item.player, mark)}")
         name = self.multiworld.get_out_file_name_base(player) + DWRPatch.patch_file_ending
         DWRPatch(os.path.join(output_directory, name), player=player,
                  player_name=self.multiworld.player_name[player],

@@ -13,6 +13,8 @@ BASE = 0xD0000
 GAME = "DWR"
 # Slot data key: the Random flags Archipelago turned off. The world writes it and the client reads it.
 SLOT_FLAGS_OFF = "dwr_flags_off"
+# Slot data key: true when the progression mark is on, so received items end in "!" when progression.
+SLOT_PROGRESSION_MARK = "dwr_progression_mark"
 
 CHESTS = [
     "Tantegel Treasury Chest 1",      # 0  (map 4, 1,13)

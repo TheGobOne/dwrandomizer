@@ -77,9 +77,28 @@ class DWRPatch(APAutoPatchInterface):
                 music = []
             if result.returncode != 0 or not built:
                 raise RuntimeError(f"DWR could not build the ROM:\n{result.stdout}\n{result.stderr}")
+            check_rom_version(built[0], exe)
             shutil.move(built[0], target)
             if music:
                 report_music(result.stdout, os.path.splitext(target)[0] + ".music.txt")
+
+
+# The oldest DWR AP ROM version this APWorld's text fits: 005 takes whole sentences of up to 38
+# characters. An older CLI cuts them to 16 and puts "Thou hast found the" in front.
+MIN_ROM_VERSION = b"005"
+SIGNATURE_AT = 0x10 + 0x7FE0  # iNES header, then PRG $7FE0: "DWRAP" and 3 version digits
+
+
+def check_rom_version(path: str, exe: str) -> None:
+    """Stops when the built ROM is from a DWR CLI older than this APWorld."""
+    with open(path, "rb") as f:
+        f.seek(SIGNATURE_AT)
+        sig = f.read(8)
+    if sig[:5] != b"DWRAP" or sig[5:8] < MIN_ROM_VERSION:
+        version = sig[5:8].decode(errors="replace") if sig[:5] == b"DWRAP" else "none"
+        raise RuntimeError(f"The DWR randomizer at {exe} built an AP version {version} ROM, but this "
+                           f"dwr.apworld needs version {MIN_ROM_VERSION.decode()} or newer. Update "
+                           "dwrandomizer.exe to the version that came with this dwr.apworld.")
 
 
 # Lines the DWR CLI prints when some or all of the pack is left out.
