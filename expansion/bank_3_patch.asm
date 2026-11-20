@@ -20,9 +20,8 @@ inc_attack_ctr:
     brk
     hex 04 17
     lda #2
-    tay
-    jsr exec_expansion_sub
-    rts
+    tay                     ; Y = 2, so Z is clear and the bne always branches
+    bne exec_expansion_sub  ; tail call, 2 bytes and 12 cycles less than jsr + rts
 
 inc_crit_ctr:
     brk

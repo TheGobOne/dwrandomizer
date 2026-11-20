@@ -41,6 +41,7 @@
 #include "patch.h"
 #include "dungeon_maps.h"
 #include "archipelago.h"
+#include "expansion.h"
 
 #define LO(a) ((a) & 0xff)
 #define HI(a) (((a) >> 8) & 0xff)
