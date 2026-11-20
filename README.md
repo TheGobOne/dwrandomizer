@@ -101,15 +101,15 @@ Run Mechanics (Battle tab) and Run Bank are separate things. Run Mechanics chang
 
 ## Tested on
 
-The maintainer tests with FCEUX (main emulator), Mesen 2 (automated test runner) and Nestopia. None of this has been checked on hardware or flash carts.
+The maintainer tests with FCEUX (main emulator) and Mesen 2 (automated test runner). Nestopia, hardware and flash carts are not checked.
 
 ## Known issues
 
 Each item says whether it was measured (an emulator run or a build sweep) or only read from the code.
 
-- Some random flag codes fail to build with "Not enough space". Measured: 1 of 300 random flag codes failed in a sweep on 2026-11-18 (build 1.2.2), down from 5 of 300 before the bank 6 fallbacks. The repo records this only in the commit message of 6341b41, with no sweep script. Turn off one of `Build Options`, `Hurtmore Doors` or `Warp Whistle` and try again.
-- How the fallbacks work is read from the code, not measured: when the main program bank is full, some routines run from bank 6 behind a far call and the title checksum window can move to bank 1. Other code still needs room in the main bank, and a build stops if it finds none. Archipelago builds run some game-start code from bank 3 and may leave the checksum off the title menu (the build log says so).
-- In Archipelago builds with a music pack, the music wait loop and hooks fit on every seed tried. Measured: 90 of 90 with the Gob Standard preset from the website, before the bank 6 fallbacks. Not repeated on the current build. If the build log says "No room for the music wait loop" or "No room for the music hooks", see [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
+- Some random flag codes fail to build with "Not enough space". Measured: 1 of 300 random flag codes failed in a sweep on 2026-11-18 (build 1.2.2), down from 5 of 300 before the bank 7 fallbacks. The repo records this only in the commit message of 6341b41, with no sweep script. Turn off one of `Build Options`, `Hurtmore Doors` or `Warp Whistle` and try again.
+- How the fallbacks work is read from the code, not measured: when the main program bank is full, some routines run from bank 7 behind a far call and the title checksum window can move to bank 1. Other code still needs room in the main bank, and a build stops if it finds none. Archipelago builds run some game-start code from bank 3 and may leave the checksum off the title menu (the build log says so).
+- In Archipelago builds with a music pack, the music wait loop and hooks fit on every seed tried. Measured: 90 of 90 with the Gob Standard preset from the website, before the bank 7 fallbacks. Not repeated on the current build. If the build log says "No room for the music wait loop" or "No room for the music hooks", see [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
 - The first step off a standstill in towns can take longer than later steps. Seen by hand, not measured in the repo. The 1.0 release notes say up to 25 frames.
 - Custom music timing was measured in FCEUX. The release notes for 1.0.1, 1.2.0 and 1.2.1 say FCEUX and Mesen, and for 1.0 FCEUX only. Nothing is recorded for hardware.
 
