@@ -1033,7 +1033,8 @@ static BOOL place_landmarks(dw_map *map)
         }
     }
     if (RANDOM_MAP(map) && BIOME(map) == BIOME_LAKE) {
-        /* Tantegel on Charlock's island would skip the whole journey. */
+        /* Tantegel on Charlock's island would skip the whole journey. new_biome_spot already keeps every
+         * place outside radius 8 of the island, so this can't fire today; it is a guard in case that changes. */
         const dw_warp *t = &map->warps_from[WARP_TANTEGEL];
         const int dx = (int)t->x - 60, dy = (int)t->y - 60, r = LAKE_ISLAND + 2;
 
@@ -1912,7 +1913,8 @@ static BOOL biome_westeros(dw_map *map)
             map->tiles[x][y] = TILE_HILL;
         /* Clear mountains on the way to the pass from both sides. */
         for (i = -1; i <= 1; i++) {
-            for (y = top - 4; y <= bottom + 4; y++) {
+            /* Clamped so a Wall near the map edge can't index row -3 or past the last row. */
+            for (y = top - 4 < 1 ? 1 : top - 4; y <= (bottom + 4 > 118 ? 118 : bottom + 4); y++) {
                 if (map_region[x + i][y] != 'W' && map->tiles[x + i][y] == TILE_MOUNTAIN)
                     map->tiles[x + i][y] = TILE_GRASS;
             }
