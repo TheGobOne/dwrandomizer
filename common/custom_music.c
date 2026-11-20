@@ -956,7 +956,6 @@ static void pick_like_site(dw_rom *rom)
 
     if (!pack_count) {
         pack_count = song_count;
-        memcpy(pack, songs, (size_t)song_count * sizeof(song_t));
         /* The site lists loose songs first, then groups. */
         k = 0;
         for (pass = 0; pass < 2; pass++)

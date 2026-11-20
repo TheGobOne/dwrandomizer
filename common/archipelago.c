@@ -477,7 +477,7 @@ static uint32_t ap_seed_hash(dw_rom *rom)
 
 static void ap_save_and_load(dw_rom *rom)
 {
-    uint16_t save, restore, start, entry, chain, cont, copy;
+    uint16_t save, restore, start, entry, chain, cont;
     int stub, in3;
     uint32_t hash = ap_seed_hash(rom);
     uint8_t tag[2];

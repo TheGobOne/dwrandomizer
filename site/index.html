@@ -471,7 +471,7 @@ const PRESETS = [
  {id:'gob',name:'Gob Standard',blurb:"Gob's Standard flags. Random Map with a random biome, Free Charlock, Run Bank, Quick Spell, Fast Text, Responsive Controls, the Free Selection Plus build, Medium encounters, shuffled chests, random growth, spells and monsters. Your own personal options stay as they are.",flags:'IVIAAV2EKADEAMAAAADYKEBWAAAJACAAAAIBQAAM75QA'},
  {id:'standard',name:'Standard',blurb:"juef's Standard flags. Random Map, shuffled chests, random growth, spells, monster abilities and zones, Fast leveling, Death Necklace, Safer Vanilla runs, Permanent Torch, Repel in Dungeons, random flute music. The published code also has Skip Original Credits on. That is a personal option, so the code the page shows leaves it out and differs from the published one in a few letters of the code.",flags:'IVIAAVCEKACAAAAAAAAAAEAUAAQBAAAAABYCAAAA'},
  {id:'fast',name:'Fast Standard',blurb:"juef's Fast Standard flags. Standard with Very Fast leveling, Fast Text and Speed Hacks. Like Standard, the code the page shows leaves out Skip Original Credits and differs from the published one in a few letters of the code.",flags:'IVIAAVCEKACFAAAAAAAAAIAUAAQBAAAAABYCAAAA'},
- {id:'easy',name:'Easy Standard',blurb:"juef's Easy Standard flags. Standard with a Small map, Short Charlock, Alternate Running, Summer Sale, no Magic Keys and no Armor in Charlock. The published code also has Easy Charlock on, but Safer Vanilla runs switch it off in the game, so this code leaves it off. The code the page shows also leaves out Skip Original Credits, a personal option, so it differs from the published one by two letters. Alternate Running is in the code too, but it only works with Vanilla runs, so it does nothing here. The checksum is the same.",flags:'IVIAAVCFKACACQAACAAAAZAUAAQBAAAAABYCAAAA'},
+ {id:'easy',name:'Easy Standard',blurb:"juef's Easy Standard flags. Standard with a Small map, Short Charlock, Alternate Running, Summer Sale, no Magic Keys and no Armor in Charlock. The published code also has Easy Charlock on, but Safer Vanilla runs switch it off in the game, so this code leaves it off. The code the page shows differs from the published one by one letter. Alternate Running is in the code too, but it only works with Vanilla runs, so it does nothing here. The checksum is the same.",flags:'IVIAAVCFKACACQAACAAAAZAUAAQBAAAAABYCAAAA'},
 ];
 
 /* ---------- state ---------- */
@@ -866,7 +866,8 @@ const DEPENDS={
   mapsize:{needs:'map'}, biome:{needs:'map'},
   onlyhealmore:{needs:'spells'}, healbefore:{needs:'spells'}, nohurtmore:{needs:'spells'},
   l1radiant:{needs:'spells'}, l1repel:{needs:'spells'},
-  quickswap:{needs:'quickspell'},
+  quickswap:{needs:'quickspell'}, unguarded:{needs:'guards'}, jingles:{needs:'nomusic'},
+  sumsalechance:{needs:'sale', ok:v=>v===2, label:'Summer Sale: Random'},
   altrun:{needs:'runmech', ok:v=>v===0||v===5, label:'Run Mechanics: Vanilla', maybe:v=>v===5, maybeText:'If Random: 1 in 5', maybeTitle:'With Run Mechanics on Random, this only applies if the seed picks Vanilla (1 in 5).'},
   shortcharlock:{blockedBy:['freecharlock']}, easycharlock:{blockedBy:['freecharlock','runmech']},
   three:{blockedBy:['freecharlock']}, cursed:{blockedBy:['freecharlock']},
@@ -874,7 +875,7 @@ const DEPENDS={
   noarmor:{blockedBy:['freecharlock']}
 };
 /* The one list of names a dependency tag can point at. */
-const DEP_NAME={map:'Random Map',spells:'Random Spell Learning',quickspell:'Quick Spell',runmech:'Run Mechanics',freecharlock:'Free Charlock'};
+const DEP_NAME={map:'Random Map',spells:'Random Spell Learning',quickspell:'Quick Spell',guards:'Treasure Guards',nomusic:'Disable Music',sale:'Summer Sale',runmech:'Run Mechanics',freecharlock:'Free Charlock'};
 /* What a blocker has to be doing, where "is on" would not make sense (Run Mechanics is a dropdown). */
 const DEP_PHRASE={runmech:'Run Mechanics is not Vanilla'};
 function needsOff(id){ const d=DEPENDS[id]; if(!d) return false;
@@ -925,7 +926,7 @@ function tabById(id){ return TABS.find(t=>t.id===id); }
 /* Names the options had before they were renamed. Searched, never shown. */
 const ALIASES={necklace:'Enable Death Necklace',discardflute:['DK Flute','Discardable Flute'],torches:'Enable Torches in Battle',sumsalechance:'Summer Sale Tristate Chance',wrap:'Enable Menu Wrapping',customspell:'Allow Custom Spell Names',
   flutefast:'Normal Flute Speed',bonk:'Bonk Dmg',lvlrefill:'Levelup Refill',unguarded:'Unguarded OW search spot'};
-function matches(it,q){ q=q.toLowerCase(); return !q||it[1].toLowerCase().includes(q)||it[2].toLowerCase().includes(q)||[].concat(ALIASES[it[0]]||[]).some(a=>a.toLowerCase().includes(q))||(Array.isArray(it[4])&&it[4].some(o=>String(o).toLowerCase().includes(q)))||(it[0]==='biome'&&Object.values(BIOME_HELP).some(h=>h.toLowerCase().includes(q))); }
+function matches(it,q){ q=q.toLowerCase(); return !q||it[1].toLowerCase().includes(q)||it[2].toLowerCase().includes(q)||[].concat(ALIASES[it[0]]||[]).some(a=>a.toLowerCase().includes(q))||(Array.isArray(it[4])&&it[4].some(o=>String(o).toLowerCase().includes(q))); }
 
 /* Shared chrome pieces */
 const AP_REJECT=['chestloc','stairs','cursed','three','radish','disguised'];
@@ -969,10 +970,10 @@ function flagsBlock(){
   const sd=el('input',{id:'seed',type:'text',inputmode:'numeric',maxlength:20,'aria-label':'Seed',value:State.seed});
   sd.addEventListener('change',()=>{ let v=sd.value.replace(/\D/g,''); if(v) v=(BigInt(v)>18446744073709551615n?18446744073709551615n:BigInt(v)).toString(); if(!v){ State.newSeed(); State.say&&State.say('A seed is a number, so a new random one was chosen.'); return; } State.seed=v; sd.value=v; State.emit('seed'); });
   const rnd=el('button',{type:'button',class:'btn',text:'Random Seed',onclick:()=>State.newSeed()});
-  const sum=el('input',{id:'checksum',type:'text',readonly:true,'aria-label':'Checksum',title:'The title screen of the game shows the first 6 digits.',placeholder:'None yet'});
+  const sum=el('input',{id:'checksum',type:'text',readonly:true,'aria-label':'Checksum',title:'The start menu of the game shows the first 6 digits, after CRC:.',placeholder:'None yet'});
   /* The copy and the link carry the gameplay flags only. Personal options are the reader's own and do not change the checksum. */
   /* The note has its own line, so the Flags line can be pasted back into the Flags box as it is. */
-  const cp=el('button',{type:'button',class:'btn',text:'Copy',title:'Copies the link, the flags, the seed and the checksum (once there is one). Your personal options are not in it.',onclick:()=>{ const ver=dwrVersion(), text='DWR - TheGobOne Remix'+(ver?' v'+ver:'')+'\nFlags: '+State.flags(true)+'\nSeed: '+State.seed+'\n'+(sum.value?'Checksum: '+sum.value+' (the title screen shows '+sum.value.slice(0,6)+')\n':'')+'Your personal options are not in these flags.\n'+location.href.split('#')[0]+'#f='+State.flags(true)+'&s='+State.seed+(ver?'&v='+ver:'');
+  const cp=el('button',{type:'button',class:'btn',text:'Copy',title:'Copies the link, the flags, the seed and the checksum (once there is one). Your personal options are not in it.',onclick:()=>{ const ver=dwrVersion(), text='DWR - TheGobOne Remix'+(ver?' v'+ver:'')+'\nFlags: '+State.flags(true)+'\nSeed: '+State.seed+'\n'+(sum.value?'Checksum: '+sum.value+' (the start menu shows CRC: '+sum.value.slice(0,6)+')\n':'')+'Your personal options are not in these flags.\n'+location.href.split('#')[0]+'#f='+State.flags(true)+'&s='+State.seed+(ver?'&v='+ver:'');
     copyOut(text,cp,'Copy','Copied!'); }});
   /* A checksum only belongs to the flags and seed it was made from. */
   State.showChecksum=v=>{ sum.value=v; };
@@ -1138,7 +1139,7 @@ function goBlock(out){
       if(r.spoilerText){ const s=document.createElement('a'); s.href=URL.createObjectURL(new Blob([r.spoilerText],{type:'text/plain'}));
         s.download=out_name+'.spoiler.txt'; setTimeout(()=>{ s.click(); setTimeout(()=>URL.revokeObjectURL(s.href),5000); },300); }
       const hex=sum.toString(16).padStart(16,'0').toUpperCase(); State.showChecksum(hex); const last=log.slice(log.map(t=>t.includes('Out of room')).lastIndexOf(true)+1);
-      const lines=[{text:'Checksum '+hex+'. The title screen shows the first 6 digits ('+hex.slice(0,6)+').'+(last.some(t=>t.includes('No room for the checksum on the title menu'))?' This Archipelago build had no room for it, so its title screen leaves it out.':'')}];
+      const lines=[{text:'Checksum '+hex+'. The start menu shows the first 6 digits as CRC: '+hex.slice(0,6)+'.'+(last.some(t=>t.includes('No room for the checksum on the title menu'))?' This Archipelago build had no room for it, so its start menu leaves it out.':'')}];
       if(log.some(t=>t.includes('Repacked the game code'))) lines.push({text:'The game code was repacked to make room, so this checksum can differ from racers on the same flags and seed with other personal options.'});
       { const drop=log.find(t=>t.startsWith('Out of room, so these personal options are left out'));
         if(drop) lines.push({text:'Out of room, so these personal options are left out of this ROM: '+drop.slice(drop.indexOf(': ')+2).replace(/\.\s*$/,'')+'.'}); }

@@ -59,7 +59,7 @@ W = 0x8100 + len(D)
 # Scratch bytes are rebuilt by the driver each frame, so only the game's values are kept for them.
 assert L['var_Note_Table'] == 0xdc
 # $D3, $D8 and $D9 are the expansion-chip temporaries (var_Temp4, var_Temp_Pointer2). Without those chips the
-# driver never touches them, so the game's values there need no swap. Re-add them if an expansion is enabled.
+# driver should never touch them, but they are still swapped below until that is checked in the driver code.
 ZP_SCRATCH = list(range(0xd0, 0xdc))
 ZP_KEPT = [0xdc, 0xdd]
 # Nothing to do while the game's own music plays and no new song is wanted, so skip the swap too.

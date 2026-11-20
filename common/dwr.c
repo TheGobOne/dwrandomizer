@@ -1079,7 +1079,7 @@ static void text_scroller_extras(dw_rom *rom)
     0xa9, 0x49,        // lda 0x49
     0x99, 0x54, 0x65,  // sta 6554
     0xc8,              // iny
-    0xc0, 0x08,        // cmp 08
+    0xc0, 0x08,        // cpy 08
     0xd0, 0xf8,        // bne -8
     0xe8, 0xe8, 0xe8   // inx inx inx (this is the only way I know to eat up space in a benign way)
     );
@@ -1509,16 +1509,17 @@ static void dwr_fighters_ring(dw_rom *rom)
     printf("Fixing the fighter's ring...\n");
     /* fighter's ring fix */
     vpatch(rom, 0xf0fc, 4, 0x20, 0x7d, 0xff, 0xea);
-    vpatch(rom, 0xff7d, 17,
+    /* Two INCs add exactly 2 whatever the carry is (ADC without CLC could add 3), in 2 fewer bytes.
+       $FF8C-$FF8D stay free; vanilla code starts at $FF8E. */
+    vpatch(rom, 0xff7d, 15,
         /* ff7d: */
         0x85, 0xcd,      /* STA $00CD  ; replaces code removed from $F00C    */
         0xa5, 0xcf,      /* LDA $00CF  ; load status bits                    */
         0x29, 0x20,      /* AND #$20   ; check bit 6 (fighter's ring)        */
-        0xf0, 0x06,      /* BEQ $FF8B                                        */
-        0xa5, 0xcc,      /* LDA $00CC  ; load attack power                   */
-        0x69, 2,         /* ADC #$02   ; add fighter's ring power.           */
-        0x85, 0xcc,      /* STA $00CC  ; store new attack power              */
-        /* ff8b: */
+        0xf0, 0x04,      /* BEQ $FF89                                        */
+        0xe6, 0xcc,      /* INC $00CC  ; attack power +1                     */
+        0xe6, 0xcc,      /* INC $00CC  ; attack power +1 (ring gives +2)     */
+        /* ff89: */
         0x4c, 0x54, 0xff /* JMP $FF54  ; jump to next section                */
     );
     vpatch(rom, 0xff54, 3,
@@ -2062,7 +2063,7 @@ static void dwr_menu_wrap(dw_rom *rom)
         );
     vpatch(rom, 0x6a23, 4,
         /* 6a23: */
-        0x4c, 0xcd, 0xbe,  /* JMP #BECD */
+        0x4c, 0xcd, 0xbe,  /* JMP $BECD */
         0xea               /* NOP */
     );
     vpatch(rom, 0x7ea0, 45,
@@ -2073,7 +2074,7 @@ static void dwr_menu_wrap(dw_rom *rom)
         0xad, 0xe5, 0x64,  /* LDA $64E5 ; load ??? */
         0xc9, 0x04,        /* CMP #$04  ; compare to ??? */
         0xf0, 0x1e,        /* BEQ $7ED7 ; if equal branch to $7ED7 (return) */
-        0x20, 0x30, 0xab,  /* JMP $AB30 ; jump to $AB30 */
+        0x20, 0x30, 0xab,  /* JSR $AB30 ; call $AB30 */
         0xa5, 0xd9,        /* LDA $00D9 ; load cursor y position */
         0xd0, 0x14,        /* BNE $7ED4 ; if it's not 0, jump to $7ED4 */
         /* 7eb0: */
@@ -2081,7 +2082,7 @@ static void dwr_menu_wrap(dw_rom *rom)
         0xe9, 0x03,        /* SBC #$03  ; subtract 3 */
         0x4a,              /* LSR       ; divide by 2 */
         0xe9, 0x00,        /* SBC #$00  ; subtract 0 (?) */
-        0x85, 0xd9,        /* STA $00D9 ; rewrite map number (?) */
+        0x85, 0xd9,        /* STA $00D9 ; set the cursor y position */
         0x0a,              /* ASL       ; multiply by 2 (?) */
         0x6d, 0xf3, 0x64,  /* ADC $64F3 ; add ??? */
         0x8d, 0xf3, 0x64,  /* STA $64F3 ; write to ??? */
@@ -3744,31 +3745,31 @@ void zoom_and_whistle(dw_rom *rom)
         0xd0, 7,                // BNE next
         0xa2, 1,                // LDX (town index in zoom_data)
         0x8e, ram_i & 0xff, (ram_i >> 8) & 0xff, // STX ram_i
-		0x09, 0x02,														   // ORA 0x02 (Brecconary's visited bit)
+        0x09, 0x02,             // ORA 0x02 (Brecconary's visited bit)
 
         0xe0, zoom_data[2][0],  // CPX Kol
         0xd0, 7,                // BNE next
         0xa2, 2,                // LDX (town index in zoom_data)
         0x8e, ram_i & 0xff, (ram_i >> 8) & 0xff, // STX ram_i
-		0x09, 0x04,														   // ORA 0x04 (Kol's visited bit)
+        0x09, 0x04,             // ORA 0x04 (Kol's visited bit)
 
         0xe0, zoom_data[3][0],  // CPX Garinham
         0xd0, 7,                // BNE next
         0xa2, 3,                // LDX (town index in zoom_data)
         0x8e, ram_i & 0xff, (ram_i >> 8) & 0xff, // STX ram_i
-		0x09, 0x08,														   // ORA 0x08 (Garinham's visited bit)
+        0x09, 0x08,             // ORA 0x08 (Garinham's visited bit)
 
         0xe0, zoom_data[4][0],  // CPX Cantlin
         0xd0, 7,                // BNE next
         0xa2, 4,                // LDX (town index in zoom_data)
         0x8e, ram_i & 0xff, (ram_i >> 8) & 0xff, // STX ram_i
-		0x09, 0x10,														   // ORA 0x10 (Cantlin's visited bit)
+        0x09, 0x10,             // ORA 0x10 (Cantlin's visited bit)
 
         0xe0, zoom_data[5][0],  // CPX Rimuldar
         0xd0, 7,                // BNE next
         0xa2, 5,                // LDX (town index in zoom_data)
         0x8e, ram_i & 0xff, (ram_i >> 8) & 0xff, // STX ram_i
-		0x09, 0x20,														   // ORA 0x20 (Rimuldar's visited bit)
+        0x09, 0x20,             // ORA 0x20 (Rimuldar's visited bit)
 
 		0x8d, ram_v & 0xff, (ram_v >> 8) & 0xff, // STA ram_v
         0x20, LO(persist), HI(persist), // keep it in this save slot
