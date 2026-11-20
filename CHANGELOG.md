@@ -1,39 +1,51 @@
 # 1.2.2 - TheGobOne Remix #
-* The desktop app (electron/) and the old web interface (webui/) are removed. The website in site/ is the only interface
-* When the spare map room in bank 0 is too small, the Responsive Controls read hook runs from bank 7 through the game's BRK handler: when the main bank has no gap (the build log says "The read hook runs from bank 7.")
-* The stat build code (Build Options) now runs in place over the unused vanilla penalty code, and the Nintendo header area ($FFE0-$FFF9) is cleared in every build. Both free fixed bank space
-* Race checksums change in every build: the Nintendo header area ($FFE0-$FFF9) is cleared and the checksum now covers the code in the expansion banks (not music packs), so everyone in a race needs this version
-* Flag codes with characters outside A-Z and 2-7 are refused instead of decoding as zero bits. `--biome` names come from one list, and its error message lists them
-* Internal: the stair shuffle buffer is big enough for every warp copy, the land mass fill no longer recurses (so a twisty map cannot overflow the web build's stack)
-* Return and the Warp Whistle land on a grass, desert, hills or trees tile beside the place (south first, then north, west and east). If none of those four is such a tile, a swamp or bridge tile beside the place is used (same order), and only then the place itself
-* Fixed bank room: the step counter and the vertical bridge code use spare bank 0 space when it is free, and three patches are 1 to 2 bytes smaller
-* The title menu reads "CHANGE BUILD (EXP 0)"
-* When the fixed bank has no gap for a routine, it now runs from bank 7 behind a far call: the Quick Spell name routine, the Encounter Rate and Run Bank game-start code and the Responsive Controls hooks, in every build. The NPC Guillotine routine stays in the fixed bank, and a far routine never takes room from a music pack. The title checksum window falls back to bank 1. In a sweep of 300 random flag codes, failures with "Not enough space" went from 5 to 1. The step counter is never moved behind a far call, since a copy in bank 6 lost steps in FCEUX (26 against 44 in a test walk)
-* Warp Whistle: Hauksness is a seventh stop. It has no inn, so it counts as visited once you walk into it. It lands beside the entrance by the same rule as the six towns. The code runs behind a far call in bank 7 and needs no fixed bank room
-* Quick Spell: the battle slot shows "-----" until the first spell is cast, instead of looking empty. Its window code is 1 byte smaller, which changes the checksum of builds with Quick Spell on
-* Every empty expansion bank has the original game's reset stub and vectors, so a cart that powers on in 32 KB mode resets the mapper the way the original game does. Music pack songs in bank 6 stop below that stub and bank 3 songs below its vectors (46 bytes less song room), so a full pack no longer covers them
-* Command line: flag codes with dropdown values no option uses (including Crit Chance 7) are fixed the same way as on the site, and the fixed code is used in the file name and the race card. Shorter `--jingles` and `--race-card` help lines
-* A build that drops its music pack for lack of room no longer does one extra full build
-* Site, flags and sharing: Copy and the page link carry the gameplay flags only, plus the DWR version; a link from another version shows a warning. Your personal options stay as you had them through presets, links and pasted codes, and a message says when a code turned others on. Flag codes no longer change with hidden settings (Run Bank level and cap only count with Run Bank on, Biome only with Random Map on). Bad flag codes show their error under the Flags box and keep what was typed, and the error no longer moves the Seed row. Old Biome Random codes pick from all 7 biomes, so they can give a different map than before. The Easy Standard preset code changed by one letter, because Safer Vanilla switches Easy Charlock off in the game; its checksum is unchanged
-* Site, options: Safe Start works with Random Map off. One table drives the "Needs" and "Off while" tags, and options such as No Hurtmore, Heal/Hurt Before "More", Level 1 Radiant, Level 1 Repel and Alternate Running Algorithm are greyed out when what they need is off. Presets show a message with an Undo button. The flute options sit together on Hero & Magic, and Easy Charlock is on Quest. Renamed labels: Discard Flute (was DK Flute), Summer Sale Chance, Death Necklace, Menu Wrapping, Torches in Battle, Custom Spell Names. The Warp Whistle help explains the Hauksness stop, and the Standard preset text no longer lists Menu Wrapping
-* Site, layout and status: the checksum shows 16 uppercase digits; the title screen shows the first 6. The Status line reads "ROM left: N B" on one line, and a failed build reads "ROM full: turn off a flag or a music pick." Randomize without a ROM says "Choose your ROM first." The walking hero preview works again with the 256 KB ROM. The Setup row no longer jumps when "ROM downloaded." appears, blank space under the Flags box and the presets is trimmed, and the "Needs Run Mechanics: Vanilla" tag no longer wraps. The page scrolls once on screens shorter than 760 px or narrower than 1000 px, the base text is 14 px (larger on screens of 2200 x 1200 or more), and a message shows if the randomizer fails to load
-* NPC Guillotine no longer removes the NPCs the quest needs: the one who gives the Erdrick's Token coordinates, the Staff of Rain and Rainbow Drop guys and the one who lifts the curse. The routine is 11 bytes larger
-* The Key & Herb counter in the stats window shows herbs first, then keys, the same order as the item menu
-* Earth biome: a bridge no longer lands on a lone tile or a pocket of land cut off by mountains. It lands on the biggest piece of the island, and mountains that cut an island or an Americas piece off from the rest are opened to hills, so every island can be walked. In 120 test seeds every island is reachable from the main continent
-* Build Options text: Original builds are -10%/+3 on their stats, not -3/+10%. The 3 is the best result of the original game's 0 to 3 roll, which DWR locks in
-* tools/patchgen.py works on ROMs of any expansion size
-* The ROM is now 256 KB (16 PRG banks, MMC1 as before). The fixed bank is the last bank, the far-call routines have bank 7 to themselves, so music packs get all of bank 6 again, and banks 8 to 14 are empty for later features. Checked in FCEUX and Mesen 2; Nestopia and flash carts are not checked yet
-* Disable Music now keeps a music pack's songs out too
-* Menu Wrapping is applied after the checksum, so it no longer changes the checksum and races can mix it. The Quick Spell name routine is 12 to 14 bytes smaller. ROMs with either option on differ from earlier 1.2.2 builds
-* Command line: new options `--run-bank`, `--safe-start`, `--fast-flute`, `--discard-flute`, `--screen-shake`, `--spell-flashing`, `--red-flashes`, `--disable-music`, `--jingles`, `--original-credits` and `--menu-wrap`. `--bank-cap 9` and `--run-bank off` give the same flag code as the site. The console checksum prints in uppercase, and the program prints "DWR version".
-* Command line: Biome Random with Random Map off no longer draws a random number, so the command line and the site build the same ROM for the same code. Such a code builds a different ROM than before
-* Command line: `--race-card on` prints the version, the gameplay flags (without personal options), the seed and the uppercase checksum after the build: the same flags, seed and checksum as the site's Copy text, without the link. It says when the title screen had no room for the checksum, and warns when the game code was repacked, since that checksum can differ from racers with other personal options
-* Dropdown values no option uses (for example Run Mechanics 5, Leveling Speed 3, Gold Chest 6 or an unknown Biome pattern) now play as the option's normal setting in the game too, as the site already showed, and the build log says so. Only hand-made codes are affected
-* When a build runs out of room after the checksum with a music pack, the pack is now left out before the game code is repacked, so the checksum stays the same as everyone else's. If the game code still has to be repacked, the build log and the site say the checksum can differ
-* A build that is still out of room after leaving out the music pack leaves out personal options before the game code is repacked, so the checksum stays the same. The harmless ones go first (Menu Wrapping, Winter Theme, Skip Original Credits, Don't Mute Jingles, Disable Cursor Blink, Disable Music, Custom Spell Names). Disable Spell Flashing, Disable Red Flashes and Disable Screen Shake are left out only if the build still does not fit. The build log names every option left out
-* Command line: the line for a repaired flag code says the code you gave was repaired
+## Space
 
-* Tests: tests/site_parity.mjs compares the site and CLI checksum and the whole ROM (SHA-256), and reads its flag constants from common/dwr.h and dwr.c. It also checks that the site and dwr.h agree on the flag code length for every value of bytes 25 to 27, and that turning on every personal option leaves the checksum unchanged
+- ROM is 256 KB (16 banks, MMC1 as before). The fixed bank is last, bank 7 holds far-call routines, bank 6 holds music packs, and banks 8 to 14 are empty for later features.
+- Routines that don't fit the fixed bank run from bank 7 behind a far call. In 300 random flag codes, "Not enough space" failures dropped from 5 to 1.
+- The step counter and vertical bridge code use spare bank 0 space, and three patches are 1 to 2 bytes smaller.
+- The stat build code runs over unused vanilla penalty code, and the header area ($FFE0-$FFF9) is cleared in every build.
+- A build that runs out of room drops the music pack first, then harmless personal options, before the game code is repacked.
+- Every empty expansion bank has the original game's reset stub and vectors, so a cart that powers on in 32 KB mode resets the way the original game does.
+
+## Gameplay
+
+- Warp Whistle adds Hauksness as a seventh stop.
+- Return and Warp Whistle land on a nearby grass, desert, hills or trees tile.
+- Earth biome bridges and raft docks land on the main island, and mountains that cut off islands are opened to hills.
+- The Quick Spell battle slot shows "-----" until the first cast.
+- NPC Guillotine keeps the NPCs the quest needs.
+- The Key & Herb counter shows herbs first, then keys, the same order as the item menu.
+- Disable Music keeps a music pack's songs out too.
+
+## Fixes
+
+- Fighter's Ring adds exactly 2. Before, it could add 3.
+- The Disguised Dragonlord hint no longer shifts the messages after it.
+- Build Options text: Original builds are -10%/+3 on their stats, not -3/+10%.
+- The Westeros mountain pass stays inside the map edges.
+
+## Site
+
+- Copy and the page link carry gameplay flags and the version, and personal options stay.
+- Safe Start works with Random Map off.
+- Options show "Needs" and "Off while" tags and grey out when what they need is off. Presets have an Undo button.
+- Renamed labels: Discard Flute (was DK Flute), Summer Sale Chance, Death Necklace, Menu Wrapping, Torches in Battle, Custom Spell Names.
+- Bad flag codes show their error under the Flags box, keep what you typed, and block Randomize until fixed.
+- The checksum shows 16 digits, and the title screen shows the first 6. The Status line reads "ROM left: N B".
+- Downloads are named DWR.<seed>.<flags>.nes.
+
+## Command line
+
+- New options cover run bank, safe start, flutes, flashing, music, jingles, original credits and menu wrap.
+- `--race-card on` prints the version, flags, seed and checksum.
+- Odd dropdown values are fixed the same way as on the site, and the CLI says when it repaired a code.
+- The CLI and the site build the same ROM for the same flag code.
+- `tools/patchgen.py` works on ROMs of any expansion size.
+
+## Testing
+
+FCEUX and Mesen 2 only. Nestopia and flash carts are not checked.
 
 # 1.2.1 - TheGobOne Remix #
 * Random maps: Wasteland and Riverlands grow their land out of open water the way Continent does, with irregular coasts, lakes and islands. Both keep their own terrain mix
