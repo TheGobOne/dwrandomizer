@@ -17,6 +17,7 @@
 - NPC Guillotine keeps the NPCs the quest needs.
 - The Key & Herb counter shows herbs first, then keys, the same order as the item menu.
 - Disable Music keeps a music pack's songs out too.
+- Archipelago: when there is no room for an item, the message reads "No room: Magic Key became 100 Gold." so it says the gold was given.
 
 ## Fixes
 
@@ -35,7 +36,10 @@
 - Options show "Needs" and "Off while" tags and grey out when what they need is off. Presets have an Undo button.
 - Renamed labels: Discard Flute (was DK Flute), Summer Sale Chance, Death Necklace, Menu Wrapping, Torches in Battle, Custom Spell Names.
 - Bad flag codes show their error under the Flags box, keep what you typed, and block Randomize until fixed.
-- The checksum shows 16 digits, and the title screen shows the first 6. The Status line reads "ROM left: N B".
+- The checksum shows 16 digits, and the title screen shows the first 6. The Status line reads "Free ROM space: N bytes", the same number the Flag sizes dialog shows.
+- On a 1280x720 or similar screen the page fits without scrolling, and the options panel shows more of its list.
+- The Search box, Site Color menu and menu rows are easier to click. Tab from the Command menu goes straight to the options.
+- The Archipelago "coming soon" line under the Flags box is gone. The Command menu ends with a ??? entry marked coming soon.
 - Downloads are named DWR.<seed>.<flags>.nes.
 
 ## Command line
@@ -43,7 +47,8 @@
 - New options cover run bank, safe start, flutes, flashing, music, jingles, original credits and menu wrap.
 - `--race-card on` prints the version, flags, seed and checksum.
 - Odd dropdown values are fixed the same way as on the site, and the CLI says when it repaired a code.
-- The CLI and the site build the same ROM for the same flag code.
+- A seed that is not a whole number from 0 to 18446744073709551615 is an error, not silently changed.
+- The CLI and the site give the same checksum and title code for the same flag code and seed. The ROM files can differ in the credits song and, when the sprite is Random, the sprite, because the build picks those from the clock.
 - `tools/patchgen.py` works on ROMs of any expansion size.
 
 ## Testing
