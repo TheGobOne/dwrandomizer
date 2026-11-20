@@ -50,6 +50,12 @@ const char *version()
     return VERSION;
 }
 
+/* Where the fixed-bank free space search starts, so the site's "ROM left" count matches the build. */
+int free_start(void)
+{
+    return FIXED_FREE_START;
+}
+
 /**
  * A function to be passed to qsort for sorting uint8_t arrays
  *
