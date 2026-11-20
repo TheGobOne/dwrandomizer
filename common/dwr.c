@@ -73,6 +73,25 @@ static int compare(const void *a, const void *b)
  * @param raw The 27 decoded flag bytes (28 with the spare byte)
  * @return TRUE when a value was changed
  */
+/* Flag codes use A-Z and 2-7, and are 40, 42 or 44 characters. Anything else would decode as zero
+ * bits or part of a byte and silently change the flags, so refuse it with a message. */
+BOOL dwr_flags_valid(const char *flags)
+{
+    const char *c;
+
+    for (c = flags; *c; c++) {
+        if (!((*c >= 'A' && *c <= 'Z') || (*c >= '2' && *c <= '7'))) {
+            fprintf(stderr, "Flags may only use the letters A to Z and the digits 2 to 7; '%c' is not one.\n", *c);
+            return FALSE;
+        }
+    }
+    if (strlen(flags) != 40 && strlen(flags) != 42 && strlen(flags) != 44) {
+        fprintf(stderr, "Flags must be 40, 42 or 44 characters; '%s' is %d.\n", flags, (int)strlen(flags));
+        return FALSE;
+    }
+    return TRUE;
+}
+
 BOOL dwr_normalize_flags(uint8_t raw[28])
 {
     BOOL odd = FALSE;
@@ -260,22 +279,7 @@ static BOOL dwr_init(dw_rom *rom, const char *input_file, char *flags)
         return FALSE;
     }
 
-    /* Flag codes use A-Z and 2-7. Anything else would decode as zero bits and silently change the flags. */
-    {
-        const char *c;
-
-        for (c = flags; *c; c++) {
-            if (!((*c >= 'A' && *c <= 'Z') || (*c >= '2' && *c <= '7'))) {
-                fprintf(stderr, "Flags may only use the letters A to Z and the digits 2 to 7; '%c' is not one.\n", *c);
-                free(rom->header);
-                free(rom->expansion);
-                return FALSE;
-            }
-        }
-    }
-    /* Flag codes are 40, 42 or 44 characters. Other lengths would decode part of a byte, so refuse them. */
-    if (strlen(flags) != 40 && strlen(flags) != 42 && strlen(flags) != 44) {
-        fprintf(stderr, "Flags must be 40, 42 or 44 characters; '%s' is %d.\n", flags, (int)strlen(flags));
+    if (!dwr_flags_valid(flags)) {
         free(rom->header);
         free(rom->expansion);
         return FALSE;
@@ -2989,6 +2993,26 @@ static void add_reset_stubs(dw_rom *rom)
     static const uint8_t vectors[6] = { 0xd8, 0xbf, 0xd8, 0xbf, 0xd8, 0xbf };
     int bank, i;
 
+    /* Bank 0: the token code (other_patches) sits at $BFD5 and covers the first 5 stub bytes. Move it into the
+     * spare end of the map, which is in bank 0 too, or else into the fixed bank, where the hook at $D383 is.
+     * Done last so it never takes room that other code needs; with no room left the code stays where it is. */
+    if (rom->content[0xd383] == 0xd5 && rom->content[0xd384] == 0xbf && rom->content[0x3fd5] == 0x20) {
+        int at = map_tail_space(rom, 8);
+        uint16_t cpu = (uint16_t)(at + 0x8000);
+
+        if (at < 0) {
+            at = dwr_try_free_space(rom->content, FIXED_FREE_START, 8);
+            cpu = (uint16_t)at;
+        }
+        if (at >= 0) {
+            memcpy(&rom->content[at], &rom->content[0x3fd5], 8);
+            rom->content[0xd383] = (uint8_t)(cpu & 0xff);
+            rom->content[0xd384] = (uint8_t)(cpu >> 8);
+            memset(&rom->content[0x3fd5], 0xff, 3);
+            memcpy(&rom->content[0x3fd8], stub, sizeof(stub));
+        }
+    }
+
     for (bank = 3; bank < PRG_BANKS - 1; bank++) {
         uint8_t *top = &rom->expansion[(bank - 3) * 0x4000];
         BOOL free_room = TRUE;
@@ -3006,6 +3030,13 @@ static void add_reset_stubs(dw_rom *rom)
                 free_room = FALSE;
         if (free_room)
             memcpy(&top[0x3ffa], vectors, sizeof(vectors));
+    }
+    /* Bank 5 keeps the credits' NMI and IRQ, but its RESET pointed at the bank switch the credits copy to
+     * $0200, which ends in an rts with nothing to return to. Point it at bank 4's stub instead, which the
+     * credits run beside in 32 KB mode. */
+    if (!memcmp(&rom->expansion[(4 - 3) * 0x4000 + 0x3fd8], stub, sizeof(stub))) {
+        rom->expansion[(5 - 3) * 0x4000 + 0x3ffc] = 0xd8;
+        rom->expansion[(5 - 3) * 0x4000 + 0x3ffd] = 0xbf;
     }
 }
 

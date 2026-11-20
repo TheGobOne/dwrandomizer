@@ -286,6 +286,10 @@ int main(int argc, char **argv)
         sprite = "Random";
     }
 
+    /* Check the code before the options below decode and re-encode it into a valid one. */
+    if (!dwr_flags_valid(flags))
+        return 1;
+
     /* 27 bytes plus room for the 4 spare bits a 44 character code decodes into. */
     uint8_t raw[28] = {0};
     strncpy(encoded, flags, 44);

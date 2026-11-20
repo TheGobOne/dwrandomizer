@@ -643,7 +643,9 @@ static BOOL has_tag(const song_t *s, const char *const tags[4])
 /* The site plans the same room (BANK4_HIGH in site/index.html): if the credits code grows past this, move both. */
 _Static_assert(CREDITS_CODE_END <= BANK4_HIGH, "bank 4 credits code runs into BANK4_HIGH");
 static int music_bank_count = 2;
-static uint16_t music_bank_end[MUSIC_BANKS] = {0xbfd8, 0xbffa, 0xbffa, 0xa000, 0xc000};
+/* Bank 4's top piece also stops below its reset stub at $BFD8: bank 5's RESET vector points there for a
+ * reset during the credits, which run in 32 KB mode with banks 4 and 5. */
+static uint16_t music_bank_end[MUSIC_BANKS] = {0xbfd8, 0xbffa, 0xbffa, 0xa000, 0xbfd8};
 
 static BOOL fits_a_bank(const uint16_t next[MUSIC_BANKS], unsigned size)
 {
@@ -729,7 +731,7 @@ static const event_t events[EVENT_COUNT] = {
  * then bank 4 below and above the credits code. */
 /* Bank 3 is set again for each build: in AP mode its top holds the AP code and the found-message item names. */
 static size_t pick_room[MUSIC_BANKS] = {0xbfd8 - FT_SONGS, 0xbffa - FT_SONGS, 0xbffa - FT_SONGS,
-    0xa000 - FT_SONGS, 0xc000 - BANK4_HIGH};
+    0xa000 - FT_SONGS, 0xbfd8 - BANK4_HIGH};
 _Static_assert(AP_BANK3_NAMES > FT_SONGS, "AP item names overlap the bank 3 song area");
 #define PICK_ROOM_ALL (pick_room[0] + pick_room[1] + pick_room[2] + pick_room[3] + pick_room[4])
 

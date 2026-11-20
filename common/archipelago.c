@@ -224,7 +224,7 @@ int dwr_ap_patch_free_charlock(void)
  * handler is rewritten to print the $FA-terminated text that $A3/$A4 point to.
  * Each chest and search spot gets its own sentence from the .apdwr patch file
  * ("Thou hast found the Herb.", "Heart Container for Alex."), or
- * "Thou hast found the APItem." without one.
+ * "Thou hast found an item." without one.
  *
  * Bank 1 has no room for the names, so they sit at the top of expansion bank
  * 3: a low and a high pointer table, then the names end to end, ending at
@@ -258,7 +258,7 @@ size_t ascii2dw(uint8_t *string);
  * with the $FA. */
 static size_t ap_name_tiles(int i, uint8_t *buf)
 {
-    const char *text = ap_have_text && ap_text[i][0] ? ap_text[i] : "Thou hast found the APItem.";
+    const char *text = ap_have_text && ap_text[i][0] ? ap_text[i] : "Thou hast found an item.";
     size_t j, len = strlen(text);
 
     if (len > AP_TEXT_LEN)

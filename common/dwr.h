@@ -225,6 +225,7 @@ void dwr_no_room(void);
 int dwr_try_free_space(uint8_t *content, uint16_t start, uint8_t n);
 /* Sets dropdown values no option uses to the option's normal setting, as the site does. TRUE when it
  * changed a byte. */
+BOOL dwr_flags_valid(const char *flags);
 BOOL dwr_normalize_flags(uint8_t raw[28]);
 /* TRUE when the last build repacked the game code to make room, so its checksum can differ from the same
  * flags and seed built with other personal options. */

@@ -39,7 +39,7 @@ dwr_options:
 
 ## 3. Set up your player file
 
-The quickest way is the site: open the Archipelago command, type a player name and click "Save YAML" or "Download YAML" (or "Copy YAML"). To write the file by hand, make one such as `MyName.yaml`:
+The quickest way is the site: open the Archipelago command, type a player name and click "Save YAML" (or "Copy YAML"). To write the file by hand, make one such as `MyName.yaml`:
 
 ```yaml
 name: MyName
