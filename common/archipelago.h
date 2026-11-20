@@ -5,7 +5,7 @@
 #include "dwr.h"
 
 /* Locations with a found message: 31 chests, then the 3 search spots. Each text is a whole
- * sentence ("You sent Heart Container to Alex.") of up to AP_TEXT_LEN letters plus an end byte.
+ * sentence ("Heart Container for Alex.") of up to AP_TEXT_LEN letters plus an end byte.
  * The game copies it into its 40 byte text buffer at $652C, and wraps it at word ends. */
 #define AP_TEXT_LOCS  (CHEST_COUNT + 3)
 #define AP_TEXT_LEN   38

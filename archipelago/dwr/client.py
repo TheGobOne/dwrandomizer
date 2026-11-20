@@ -70,7 +70,7 @@ def tiles(text: str) -> bytes:
 
 def dw_text(name: str, sender: str = "", player: int = 0, lines: bool = False) -> bytes:
     """The mailbox text for one item, as DW tiles. ROM version 005 and later (lines) show a whole sentence,
-    "Alex hath sent thee Heart Container."; older ROMs add "Thou hast found the" to "Herb from Alex"."""
+    "Heart Container from Alex."; older ROMs add "Thou hast found the" to "Herb from Alex"."""
     return tiles(received_line(name, sender, player) if lines else received_text(name, sender, player))
 
 

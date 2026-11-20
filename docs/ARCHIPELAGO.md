@@ -122,7 +122,7 @@ Built on branch `feature/archipelago`, with its own hooks on DWR's code:
 | Part | Where | What it does |
 |---|---|---|
 | AP mode | `common/archipelago.c`, CLI `--ap-slot <name>` | Runs last in `apply_stuff_to_rom()` |
-| Chests | hook at `$E221` (chest found, Y = index * 4) | Sets bit n of `$6822-$6825`, marks the chest open, shows "Fortune smiles upon thee, <hero>." and the location's sentence from the patch file: "Thou hast found the Herb." or "You sent Heart Container to Alex." ("Thou hast found the APItem." without one). No item or gold is given. |
+| Chests | hook at `$E221` (chest found, Y = index * 4) | Sets bit n of `$6822-$6825`, marks the chest open, shows "Fortune smiles upon thee, <hero>." and the location's sentence from the patch file: "Thou hast found the Herb." or "Heart Container for Alex." ("Thou hast found the APItem." without one). No item or gold is given. |
 | Search spots | hook at `$E12D` (search entry X matched) | Sets bit X of `$6826`, same message |
 | Items received counter | `$6820-$6821`, saved per slot at `$6828 + slot * 2` | Save hook at `$FA18`, restored by LoadSavedData at `$FB6B`. A new game (a start with no Continue load) clears it. |
 | ROM signature | PRG `$7FE0` | `DWRAP` and the version (`004` now), a pointer to the 32-byte UTF-8 slot name, a custom music flag, the 4-byte seed hash, and the herb and key carry caps |
@@ -174,7 +174,7 @@ Nothing found blocks Phase 3.
 | New game clears the AP block | Pass (`p3check.lua`, run four, with stale bits planted) |
 | Continue keeps the bits | Pass (run three) |
 | Random Chest Locations: a moved chest sets its index's bit | Pass (run five, which opens the first Tantegel chest that RCL moved; it needs a ROM built with RCL through the CLI, because the APWorld rejects RCL) |
-| Mailbox: received items show the sentence the client wrote, such as "Alex hath sent thee Heart Container." | Pass (run six: message on screen; full AP run: each item cleared the mailbox before the next) |
+| Mailbox: received items show the sentence the client wrote, such as "Heart Container from Alex." | Pass (run six: message on screen; full AP run: each item cleared the mailbox before the next) |
 
 How the mailbox works: the client writes the message in DW tiles to `$6850` (a sentence of up to 38 characters from version `005`) and sets `$682E` to 1. The ROM hooks the after-step code at `$CDBF`. After the hero's next step it clears the flag, stops the NPCs and opens the dialog window (the game's routine at `$CBEE`), then shows the message. Before the window was opened, the text printed over the old screen with no frame. The client gives the next item only after the flag clears. The ROM was version `002` then (`005` now).
 
@@ -197,7 +197,7 @@ How the mailbox works: the client writes the message in DW tiles to `$6850` (a s
 - Game start: the AP work now runs before the throne room loads, so nothing sees the old state, and the mailbox flag is cleared there.
 - Herb and Magic Key caps come from the ROM signature, so Random Herb Carry and Random Key Carry work. An item at the cap is dropped with a log line instead of holding up the items behind it.
 - Items that are not given (dropped, already held) and items from your own opened chests and search spots get no mailbox message. Items from `!collect` or a release get one and name the slot that found them; only the server's own items (starting items, `!getitem`, player 0) say "from Server".
-- Found-message names are stored end to end at the top of bank 3. The AP code (game start, found item with its bit table) sits just below them, Each is a whole sentence of up to 38 characters ("You sent Heart Container to Alex."), with a long player name cut to fit and accents folded for the DW font. Message $D9 is rewritten at the end of the build to "Fortune smiles upon thee, <hero>.", a new line, then the sentence; messages $DA-$DF move down 21 bytes (AP version 005).
+- Found-message names are stored end to end at the top of bank 3. The AP code (game start, found item with its bit table) sits just below them, Each is a whole sentence of up to 38 characters ("Heart Container for Alex."), with a long player name cut to fit and accents folded for the DW font. Message $D9 is rewritten at the end of the build to "Fortune smiles upon thee, <hero>.", a new line, then the sentence; messages $DA-$DF move down 21 bytes (AP version 005).
 - Slot names are 32 bytes of UTF-8 (Archipelago itself cuts them to 16 characters).
 - Round 2: a New Game also tags its slot. A slot this ROM saved takes the seed hash back after another seed started a game in another slot, and clears the shared chest and search bits. An unknown ROM version is refused. The client warns when the save has more items than the server sent. Drop and swap log lines appear only once the write lands.
 - Round 3: the ROM itself takes the seed hash back at Continue when it tagged the slot, clearing the other seed's location bits. Only New Game tags a slot, so a slot keeps the seed that started it (Change Message Speed on the title menu also saves, and must not retag). New Quest zeroes the counter before it saves the new hero. The Dragon's Scale and Fighter's Ring wait for room like quest items. The client sends nothing on the poll that takes the hash back.

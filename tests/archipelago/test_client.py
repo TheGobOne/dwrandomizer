@@ -230,7 +230,7 @@ class GiveItem(unittest.TestCase):
         client.lines = True
         asyncio.run(client._give_item(ctx, bytes(self.ram), bytes(7), 0))
         writes, _ = BH.calls[0]
-        self.assertIn((C.MAIL_TEXT, C.tiles("Alex hath sent thee Herb."), "System Bus"), writes)
+        self.assertIn((C.MAIL_TEXT, C.tiles("Herb from Alex."), "System Bus"), writes)
         self.assertEqual(C.batch_tiles(5, "Alex", True), C.tiles("5 items from Alex."))
         self.assertEqual(C.batch_tiles(5, "Alex"), C.tiles("pile from Alex"))
 

@@ -206,7 +206,7 @@ int dwr_ap_patch_free_charlock(void)
  * rewrites to "Fortune smiles upon thee, <hero>.", a new line, then $F9. $F9's
  * handler is rewritten to print the $FA-terminated text that $A3/$A4 point to.
  * Each chest and search spot gets its own sentence from the .apdwr patch file
- * ("Thou hast found the Herb.", "You sent Heart Container to Alex."), or
+ * ("Thou hast found the Herb.", "Heart Container for Alex."), or
  * "Thou hast found the APItem." without one.
  *
  * Bank 1 has no room for the names, so they sit at the top of expansion bank

@@ -1,7 +1,7 @@
 """Item names and the sentences the game shows for them.
 
 An item name has at most 16 characters. ROM version 005 and later show a whole sentence of up to
-38 characters ("You sent Heart Container to Alex."); older ROMs add "Thou hast found the" to a
+38 characters ("Heart Container for Alex."); older ROMs add "Thou hast found the" to a
 16 character text."""
 import unicodedata
 
@@ -99,7 +99,7 @@ def received_text(item: str, sender: str = "", player: int = 0) -> str:
 
 def _sentence(head: str, owner: str, tail: str = ".") -> str:
     """head + owner + tail, with the owner cut so the whole fits LINE_LEN. The item in head is
-    never cut: an item is at most TEXT_LEN characters, which leaves room for at least 8 letters
+    never cut: an item is at most TEXT_LEN characters, which leaves room for at least 15 letters
     of the owner."""
     room = LINE_LEN - len(head) - len(tail)
     return f"{head}{owner[:room].rstrip()}{tail}"
@@ -110,24 +110,22 @@ def found_text(item: str, owner: str = "", player: int = 0) -> str:
     (ROM version 005 and later).
 
     The hero's own item: "Thou hast found the Herb." Another player's item says who gets it:
-    "You sent Heart Container to Alex." A long owner name is cut to fit. An owner with no DW font
+    "Heart Container for Alex." A long owner name is cut to fit. An owner with no DW font
     characters shows as "P" and the player number ("P3"), or "?" without one."""
     item = game_name(item)
     if not owner:
         return f"Thou hast found the {item}."
-    return _sentence(f"You sent {item} to ", _owner(owner, player))
+    return _sentence(f"{item} for ", _owner(owner, player))
 
 
 def received_line(item: str, sender: str = "", player: int = 0) -> str:
-    """The mailbox sentence for an item from another player: "Alex hath sent thee Heart Container."
+    """The mailbox sentence for an item from another player: "Heart Container from Alex."
     (ROM version 005 and later). The sender is cut to fit; the item is not. Without a sender (the
     server, a !collect): "Thou hast found the Herb." """
     if not sender:
         return found_text(item)
     item = game_name(item)
-    owner = _owner(sender, player)
-    room = LINE_LEN - len(" hath sent thee ") - len(item) - len(".")
-    return f"{owner[:room].rstrip()} hath sent thee {item}."
+    return _sentence(f"{item} from ", _owner(sender, player))
 
 
 def batch_line(count: int, sender: str = "") -> str:

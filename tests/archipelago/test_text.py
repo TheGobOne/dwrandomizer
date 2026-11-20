@@ -19,12 +19,15 @@ class FoundText(unittest.TestCase):
         self.assertEqual(T.found_text("Stones of Sunlight"), "Thou hast found the Sunlight Stones.")
 
     def test_other_players_item_names_who_gets_it(self):
-        self.assertEqual(T.found_text("Herb", "Alex"), "You sent Herb to Alex.")
-        self.assertEqual(T.found_text("Heart Container", "Alex"), "You sent Heart Container to Alex.")
+        self.assertEqual(T.found_text("Herb", "Alex"), "Herb for Alex.")
+        self.assertEqual(T.found_text("Heart Container", "Alex"), "Heart Container for Alex.")
+
+    def test_a_16_letter_owner_fits_whole(self):
+        self.assertEqual(T.found_text("Sunlight Stones", "TheGobOneRandomz"), "Sunlight Stones for TheGobOneRandomz.")
 
     def test_long_owner_is_cut_and_the_item_is_not(self):
-        self.assertEqual(T.found_text("Sunlight Stones", "TheGobOneRandomz"), "You sent Sunlight Stones to TheGobOne.")
-        self.assertEqual(T.found_text("Progressive Sword Upgrade", "Somebody"), "You sent Prog. Sword Upgr to Somebody.")
+        self.assertEqual(T.found_text("Sunlight Stones", "TheGobOneRandomzXY"), "Sunlight Stones for TheGobOneRandomzX.")
+        self.assertEqual(T.found_text("Progressive Sword Upgrade", "Somebody"), "Prog. Sword Upgr for Somebody.")
 
     def test_every_sentence_fits_the_buffer(self):
         for item in ("Herb", "Heart Container", "Progressive Sword Upgrade", "Abcdefghijklmnopqrstu"):
@@ -32,20 +35,20 @@ class FoundText(unittest.TestCase):
                 self.assertLessEqual(len(T.found_text(item, owner)), T.LINE_LEN, (item, owner))
 
     def test_accents_are_folded_for_the_font(self):
-        self.assertEqual(T.found_text("Herb", "Zoë"), "You sent Herb to Zoe.")
+        self.assertEqual(T.found_text("Herb", "Zoë"), "Herb for Zoe.")
         self.assertEqual(T.game_name("Poké Ball (Great)"), "Poke Ball Great")
 
     def test_owner_with_no_font_characters(self):
-        self.assertEqual(T.found_text("Herb", "山田"), "You sent Herb to ?.")
-        self.assertEqual(T.found_text("Herb", "山田", 3), "You sent Herb to P3.")
+        self.assertEqual(T.found_text("Herb", "山田"), "Herb for ?.")
+        self.assertEqual(T.found_text("Herb", "山田", 3), "Herb for P3.")
 
     def test_letters_without_a_combining_accent_are_kept(self):
-        self.assertEqual(T.found_text("Herb", "Łukasz"), "You sent Herb to Lukasz.")
-        self.assertEqual(T.found_text("Herb", "Ørjan"), "You sent Herb to Orjan.")
+        self.assertEqual(T.found_text("Herb", "Łukasz"), "Herb for Lukasz.")
+        self.assertEqual(T.found_text("Herb", "Ørjan"), "Herb for Orjan.")
 
     def test_an_item_with_no_font_characters_is_called_item(self):
         self.assertEqual(T.game_name("ダーク"), "item")
-        self.assertEqual(T.found_text("ダーク", "Alex"), "You sent item to Alex.")
+        self.assertEqual(T.found_text("ダーク", "Alex"), "item for Alex.")
 
     def test_a_cut_name_does_not_end_in_a_space(self):
         self.assertEqual(T.game_name("Master Sword Of Light"), "Master Sword Of")
@@ -54,11 +57,11 @@ class FoundText(unittest.TestCase):
 class ReceivedLine(unittest.TestCase):
     """The mailbox sentences for ROM version 005."""
     def test_item_from_another_player_names_them(self):
-        self.assertEqual(T.received_line("Heart Container", "Alex", 2), "Alex hath sent thee Heart Container.")
+        self.assertEqual(T.received_line("Heart Container", "Alex", 2), "Heart Container from Alex.")
 
     def test_long_sender_is_cut(self):
         self.assertEqual(T.received_line("Progressive Sword Upgrade", "Abcdefghijklmnop"),
-                         "Abcde hath sent thee Prog. Sword Upgr.")
+                         "Prog. Sword Upgr from Abcdefghijklmno.")
 
     def test_no_sender_is_found(self):
         self.assertEqual(T.received_line("Herb"), "Thou hast found the Herb.")
