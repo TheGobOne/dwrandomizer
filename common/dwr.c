@@ -5931,6 +5931,9 @@ static uint64_t dwr_randomize_tries(const char* input_file, uint64_t seed, char 
         if (crc || !ran_out_of_room)
             return crc;
         if (fail_stage == 1) {
+            /* Best fit comes before dropping personal options here. Winter Theme, the only personal option
+             * that runs before the checksum, takes no free space, and the checksum of a Winter build comes
+             * from its own build without Winter, so this order cannot change a checksum. */
             if (fit_game) {
                 /* Out of room before the checksum even with best fit: personal options can still go. */
                 if (!drop_personal(flags))
