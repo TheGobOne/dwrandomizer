@@ -148,7 +148,13 @@ Also, if the `Don't Require Magic Keys` flag is on, it obviously cannot be a key
 
 This makes an approximate probability of 1/120 that a specific NPC is the Dragonlord.
 
-In order to make room for the hint, one of the merchants in the bottom left corner of Tantegel has had his text hijacked and will be the same as the other merchant. Therefore, if they both have the same text, the flag is active (but the Dragonlord may still be in his vanilla location with a small probability).
+The hint reads "The Dragonlord is in *place*, disguised as *sprite*." The place is a town, Tantegel, the Tantegel throne room, the Tantegel basement, the Staff of Rain shrine or the Rainbow Drop shrine. The sprite is the NPC's look (a male villager, a female villager, a soldier, a guard, a shopkeeper, an old man or Princess Gwaelin), so the hint names the area and the look, not the exact NPC.
+
+The hint uses the text of one of the two merchants in the bottom left corner of Tantegel, so that merchant now says the same thing as the other one. If both say the same thing, the flag is on.
+
+If the Dragonlord stays in his vanilla spot (a small chance), there is no hint: he is at the bottom of Charlock as usual.
+
+If Princess Gwaelin is the Dragonlord, she does not come down the stairs at the end, and the King says something different.
 
 
 #### Randomized Flute Music ####

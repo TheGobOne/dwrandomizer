@@ -188,6 +188,7 @@ static void update_flags(dw_rom *rom)
     if(SHUFFLE_KEY_PRICES(rom) == 3)    rom->flags[15] = (rom->flags[15] | 0x03) & ((mt_rand(0, 2)     ) | 0xfc);
     if(SHUFFLE_VENDORS(rom) == 2)       rom->flags[16] = (rom->flags[16] | 0xc0) & ((mt_rand(0, 1) << 6) | 0x3f);
     if(DISGUISED_DRAGONLORD(rom) == 2)  rom->flags[16] = (rom->flags[16] | 0x0c) & ((mt_rand(0, 1) << 2) | 0xf3);
+    if(DISGUISED_DRAGONLORD(rom) == 3)  rom->flags[16] = (rom->flags[16] & 0xf3) | 0x04; /* only hand-made codes; same as on */
     if(MAGIC_HERBS(rom) == 2)           rom->flags[16] = (rom->flags[16] | 0x03) & ((mt_rand(0, 1)     ) | 0xfc);
     if(CRIT_DL1(rom) == 2)              rom->flags[17] = (rom->flags[17] | 0x0c) & ((mt_rand(0, 1) << 2) | 0xf3);
     if(CRIT_DL2(rom) == 2)              rom->flags[17] = (rom->flags[17] | 0x03) & ((mt_rand(0, 1)     ) | 0xfc);
@@ -3262,7 +3263,7 @@ static void npc_shenanigans(dw_rom *rom)
     */
     uint8_t NPCData[136][6];
 
-    char disguise[18], location[11], hint[83] = "                                                                                  ";
+    char disguise[18], location[32] = "this ROM", hint[128];
     uint8_t vendorID[17], vendorBytes[17][2]; // id from above list. Seventeen vendors in total (including radish guy, excluding rim key vendor). 2 bytes are control byte and swap info
 
     // i is the "area" (doubles, as there is one for static, one for mobile NPCs)
@@ -3402,7 +3403,7 @@ static void npc_shenanigans(dw_rom *rom)
                 break;
             case 6:
                 if(chosen_NPC == 24)
-                    strcpy(disguise, "princess Gwaelin");
+                    strcpy(disguise, "Princess Gwaelin");
                 else
                     strcpy(disguise, "a female villager");
                 break;
@@ -3465,7 +3466,8 @@ static void npc_shenanigans(dw_rom *rom)
                 if(DISGUISED_DRAGONLORD(rom) && NPCData[u][5] == chosen_NPC && chosen_NPC != 25)
                 {
                     if(i < 2 || i == 11) {
-                        strcpy(location, "Tantegel"); // 0 is main floor, 1 is throne room, 11 is post-win tantegel (which shouldn't happen)
+                        // 0 is main floor, 1 is throne room, 11 is post-win tantegel (which shouldn't happen)
+                        strcpy(location, i == 1 ? "the Tantegel throne room" : "Tantegel");
                         vpatch(rom, 0xea04, 1, 0x0c);
                     }
                     else if(i == 2)
@@ -3490,19 +3492,20 @@ static void npc_shenanigans(dw_rom *rom)
                         strcpy(location, "Rimuldar");
                         vpatch(rom, 0xea04, 1, 0x1b);
                     }
+                    /* The warp bytes are 3 * the warp index: 17 is WARP_TANTEGEL_BASEMENT,
+                       1 is WARP_STAFF_SHRINE and 12 is WARP_JERK_CAVE (the Rainbow Drop shrine). */
                     else if(i == 8) {
-                        strcpy(location, "a cave");
+                        strcpy(location, "the Tantegel basement");
                         vpatch(rom, 0xea04, 1, 0x33);
                     }
                     else if(i == 9) {
-                        strcpy(location, "a cave");
+                        strcpy(location, "the Staff of Rain shrine");
                         vpatch(rom, 0xea04, 1, 0x03);
                     }
                     else if(i == 10) {
-                        strcpy(location, "a cave");
+                        strcpy(location, "the Rainbow Drop shrine");
                         vpatch(rom, 0xea04, 1, 0x24);
                     }
-                    else strcpy(location, "this ROM");
                     /* Other places:
                         0f = Swamp cave north
                         15 = Swamp cave south
@@ -3533,11 +3536,12 @@ static void npc_shenanigans(dw_rom *rom)
 
     if(DISGUISED_DRAGONLORD(rom) && chosen_NPC != 25)
     {
-        strcpy(hint, "`The Dragonlord is rumored to be in ");
-        strcat(hint, location);
-        strcat(hint, " disguised as ");
-        strcat(hint, disguise);
-        strcat(hint, ".'\xfc");
+        /* The game finds a message by counting $FC ends from the start of its block of 16.
+           $8CC0 is the last message of its block, and the next block starts at $8D12,
+           so the hint (with its $FC) can use up to 82 bytes. The longest hint is 81. */
+        snprintf(hint, sizeof(hint), "`The Dragonlord is in %s, disguised as %s.'\xfc", location, disguise);
+        if(strlen(hint) > 0x8d12 - 0x8cc0)
+            dwr_give_up("The Disguised Dragonlord hint is too long.");
         set_text(rom, 0x8cc0, hint);
 
         // If Gwaelin was the Dragonlord...
@@ -3546,8 +3550,8 @@ static void npc_shenanigans(dw_rom *rom)
             // Let's not have her come down the stairs at the end
             nop(rom, 0xcc2a, 142);
 
-            // Make the king react a bit differently
-            set_text(rom, 0xb8c8, "`Well, that was unfortunate...'");
+            // Make the king react a bit differently. The vanilla line is 30 bytes, then a button wait ($FB) at $B8E6.
+            set_text(rom, 0xb8c8, "`Hmm, that was unfortunate...'");
         }
     }
 }
