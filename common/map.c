@@ -2114,8 +2114,8 @@ static BOOL places_reachable(dw_rom *rom)
         if (w->map == 1 && i != WARP_CHARLOCK && !seen[w->x][w->y])
             return FALSE;
     }
-    x = map->warps_from[WARP_CHARLOCK].x + 3;
-    y = map->warps_from[WARP_CHARLOCK].y;
+    x = map->rainbow_drop->x;
+    y = map->rainbow_drop->y;
     if (map_ob(x) || !seen[x][y])
         return FALSE;
     if (!seen[map->return_point->x][map->return_point->y])

@@ -136,8 +136,8 @@ def received_line(item: str, sender: str = "", player: int = 0, progression: boo
 # LINE_LEN with any item name of up to TEXT_LEN characters.
 
 def cap_line(item: str) -> str:
-    """A Herb or Magic Key past the seed's cap: "No room for the Herb: 100 Gold." """
-    return f"No room for the {game_name(item)}: 100 Gold."
+    """A Herb or Magic Key past the seed's cap, given as gold instead: "No room: Herb became 100 Gold." """
+    return f"No room: {game_name(item)} became 100 Gold."
 
 
 def replaced_line(item: str, lost: str) -> str:

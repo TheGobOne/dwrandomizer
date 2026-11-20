@@ -155,16 +155,13 @@ torch_in_battle:
 +   jmp $e6fd           ; 4c fd e6
 
 threes_company_check:
+    jsr $c7cb ; Show dialogue (both paths print $A1, and $c7cb leaves $df alone)
+    .db $a1   ; "I have some great ideas" or "Now take a long rest"
     lda $df   ; Load the status bits
-    and #$01  ; Are we carrying Gwaelin?
-    beq +     ; No, back to original code
-    jsr $c7cb ; Show dialogue
-    .db $a1   ; I have some great ideas
+    lsr       ; Are we carrying Gwaelin? (bit 0 to carry)
+    bcc +     ; No, back to original code
     jmp $ccb8 ; Jump to the ending credits
-
-+   jsr $c7cb ; Show dialoge
-    .db $a1   ; Now take a long rest
-    rts
++   rts
 
 store_princess_item:
     sta $0e    ; Store the item Gwaelin took

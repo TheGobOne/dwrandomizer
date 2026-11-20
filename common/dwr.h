@@ -223,9 +223,10 @@ void dwr_no_room(void);
 #define PRG_BANKS 16
 #define EXPANSION_SIZE ((PRG_BANKS - 4) * 0x4000)
 int dwr_try_free_space(uint8_t *content, uint16_t start, uint8_t n);
+/* TRUE when the flag code uses only A-Z and 2-7 and is 40, 42 or 44 characters; prints why when not. */
+BOOL dwr_flags_valid(const char *flags);
 /* Sets dropdown values no option uses to the option's normal setting, as the site does. TRUE when it
  * changed a byte. */
-BOOL dwr_flags_valid(const char *flags);
 BOOL dwr_normalize_flags(uint8_t raw[28]);
 /* TRUE when the last build repacked the game code to make room, so its checksum can differ from the same
  * flags and seed built with other personal options. */

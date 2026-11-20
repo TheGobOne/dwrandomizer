@@ -71,14 +71,6 @@ static int compare(const void *a, const void *b)
 }
 
 
-/**
- * Sets dropdown values no option uses to the option's normal setting, the same as the site does, so a
- * hand-made code builds the same ROM and shows the same code in both. Build Options 5 was a REMIX value
- * that is gone.
- *
- * @param raw The 27 decoded flag bytes (28 with the spare byte)
- * @return TRUE when a value was changed
- */
 /* Flag codes use A-Z and 2-7, and are 40, 42 or 44 characters. Anything else would decode as zero
  * bits or part of a byte and silently change the flags, so refuse it with a message. */
 BOOL dwr_flags_valid(const char *flags)
@@ -98,6 +90,14 @@ BOOL dwr_flags_valid(const char *flags)
     return TRUE;
 }
 
+/**
+ * Sets dropdown values no option uses to the option's normal setting, the same as the site does, so a
+ * hand-made code builds the same ROM and shows the same code in both. Build Options 5 was a REMIX value
+ * that is gone.
+ *
+ * @param raw The 27 decoded flag bytes (28 with the spare byte)
+ * @return TRUE when a value was changed
+ */
 BOOL dwr_normalize_flags(uint8_t raw[28])
 {
     BOOL odd = FALSE;
@@ -263,14 +263,14 @@ static BOOL dwr_init(dw_rom *rom, const char *input_file, char *flags)
 
     input = fopen(input_file, "rb");
     if (!input) {
-        fprintf(stderr, "Unable to open ROM file '%s'", input_file);
+        fprintf(stderr, "Unable to open ROM file '%s'\n", input_file);
         free(rom->header);
         free(rom->expansion);
         return FALSE;
     }
     read = fread(rom->header, 1, ROM_SIZE, input);
     if (read < ROM_SIZE) {
-        fprintf(stderr, "File '%s' is too small and may be corrupt, aborting.",
+        fprintf(stderr, "File '%s' is too small and may be corrupt, aborting.\n",
                 input_file);
         fclose(input);
         free(rom->header);
@@ -280,7 +280,7 @@ static BOOL dwr_init(dw_rom *rom, const char *input_file, char *flags)
     fclose(input);
     /* The right kind of file: an iNES ROM with four program banks. */
     if (memcmp(rom->header, "NES\x1a", 4) || rom->header[4] != 4) {
-        fprintf(stderr, "File '%s' is not a Dragon Warrior ROM, aborting.", input_file);
+        fprintf(stderr, "File '%s' is not a Dragon Warrior ROM, aborting.\n", input_file);
         free(rom->header);
         free(rom->expansion);
         return FALSE;
@@ -341,15 +341,14 @@ static BOOL dwr_init(dw_rom *rom, const char *input_file, char *flags)
  */
 size_t ascii2dw(uint8_t *string)
 {
-    uint8_t i, j;
-    int len, alphalen;
+    size_t i, j, len, alphalen; /* size_t: a uint8_t index never ends on 256+ characters */
 
     len = strlen((char*)string);
     alphalen = strlen(alphabet);
     for (i=0; i < len; i++) {
         for (j=0; j < alphalen; j++) {
             if (string[i] == alphabet[j]) {
-                string[i] = j;
+                string[i] = (uint8_t)j;
                 break;
             }
         }
@@ -379,8 +378,7 @@ void touppercase(uint8_t *string) {
  */
 size_t ascii2dw_title(uint8_t *string)
 {
-    uint8_t i, j;
-    int len, alphalen;
+    size_t i, j, len, alphalen; /* size_t: a uint8_t index never ends on 256+ characters */
 
     touppercase(string);
 
@@ -389,7 +387,7 @@ size_t ascii2dw_title(uint8_t *string)
     for (i=0; i < len; i++) {
         for (j=0; j < alphalen; j++) {
             if (string[i] == title_alphabet[j]) {
-                string[i] = j;
+                string[i] = (uint8_t)j;
                 break;
             } else if (j == alphalen-1) {
                 string[i] = 0x5f;
@@ -434,26 +432,6 @@ uint16_t set_text(dw_rom *rom, const size_t address, char *text)
     return patch_end;
 }
 
-
-//     len = strlen(text);
-//     if (!len)
-//         return NULL;
-//     end = &rom->content[ROM_SIZE - len - 0x10];
-//
-//     strncpy(dw_text, text, 256);
-//     strncpy(dw_repl, replacement, 256);
-//     ascii2dw((unsigned char *)dw_text);
-//     ascii2dw((unsigned char *)dw_repl);
-//
-//     for (start = rom->content; start < end; start++) {
-//         if (!memcmp(start, dw_text, len)) {
-//             memcpy(start, dw_repl, len);
-//             return start;
-//         }
-//     }
-//     return NULL;
-// }
-//
 /**
  * Patches the game to allow the use of torches and fairy water in battle
  *
@@ -616,14 +594,13 @@ void dwx_run_mechanics(dw_rom *rom)
     else if(DWX_RUN_MECHANICS(rom) == 3) // Safer DW1
     {
         // Hook at beginning of running: check if ram_n == 3. Yes: jmp/jsr to run success. No: go back to usual code
-        tryrunsafer_newcode_check_n = find_free_space(rom->content, FIXED_FREE_START, 13);
+        tryrunsafer_newcode_check_n = find_free_space(rom->content, FIXED_FREE_START, 12);
         vpatch(rom, tryrunsafer_hook_check_n, 3, 0x20, tryrunsafer_newcode_check_n & 0xff, (tryrunsafer_newcode_check_n >> 8) & 0xff);
-        vpatch(rom, tryrunsafer_newcode_check_n, 13,
+        vpatch(rom, tryrunsafer_newcode_check_n, 12,
             0xad, ram_n & 0xff, (ram_n >> 8) & 0xff,   // lda ram_n
             0xc9, 0x03,			// cmp #$03 : if we were blocked 3 times before...
-            0xf0, 0x04,			// beq set_carry_rts : set carry to say we succeed in running away, and rts
-            0x20, 0x91, 0xee,   // no 3-time block so we do vanilla run algo. JSR ($EE91) (overwritten by hook)
-            0x60,               // rts
+            0xf0, 0x03,			// beq set_carry_rts : set carry to say we succeed in running away, and rts
+            0x4c, 0x91, 0xee,   // no 3-time block so we do vanilla run algo. JMP ($EE91) (JSR overwritten by hook, tail call)
             0x38,	  			// set_carry_rts: sec
             0x60	  			// rts
         );
@@ -1100,7 +1077,7 @@ static void text_scroller_extras(dw_rom *rom)
 
 static void build_extras(dw_rom *rom, uint16_t new_window_data)
 {
-    uint16_t newcode_exp_check = find_free_space(rom->content, FIXED_FREE_START, 23);
+    uint16_t newcode_exp_check = find_free_space(rom->content, FIXED_FREE_START, 16);
     int stat_modifier = 3;
 
     /* Lock the stat build modifier at the selected value */
@@ -1114,23 +1091,16 @@ static void build_extras(dw_rom *rom, uint16_t new_window_data)
     vpatch(rom, 0xf909, 3,
     0x4c, newcode_exp_check & 0xff, (newcode_exp_check >> 8) & 0xff);  // jmp
 
-    /* Checks if the selected save slot exp is 0 and saves the new stat build if it is. */
-    vpatch(rom, newcode_exp_check, 23,
-    0x08,                  /*   php          */
-    0x48,                  /*   pha          */
-    0xa5, 0xbb,            /*   lda $bb      */
-    0x05, 0xba,            /*   ora $ba      */
-    0xd0, 0x0a,            /*   bne 0a       */
-
-    0x68,                  /*   pla          */
-    0x28,                  /*   plp          */
+    /* Checks if the selected save slot exp is 0 and saves the new stat build if it is. A and the flags are dead
+     * at $F96A (lda #$ff : brk, whose bank 0 routine stores A and does not read Y), so Y does the test. */
+    vpatch(rom, newcode_exp_check, 16,
+    0xa4, 0xba,            /*   ldy $ba      */
+    0xd0, 0x09,            /*   bne skip     */
+    0xa4, 0xbb,            /*   ldy $bb      */
+    0xd0, 0x05,            /*   bne skip     */
     0x85, 0xe5,            /*   sta $e5      */
     0x20, 0xdf, 0xf9,      /*   jsr $f9df    */
-    0x4c, 0x6a, 0xf9,      /*   jmp $f96a    */
-
-    0x68,                  /*   pla          */
-    0x28,                  /*   plp          */
-    0x4c, 0x6a, 0xf9);     /*   jmp $f96a    */
+    0x4c, 0x6a, 0xf9);     /*   skip: jmp $f96a */
 
     //Alters main menu
     set_text(rom, 0x7224, " CHANGE BUILD (EXP 0)");
@@ -1737,20 +1707,20 @@ static void radish_finish(dw_rom *rom)
     if (!RADISH_FINISH(rom))
         return;
 
-    uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 33);
+    uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 32);
 
     printf("The princess is craving radishes...\n");
 
     // Hook into original dialogue processing code:
     vpatch(rom, 0xd193, 3, 0x4c, newcode & 0xff, (newcode >> 8) & 0xff); // JMP newcode
 
-    vpatch(rom, newcode, 33,
+    vpatch(rom, newcode, 32,
         0x48,       // pha (original code overwritten by hook, part 1/2)
         0xc9, 0x45, // CMP 0x45 is radish dialog control byte
-        0xd0, 0x17, // BNE NEXT
+        0xd0, 0x16, // BNE NEXT
         0xa5, 0xdf, // It is radish dialogue! Check if we rescued Gwaelin. lda zeropage status bits
-        0x29, 0x01, // and immediate Gwaelin bit
-        0xf0, 0x11, // beq NEXT, Player is not carrying Gwaelin, move ahead
+        0x4a,       // lsr: the Gwaelin bit goes to carry (NEXT reloads A)
+        0x90, 0x11, // bcc NEXT, Player is not carrying Gwaelin, move ahead
 
         0x20, 0xcb, 0xc7, 0x74, // Display radish
         0xa9, 0x03,             // lda window type (command)
@@ -2073,18 +2043,18 @@ static void dwr_menu_wrap(dw_rom *rom)
         0x4c, 0xcd, 0xbe,  /* JMP $BECD */
         0xea               /* NOP */
     );
-    vpatch(rom, 0x7ea0, 45,
-        /* 7e9e: */
-        0xa5, 0x45,        /* LDA $0045 ; Load the map number */
+    /* Content addresses: $7EA0 is CPU $BEA0 in bank 1. */
+    vpatch(rom, 0x7ea0, 42,
         /* 7ea0: */
+        0xa5, 0x45,        /* LDA $0045 ; Load the map number */
         0xf0, 0x57,        /* BEQ $7EFB ; if it's 0 (the title screen), jump to $7EFB */
         0xad, 0xe5, 0x64,  /* LDA $64E5 ; load ??? */
         0xc9, 0x04,        /* CMP #$04  ; compare to ??? */
-        0xf0, 0x1e,        /* BEQ $7ED7 ; if equal branch to $7ED7 (return) */
+        0xf0, 0x1e,        /* BEQ $7EC9 ; if equal branch to $7EC9 (return) */
         0x20, 0x30, 0xab,  /* JSR $AB30 ; call $AB30 */
         0xa5, 0xd9,        /* LDA $00D9 ; load cursor y position */
-        0xd0, 0x14,        /* BNE $7ED4 ; if it's not 0, jump to $7ED4 */
-        /* 7eb0: */
+        0xd0, 0x14,        /* BNE $7EC6 ; if it's not 0, jump to $7EC6 */
+        /* 7eb2: */
         0xad, 0xe5, 0x64,  /* LDA $64E5 ; load ? */
         0xe9, 0x03,        /* SBC #$03  ; subtract 3 */
         0x4a,              /* LSR       ; divide by 2 */
@@ -2093,58 +2063,56 @@ static void dwr_menu_wrap(dw_rom *rom)
         0x0a,              /* ASL       ; multiply by 2 (?) */
         0x6d, 0xf3, 0x64,  /* ADC $64F3 ; add ??? */
         0x8d, 0xf3, 0x64,  /* STA $64F3 ; write to ??? */
-        /* 7ec2: */
+        /* 7ec3: */
         0x4c, 0x27, 0xaa,  /* JMP $AA27 ; jump to $AA27 */
-        /* 7ed4: */
+        /* 7ec6: */
         0x4c, 0xe4, 0xa9,  /* JMP $A9E4 ; jump to $A9E4 */
-        /* 7ed7: */
-        0x60,              /* RTS       ; return */
-        0xa5, 0xd9,        /* LDA $00D9 ; load cursor y position */
-        0x60               /* RTS       ; return */
+        /* 7ec9: */
+        0x60               /* RTS       ; return ($7ECA-$7ECC are not reached) */
     );
     vpatch(rom, 0x7ecd, 46,
-        /* 7ecb: */
+        /* 7ecd: */
         0x48,              /* PHA       ; push A to stack */
         0xa5, 0x45,        /* LDA $0045 ; Load map number */
-        0xf0, 0x30,        /* BEQ $7F00 ; if it's 0, branch to $7F00 */
-        /* 7ed0: */
+        0xf0, 0x30,        /* BEQ $7F02 ; if it's 0, branch to $7F02 */
+        /* 7ed2: */
         0xad, 0xe5, 0x64,  /* LDA $64E5 ; load ??? */
         0xc9, 0x04,        /* CMP #$04  ; compare to 4 */
-        0xf0, 0x20,        /* BEQ $7EFB ; if it's 4, branch to $7EFB */
+        0xf0, 0x20,        /* BEQ $7EF9 ; if it's 4, branch to $7EF9 */
         0x20, 0x30, 0xab,  /* JSR $AB30 ; jump to $AB30 */
         0x68,              /* PLA       ; pull A from stack */
-        0xc5, 0xd9,        /* CMP $00D9 ; compare to map number */
-        0xd0, 0x15,        /* BNE $7EF4 ; if they are equal, branch to $7EF4 */
+        0xc5, 0xd9,        /* CMP $00D9 ; compare to the cursor y position */
+        0xd0, 0x15,        /* BNE $7EF6 ; if they differ, branch to $7EF6 */
         0xa9, 0x01,        /* LDA #$01  ; set A to 1 */
-        /* 7ee1: */
-        0x85, 0xd9,        /* STA $00D9 ; set map number to 1 */
+        /* 7ee3: */
+        0x85, 0xd9,        /* STA $00D9 ; set the cursor y position to 1 */
         0xad, 0xf3, 0x64,  /* LDA $64F3 ; load ??? */
         0x29, 0x01,        /* AND #$01  ; limit to only the lowest bit */
-        0xd0, 0x02,        /* BNE $7EEC ; if it's odd, branch to $7EEC */
+        0xd0, 0x02,        /* BNE $7EEE ; if it's odd, branch to $7EEE */
         0x69, 0x02,        /* ADC #$02  ; add 2 */
-        /* 7eec: */
-        0x69, 0x01,        /* ADC #$01  ; add 1 */
         /* 7eee: */
+        0x69, 0x01,        /* ADC #$01  ; add 1 */
+        /* 7ef0: */
         0x8d, 0xf3, 0x64,  /* STA $64F3 ; store at $64F3 */
         0x4c, 0xe4, 0xa9,  /* JMP $A9E4 ; jump to $A9E4 */
-        /* 7ef4: */
+        /* 7ef6: */
         0x4c, 0x27, 0xaa,  /* JMP $AA27 ; jump to $AA27 */
-        /* 7ef7: */
+        /* 7ef9: */
         0x68,              /* PLA       ; pull A from stack */
-        /* 7ef8: */
+        /* 7efa: */
         0x60               /* RTS       ; return */
     );
     vpatch(rom, 0x7efb, 7,
         /* 7efb: */
-        0xa5, 0xd9,        /* LDA $00D9 ; load map number */
-        0xf0, 0xfb,        /* BEQ $7EF8 ; if it's 0, branch to $7EF8 (return) */
+        0xa5, 0xd9,        /* LDA $00D9 ; load the cursor y position */
+        0xf0, 0xfb,        /* BEQ $7EFA ; if it's 0, branch to $7EFA (return) */
         0x4c, 0xe4, 0xa9   /* JMP $A9E4 ; jump to $A9E4 */
     );
     vpatch(rom, 0x7f02, 8,
         /* 7f02: */
         0x68,              /* PLA       ; pull A from stack */
-        0xc5, 0xd9,        /* CMP $00D9 ; compare to map number */
-        0xf0, 0xf3,        /* BEQ $7EF8 ; if equal, jump to $7EF8 (return) */
+        0xc5, 0xd9,        /* CMP $00D9 ; compare to the cursor y position */
+        0xf0, 0xf3,        /* BEQ $7EFA ; if equal, jump to $7EFA (return) */
         0x4c, 0x27, 0xaa   /* JMP $AA27 ; jump to $AA27 */
     );
 }
@@ -2546,6 +2514,9 @@ static void dwr_token_dialogue(dw_rom *rom)
     } else {
         dx = rom->search_table->x[0] - rom->map.warps_from[WARP_TANTEGEL].x;
         dy = rom->search_table->y[0] - rom->map.warps_from[WARP_TANTEGEL].y;
+        /* The 72 is right, keep it: the vanilla slot at $A242 holds 71 bytes before its $FC. gcc warns of
+         * truncation, but the worst cases (two 3-digit distances in the first form, 75 characters, or two
+         * 2-digit ones in the second, 73) only cut trailing spaces. */
         if (ABS(dx) >= 100 || ABS(dy) >= 100) {
             snprintf((char*)text, 72, "From Tantegel Castle travel %d leagues "
                     "to the %s and %d %s/         ",
@@ -2609,93 +2580,13 @@ static void winter_theme(dw_rom *rom)
     if (!WINTER_THEME(rom))
         return;
 
-    vpatch(rom, 0x002a9, 1, 0x46);
-    vpatch(rom, 0x002c7, 1, 0x46);
-    vpatch(rom, 0x0042a, 1, 0x46);
-    vpatch(rom, 0x0090f, 1, 0x64);
-    vpatch(rom, 0x0093c, 1, 0x64);
-    vpatch(rom, 0x01288, 1, 0x23);
-    vpatch(rom, 0x017a2, 3, 0x47, 0x45, 0x65);
-    vpatch(rom, 0x018ee, 1, 0xa2);
+    /* Runs first, on the unchanged ROM, so it only holds the bytes that differ from it: the map palettes
+     * in bank 0 and the snow tiles in CHR. */
     vpatch(rom, 0x01a48, 10, 0x21, 0x10, 0x00, 0x30, 0x30, 0x10, 0x27, 0x30, 0x37, 0x21);
     vpatch(rom, 0x01a58, 8, 0x21, 0x10, 0x00, 0x16, 0x30, 0x10, 0x27, 0x30);
     vpatch(rom, 0x01a68, 1, 0x11);
     vpatch(rom, 0x01a75, 1, 0x21);
     vpatch(rom, 0x01a8d, 1, 0x11);
-    vpatch(rom, 0x03f2b, 132, 0x20, 0x5f, 0xfc, 0xf7, 0x0a, 0x5f, 0x63, 0x33, 0x38, 0x36, 0x2b, 0x5f, 0x36, 0x37, 0x24, 0x35, 0x37, 0x63, 0xf7, 0x0a, 0x5f, 0xfc, 0xf7, 0x20, 0x5f, 0xfc, 0xf7, 0x0b, 0x5f, 0x62, 0x01, 0x09, 0x08, 0x06, 0x5f, 0x28, 0x31, 0x2c, 0x3b, 0xf7, 0x0b, 0x5f, 0xfc, 0xf7, 0x20, 0x5f, 0xfc, 0xf7, 0x0b, 0x5f, 0x62, 0x01, 0x09, 0x08, 0x09, 0x5f, 0x28, 0x31, 0x2c, 0x3b, 0xf7, 0x0b, 0x5f, 0xfc, 0xf7, 0x20, 0x5f, 0xfc, 0xf7, 0x06, 0x5f, 0x2f, 0x2c, 0x26, 0x28, 0x31, 0x36, 0x28, 0x27, 0x5f, 0x37, 0x32, 0x5f, 0x31, 0x2c, 0x31, 0x37, 0x28, 0x31, 0x27, 0x32, 0xf7, 0x06, 0x5f, 0xfc, 0xf7, 0x20, 0x5f, 0xfc, 0xf7, 0x04, 0x5f, 0x37, 0x30, 0x5f, 0x37, 0x35, 0x24, 0x27, 0x28, 0x30, 0x24, 0x35, 0x2e, 0x5f, 0x37, 0x32, 0x5f, 0x31, 0x2c, 0x31, 0x37, 0x28, 0x31, 0x27, 0x32, 0xf7, 0x04, 0x5f, 0xfc, 0xf7, 0x20);
-    vpatch(rom, 0x0435b, 1, 0x8e);
-    vpatch(rom, 0x0462b, 1, 0x50);
-    vpatch(rom, 0x046d4, 21, 0x06, 0xa6, 0x06, 0xa4, 0x06, 0xa6, 0x06, 0xa8, 0x0c, 0xab, 0x0c, 0xa4, 0x02, 0xa8, 0x02, 0xab, 0x02, 0xfb, 0x8f, 0xb0, 0x42);
-    vpatch(rom, 0x046f1, 21, 0x06, 0x9d, 0x06, 0x9c, 0x06, 0x9d, 0x06, 0x9f, 0x0c, 0xa2, 0x0c, 0x9c, 0x02, 0x9f, 0x02, 0xa2, 0x02, 0xfb, 0x8f, 0xa8, 0x42);
-    vpatch(rom, 0x04714, 11, 0x2f, 0x00, 0xfc, 0xfb, 0x8f, 0x8c, 0x07, 0x93, 0x06, 0x98, 0x06);
-    vpatch(rom, 0x04ca1, 3, 0x18, 0xf7, 0x03);
-    vpatch(rom, 0x04cb5, 9, 0x11, 0xb7, 0x10, 0xb7, 0x10, 0xfb, 0xff, 0xf7, 0x02);
-    vpatch(rom, 0x04cd2, 11, 0x0d, 0xb5, 0x0d, 0xb2, 0x08, 0xaf, 0x08, 0xad, 0x08, 0xab, 0x30);
-    vpatch(rom, 0x04d28, 5, 0x18, 0xfb, 0x4f, 0xf7, 0x0c);
-    vpatch(rom, 0x04d3b, 13, 0x0d, 0xa2, 0x0e, 0xa1, 0x0f, 0xa0, 0x0f, 0xa1, 0x04, 0xa0, 0x04, 0xa1, 0x30);
-    vpatch(rom, 0x05834, 181, 0x85, 0x20, 0x25, 0x24, 0x36, 0x28, 0x27, 0x5f, 0x32, 0x31, 0x5f, 0x27, 0x35, 0x24, 0x2a, 0x32, 0x31, 0x5f, 0x34, 0x38, 0x28, 0x36, 0x37, 0xfc, 0x0b, 0x21, 0x26, 0x32, 0x33, 0x3c, 0x35, 0x2c, 0x2a, 0x2b, 0x37, 0xfc, 0x63, 0x21, 0x24, 0x35, 0x30, 0x32, 0x35, 0x5f, 0x33, 0x35, 0x32, 0x2d, 0x28, 0x26, 0x37, 0xfc, 0x74, 0x21, 0x01, 0x09, 0x08, 0x06, 0x5f, 0x01, 0x09, 0x08, 0x09, 0xfc, 0xc3, 0x21, 0x25, 0x2c, 0x35, 0x27, 0x5f, 0x36, 0x37, 0x38, 0x27, 0x2c, 0x32, 0xfc, 0xd4, 0x21, 0x01, 0x09, 0x08, 0x06, 0x5f, 0x01, 0x09, 0x08, 0x09, 0xfc, 0x23, 0x22, 0x2e, 0x32, 0x2c, 0x26, 0x2b, 0x2c, 0x5f, 0x36, 0x38, 0x2a, 0x2c, 0x3c, 0x24, 0x30, 0x24, 0xfc, 0x34, 0x22, 0x01, 0x09, 0x08, 0x06, 0x5f, 0x01, 0x09, 0x08, 0x09, 0xfc, 0x83, 0x22, 0x0c, 0x0d, 0x0e, 0x0f, 0x5f, 0x36, 0x32, 0x29, 0x37, 0xfc, 0x94, 0x22, 0x01, 0x09, 0x08, 0x06, 0x5f, 0x01, 0x09, 0x08, 0x09, 0xfc, 0x09, 0x23, 0x28, 0x31, 0x2c, 0x3b, 0xfc, 0x10, 0x23, 0x01, 0x09, 0x08, 0x06, 0x5f, 0x01, 0x09, 0x08, 0x09, 0xfc, 0xc8, 0x23, 0xf7, 0x03, 0xff, 0x07, 0xf7, 0x06, 0x05, 0xf7, 0x03, 0x0f, 0xf7, 0x03, 0xaa, 0xf7, 0x05, 0x00);
-    vpatch(rom, 0x058f1, 1, 0x00);
-    vpatch(rom, 0x05de0, 1, 0x16);
-    vpatch(rom, 0x05e30, 1, 0x11);
-    vpatch(rom, 0x05e61, 2, 0x01, 0x03);
-    vpatch(rom, 0x05e71, 2, 0x02, 0x03);
-    vpatch(rom, 0x05e81, 2, 0x03, 0x05);
-    vpatch(rom, 0x05e91, 2, 0x04, 0x0c);
-    vpatch(rom, 0x05ea1, 2, 0x05, 0x0c);
-    vpatch(rom, 0x05eb1, 2, 0x06, 0x10);
-    vpatch(rom, 0x05ec1, 2, 0x07, 0x10);
-    vpatch(rom, 0x05ed1, 2, 0x08, 0x12);
-    vpatch(rom, 0x05ee1, 2, 0x0a, 0x19);
-    vpatch(rom, 0x05ef1, 2, 0x0b, 0x14);
-    vpatch(rom, 0x05f01, 2, 0x0b, 0x1e);
-    vpatch(rom, 0x05f11, 2, 0x0d, 0x23);
-    vpatch(rom, 0x05f21, 2, 0x0e, 0x28);
-    vpatch(rom, 0x05f31, 2, 0x10, 0x32);
-    vpatch(rom, 0x05f41, 2, 0x11, 0x3c);
-    vpatch(rom, 0x05f51, 1, 0x73);
-    vpatch(rom, 0x05f61, 2, 0x12, 0x46);
-    vpatch(rom, 0x05f71, 1, 0x14);
-    vpatch(rom, 0x05f81, 2, 0x14, 0x55);
-    vpatch(rom, 0x05f91, 2, 0x16, 0x5a);
-    vpatch(rom, 0x05fa1, 2, 0x18, 0x64);
-    vpatch(rom, 0x05fb1, 1, 0x1a);
-    vpatch(rom, 0x05fc1, 1, 0x1c);
-    vpatch(rom, 0x05fd1, 1, 0x05);
-    vpatch(rom, 0x05fe2, 1, 0xc8);
-    vpatch(rom, 0x05ff1, 2, 0x21, 0x82);
-    vpatch(rom, 0x06001, 2, 0x22, 0x8c);
-    vpatch(rom, 0x06011, 2, 0x25, 0x96);
-    vpatch(rom, 0x06021, 1, 0x28);
-    vpatch(rom, 0x06031, 1, 0x2d);
-    vpatch(rom, 0x06041, 2, 0x2b, 0xa0);
-    vpatch(rom, 0x06051, 2, 0x32, 0xa5);
-    vpatch(rom, 0x06061, 1, 0x36);
-    vpatch(rom, 0x06071, 1, 0x3c);
-    vpatch(rom, 0x06081, 2, 0x41, 0x8c);
-    vpatch(rom, 0x06091, 2, 0x46, 0x8c);
-    vpatch(rom, 0x060a1, 2, 0x64, 0x8c);
-    vpatch(rom, 0x069e0, 4, 0xa5, 0xd9, 0xf0, 0x10);
-    vpatch(rom, 0x06a23, 4, 0xc5, 0xd9, 0xf0, 0x25);
-    vpatch(rom, 0x07a33, 3, 0x20, 0x74, 0xff);
-    vpatch(rom, 0x07ea0, 106, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
-    vpatch(rom, 0x0ad8f, 13, 0x20, 0x12, 0x15, 0x15, 0x5f, 0x17, 0x18, 0x1d, 0x5f, 0x20, 0x18, 0x1b, 0x14);
-    vpatch(rom, 0x0c52f, 3, 0x20, 0x74, 0xff);
-    vpatch(rom, 0x0db39, 20, 0x20, 0x74, 0xff, 0x20, 0x74, 0xff, 0xa9, 0x19, 0x8d, 0x01, 0x20, 0x20, 0x74, 0xff, 0x20, 0x74, 0xff, 0x20, 0x74, 0xff);
-    vpatch(rom, 0x0e169, 1, 0x12);
-    vpatch(rom, 0x0e1dc, 2, 0x42, 0xd2);
-    vpatch(rom, 0x0e32c, 6, 0xff, 0x85, 0x3e, 0xa9, 0xf4, 0x85);
-    vpatch(rom, 0x0e40a, 3, 0x20, 0x74, 0xff);
-    vpatch(rom, 0x0e43d, 3, 0x20, 0x74, 0xff);
-    vpatch(rom, 0x0ea41, 5, 0x20, 0xc9, 0xc1, 0xa5, 0x41);
-    vpatch(rom, 0x0ecea, 1, 0x41);
-    vpatch(rom, 0x0ed35, 1, 0x08);
-    vpatch(rom, 0x0ef39, 1, 0x05);
-    vpatch(rom, 0x0f0fc, 4, 0x85, 0xcd, 0xa5, 0xcf);
-    vpatch(rom, 0x0f35d, 58, 0x07, 0x00, 0x17, 0x00, 0x2f, 0x00, 0x6e, 0x00, 0xdc, 0x00, 0xc2, 0x01, 0x20, 0x03, 0x14, 0x05, 0xd0, 0x07, 0x54, 0x0b, 0xa0, 0x0f, 0x7c, 0x15, 0x4c, 0x1d, 0x10, 0x27, 0xc8, 0x32, 0x80, 0x3e, 0x38, 0x4a, 0xf0, 0x55, 0x90, 0x65, 0x30, 0x75, 0xd0, 0x84, 0x70, 0x94, 0x10, 0xa4, 0xb0, 0xb3, 0x50, 0xc3, 0xf0, 0xd2, 0x90, 0xe2, 0x30, 0xf2, 0xff, 0xff);
-    vpatch(rom, 0x0f44f, 3, 0x19, 0x05, 0x06);
-    vpatch(rom, 0x0f4e8, 3, 0x1a, 0x06, 0x0b);
-    vpatch(rom, 0x0ff54, 3, 0xff, 0xff, 0xff);
-    vpatch(rom, 0x0ff7d, 16, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff);
     vpatch(rom, 0x11618, 8, 0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x60, 0x60);
     vpatch(rom, 0x11629, 2, 0xff, 0xff);
     vpatch(rom, 0x11639, 2, 0xfe, 0xfe);
@@ -2707,7 +2598,6 @@ static void winter_theme(dw_rom *rom)
     vpatch(rom, 0x11698, 7, 0x06, 0x06, 0x06, 0x06, 0x0e, 0xfe, 0xfc);
     vpatch(rom, 0x11a88, 8, 0xef, 0xdf, 0xbf, 0x7f, 0xfe, 0xfd, 0xfb, 0xf7);
     vpatch(rom, 0x11f68, 8, 0xee, 0xdd, 0xbb, 0x77, 0xee, 0xdd, 0xbb, 0x77);
-
 }
 
 /* TRUE when the last build had no room for the checksum on the title menu. */
@@ -3061,7 +2951,7 @@ static BOOL dwr_write(dw_rom *rom, const char *output_file)
 
     output = fopen(output_file, "wb");
     if (!output) {
-        fprintf(stderr, "Unable to open file '%s' for writing", output_file);
+        fprintf(stderr, "Unable to open file '%s' for writing\n", output_file);
         return FALSE;
     }
 
@@ -3080,10 +2970,6 @@ static BOOL dwr_write(dw_rom *rom, const char *output_file)
  * debug.
  */
 _Static_assert(sizeof(dw_enemy) == 16, "dw_enemy must be 16 bytes");
-
-static void check_structs()
-{
-}
 
 static void magic_herbs(dw_rom *rom)
 {
@@ -3686,7 +3572,7 @@ void zoom_and_whistle(dw_rom *rom)
 	const uint16_t ram_v = 0x6802; // List of visited towns (0HRC GKBT, H = Hauksness, bit $40)
 
 	/* Copies the visited towns and Return town into this save slot's own bytes. */
-	uint16_t persist, newcode, address;
+	uint16_t persist, newcode, address, maps, bits;
 
 	uint8_t i;
 
@@ -3702,7 +3588,7 @@ void zoom_and_whistle(dw_rom *rom)
         0xad, ram_i & 0xff, (ram_i >> 8) & 0xff, 0x9d, LO(SLOT_RETURN), HI(SLOT_RETURN),
         0x60);
 
-	newcode = find_free_space(rom->content, 0xc82b, WARP_WHISTLE(rom) ? 183 : 123); // Starting address for new code
+	newcode = find_free_space(rom->content, FIXED_FREE_START, WARP_WHISTLE(rom) ? 145 : 98); // Starting address for new code
 	address = newcode;
 
     zoom_data[0][0] = 0x05; // Tantegel throne room
@@ -3767,48 +3653,35 @@ void zoom_and_whistle(dw_rom *rom)
     }
     address += code_size + 2*7;
 
+    /* Two tables shared by the inn and the whistle code: the map number of each town with an inn
+     * (zoom_data indexes 1 to 5), and the visited bit of each zoom_data index (0HRC GKBT). */
+    maps = address;
+    for(i=1; i<=5; i++)
+        vpatch(rom, maps + i - 1, 1, zoom_data[i][0]);
+    bits = maps + 5;
+    for(i=0; i<7; i++)
+        vpatch(rom, bits + i, 1, 1 << i);
+    address = bits + 7;
+
     // Hook to new code to update zoom index in RAM when staying at an inn
     vpatch(rom, 0xd8df, 5, 0x20, address & 0xff, (address >> 8) & 0xff, 0xea, 0xea); // JSR new code
 
-    // New code to update zoom index and visited towns in RAM when staying at an inn
-    code_size = 72;
+    /* New code to update zoom index and visited towns in RAM when staying at an inn.
+     * X runs 5 to 1 over the inn towns; no match (an inn outside the five towns) only saves. */
+    code_size = 35;
     vpatch(rom, address, code_size,
-        0xa6, 0x45,             // LDX zeropage map number
-		0xad, ram_v & 0xff, (ram_v >> 8) & 0xff, // LDA absolute zoom_v
-
-        0xe0, zoom_data[1][0],  // CPX Brecconary
-        0xd0, 7,                // BNE next
-        0xa2, 1,                // LDX (town index in zoom_data)
-        0x8e, ram_i & 0xff, (ram_i >> 8) & 0xff, // STX ram_i
-        0x09, 0x02,             // ORA 0x02 (Brecconary's visited bit)
-
-        0xe0, zoom_data[2][0],  // CPX Kol
-        0xd0, 7,                // BNE next
-        0xa2, 2,                // LDX (town index in zoom_data)
-        0x8e, ram_i & 0xff, (ram_i >> 8) & 0xff, // STX ram_i
-        0x09, 0x04,             // ORA 0x04 (Kol's visited bit)
-
-        0xe0, zoom_data[3][0],  // CPX Garinham
-        0xd0, 7,                // BNE next
-        0xa2, 3,                // LDX (town index in zoom_data)
-        0x8e, ram_i & 0xff, (ram_i >> 8) & 0xff, // STX ram_i
-        0x09, 0x08,             // ORA 0x08 (Garinham's visited bit)
-
-        0xe0, zoom_data[4][0],  // CPX Cantlin
-        0xd0, 7,                // BNE next
-        0xa2, 4,                // LDX (town index in zoom_data)
-        0x8e, ram_i & 0xff, (ram_i >> 8) & 0xff, // STX ram_i
-        0x09, 0x10,             // ORA 0x10 (Cantlin's visited bit)
-
-        0xe0, zoom_data[5][0],  // CPX Rimuldar
-        0xd0, 7,                // BNE next
-        0xa2, 5,                // LDX (town index in zoom_data)
-        0x8e, ram_i & 0xff, (ram_i >> 8) & 0xff, // STX ram_i
-        0x09, 0x20,             // ORA 0x20 (Rimuldar's visited bit)
-
-		0x8d, ram_v & 0xff, (ram_v >> 8) & 0xff, // STA ram_v
-        0x20, LO(persist), HI(persist), // keep it in this save slot
-
+        0xa2, 0x05,                         // LDX #5
+        0xa5, 0x45,                         // LDA MapNumber
+        0xdd, LO(maps - 1), HI(maps - 1),   // loop: CMP maps-1,X
+        0xf0, 0x05,                         // BEQ found
+        0xca,                               // DEX
+        0xd0, 0xf8,                         // BNE loop
+        0xf0, 0x0c,                         // BEQ save (always: X is 0)
+        0x8e, LO(ram_i), HI(ram_i),         // found: STX ram_i
+        0xbd, LO(bits), HI(bits),           // LDA bits,X (the town's visited bit)
+        0x0d, LO(ram_v), HI(ram_v),         // ORA ram_v
+        0x8d, LO(ram_v), HI(ram_v),         // STA ram_v
+        0x20, LO(persist), HI(persist),     // save: JSR persist (keep it in this save slot)
         0xa9, 0x15, // LD8DF:  LDA #MSC_INN
         0x00,       // LD8E1:  BRK
         0x04, 0x17,
@@ -3820,27 +3693,26 @@ void zoom_and_whistle(dw_rom *rom)
     vpatch(rom, 0xd43f, 3, 0x20, address & 0xff, (address >> 8) & 0xff); // JSR new code
 
     // New code to set zoom index to Tantegel when saving
-    code_size = 12;
+    code_size = 11;
     vpatch(rom, address, code_size,
         0xa9, 0,            // LDA Tantegel index
         0x8d, ram_i & 0xff, (ram_i >> 8) & 0xff, // STA ram_i
         0x20, LO(persist), HI(persist), // keep it in this save slot
-        0x20, 0x48, 0xf1,   // Go to vanilla subroutine
-        0x60                // RTS
+        0x4c, 0x48, 0xf1    // Go to vanilla subroutine (tail call)
     );
     address += code_size;
-    if (address - newcode > 123) /* the Return to Town part alone must fit the smaller request */
+    if (address - newcode > 98) /* the Return to Town part alone must fit the smaller request */
         printf("Return to Town code is larger than reserved.\n");
 
-	if(!WARP_WHISTLE(rom))
-		return;
+    if (!WARP_WHISTLE(rom))
+        return;
     printf("I can't believe it's not a recorder...\n");
 
     // Hook to replace "doesn't work" text with JSR to new functionnality
     vpatch(rom, 0xddbf, 3, 0x4c, address & 0xff, (address >> 8) & 0xff); // JMP new code for flute functionality
 
     // New code for flute functionality
-    code_size = 60;
+    code_size = 47;
     vpatch(rom, address, code_size,
         0xa5, 0x16,         // LDAF1:  LDA MapType             ;Is the player in a dungeon?
         0xc9, 0x20,         // LDAF3:  CMP #MAP_DUNGEON        ;
@@ -3852,35 +3724,25 @@ void zoom_and_whistle(dw_rom *rom)
 
 		0xad, ram_j & 0xff, (ram_j >> 8) & 0xff, // LDA absolute zoom_j
         0x20, newcode & 0xff, (newcode >> 8) & 0xff,   // JSR to code that loads zoom coords from index
-        0xa8,               // TAY, for later restoration
+        0xa8,               // TAY: the index
 
-        // Update whistle index
-
-        // Start
-        0x98,               // TYA (initially A is fine, but after looping it won't be, so let's restore the index backup)
-        0x18, 0x69, 0x01,   // CLC, ADC 1 (increment A)
-        0xc9, 0x07,         // CMP 7 (index should be 0-6)
-        0x90, 0x03,         // BCC to incrementing the index
-        0x38, 0xe9, 0x07,   // SEC, SBC 7 (make index back into 0-6 range)
-        0xaa, 0xa8,         // TAX, TAY. A, X and Y now contain the possible new index. A will be left-shifted to AND with ram_v (visited towns), X will act as counter, Y as the original index value
-        0xa9, 0x01,         // LDA 1 → A is now 1, preparing for the shifts
-
-        // Shifting
-        0xe0, 0x00,         // CPX 0. Are we done shifting?
-        0xf0, 4,            // BEQ Visited-check. Yup, we are done shifting.
-        0x0a, 0xca,         // ASL A, DEX (Nope, we're not done shifting, so left-shift A, decrement X)
-        0xd0, 0xf8,         // BNE Shifting (-8), keep looping the left-shifting
-
-        // Visited-check
-        0x2d, ram_v & 0xff, (ram_v >> 8) & 0xff,  // AND ram_v (did we visit the town's inn?)
-        0xf0, 0xe4,          // BEQ Start (-28) (No, we haven't visited it. Go back to incrementing)
-        0x8c, ram_j & 0xff, (ram_j >> 8) & 0xff,  // STY RAM_j. We're done, here's the new index!
+        /* Step to the next visited town, wrapping 6 to 0. Bit 0 (Tantegel) is always set, so this ends. */
+        0xc8,                           // next: INY
+        0xc0, 0x07,                     // CPY #7
+        0x90, 0x02,                     // BCC +
+        0xa0, 0x00,                     // LDY #0
+        0xb9, LO(bits), HI(bits),       // +: LDA bits,Y
+        0x2d, LO(ram_v), HI(ram_v),     // AND ram_v (did we visit the town?)
+        0xf0, 0xf1,                     // BEQ next (-15)
+        0x8c, LO(ram_j), HI(ram_j),     // STY ram_j. We're done, here's the new index!
 
         0xa9, 0x01,         // LDA #MAP_OVERWORLD      ;Set player's current map as the overworld map.
         0x85, 0x45,         // STA MapNumber
         0x4c, 0x14, 0xdb    // JMP rest of original return code
     );
     address += code_size;
+    if (address - newcode > 145)
+        printf("Warp Whistle code is larger than reserved.\n");
 
     /* Hauksness counts as visited once the hero walks in. The game's map change copies the new map number
      * from the warp table at $D961 (STA $45, LDA $F462,X); that becomes a far call to a routine that sets
@@ -3969,23 +3831,21 @@ void levelup_refill(dw_rom *rom)
     if (!LEVELUP_REFILL(rom))
         return;
 
-    const uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 24);
+    const uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 23);
     printf("Making levelups refreshing...\n");
 
     // Hook into first 3 of 5 free bytes in mcgrew's ChkNewSpell
     vpatch(rom, 0xeb0f, 3, 0x20, newcode & 0xff, (newcode >> 8) & 0xff); // JSR newcode
 
     // New code
-    vpatch(rom, newcode, 24,
+    vpatch(rom, newcode, 23,
         0xa5, 0xca,         // LDA Max HP
         0x85, 0xc5,         // STA HP
         0xa5, 0xcb,         // LDA Max MP
         0x85, 0xc6,         // STA MP
 
-        // Original "we're not low HP anymore" code
-        0xA9, 0x01, 0x85, 0x0A, 0xA9, 0x3F, 0x85, 0x0B, 0xA9, 0x30, 0x85, 0x08, 0x20, 0x90, 0xC6,
-
-        0x60                // RTS
+        // Original "we're not low HP anymore" code, ending in a tail call (JMP $C690)
+        0xA9, 0x01, 0x85, 0x0A, 0xA9, 0x3F, 0x85, 0x0B, 0xA9, 0x30, 0x85, 0x08, 0x4C, 0x90, 0xC6
     );
 }
 
@@ -4070,7 +3930,7 @@ void unbreakable_keys(dw_rom *rom)
  */
 static void forfeit_trigger(dw_rom *rom)
 {
-    const uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 40);
+    const uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, 34);
 
 /* After the status screen is opened it waits for any input at all before closing. */
 /* We're jumping off at that point to do almost the same thing, but with a twist.  */
@@ -4081,7 +3941,7 @@ static void forfeit_trigger(dw_rom *rom)
 /* that pressing any button would then close the window. Now, any button that      */
 /* isn't select or start will close the window. If you push select and start       */
 /* together at the same time it takes you straight to the credits.                 */
-    vpatch(rom, newcode, 40,
+    vpatch(rom, newcode, 34,
            0x20, 0x74, 0xff,  // These first two sections
            0x20, 0x08, 0xc6,  // are just rehashing the
            0xa5, 0x47,        // "let go of all buttons...
@@ -4096,12 +3956,9 @@ static void forfeit_trigger(dw_rom *rom)
            0xf0, 0x01,        // BEQ 1
            0x60,              // RTS (close the window)
 
-           0xa5, 0x47,        // LDA $47 (load button presses)
-           0x29, 0x04,        // AND select_button
-           0xf0, 0xeb,        // BEQ -21 (start the loop over if only one is pressed)
-           0xa5, 0x47,        // LDA $47 (load button presses)
-           0x29, 0x08,        // AND start_button
-           0xf0, 0xe5,        // BEQ -27 (same as above)
+           0xa5, 0x47,        // LDA $47 (only start and select can be set here, and not neither)
+           0xc9, 0x0c,        // CMP #$0C (start and select both pressed)
+           0xd0, 0xeb,        // BNE -21 (start the loop over if only one is pressed)
 
            0x4c, 0xed, 0xcc   // JMP 0xCCED (start credits)
     );
@@ -4134,7 +3991,7 @@ void step_counter(dw_rom *rom)
 	const int in_map = map_tail_space(rom, 13);
 	/* Not behind a far call: a test walk in FCEUX with this routine in bank 6 gave 26 steps where the fixed bank
 	 * gave 44, so it stays in bank 0's map tail or the fixed bank. */
-	const int at = in_map >= 0 ? in_map : (int)find_free_space(rom->content, 0xc82b, 13); // Starting address for new code
+	const int at = in_map >= 0 ? in_map : (int)find_free_space(rom->content, FIXED_FREE_START, 13); // Starting address for new code
 	const uint16_t cpu = in_map >= 0 ? (uint16_t)(at + 0x8000) : (uint16_t)at;
 	const uint8_t code[13] = {
         0xee, ram_s & 0xff, (ram_s >> 8) & 0xff,        // inc ram_s
@@ -4171,7 +4028,7 @@ void npc_guillotine(dw_rom *rom)
      * and the one who lifts the curse ($6E).
      * LDA ($3C),Y only works because this routine replaces the one JSR at $D11F: there the talk code has $3C/$3D
      * pointing at the map's NPC table and Y at the NPC's dialogue byte (its offset plus 2). */
-    const uint16_t at = find_free_space(rom->content, 0xc82b, 27);
+    const uint16_t at = find_free_space(rom->content, FIXED_FREE_START, 27);
     const uint8_t body[27] = {
         0xc9, 30,               // CMP 30: A is the NPC's offset in the NPC table. Is the NPC mobile?
         0xb0, 0x14,             // BCS to the original call if not
@@ -4402,29 +4259,6 @@ static void auto_stairs(dw_rom *rom)
     gameplay_patches |= 8;
 }
 
-/**
- * Makes the field controls answer at once.
- *
- * The game only starts a step when its 16-frame counter $4F is 0, and opens the command window or pauses when
- * it is 1, so a press while standing waits up to 15 frames and a short tap can be missed. NPCs move on that
- * counter too, so a step started out of time lets the hero walk through one.
- *
- * On the overworld, which has no NPCs, a new press clears the counter, so it answers at once. Anywhere else
- * a new press is kept until the counter comes round. Clearing only on a new press keeps held buttons in the
- * game's own rhythm, such as walking into a wall. The buttons are also not read during a step, so a press
- * made while walking is lost. Here the frame waits in a step read them, and the next read adds new presses.
- *
- * @param rom The rom struct
- */
-/* Room for Responsive Controls: first the spare end of the overworld map in bank 0 ($9D5D-$A652, which a map
- * never fills), then the fixed bank. Bank 0 is always the one in use where these hooks run (the step routines
- * are in it), so code there costs the fixed bank nothing. Returns a content index. */
-static uint16_t rc_space(dw_rom *rom, uint8_t n)
-{
-    int at = search_free_space(rom->content, 0x1d5d, 0x2653, n);
-
-    return at >= 0 ? (uint16_t)at : find_free_space(rom->content, FIXED_FREE_START, n);
-}
 #define RC_CPU(x) ((uint16_t)((x) < 0x4000 ? (x) + 0x8000 : (x)))
 
 /* Far calls into bank 7, through the game's own BRK handler at $FD3A. The 3 bytes `brk, index, bank` map the bank,
@@ -4513,6 +4347,20 @@ static uint16_t far_stub(dw_rom *rom, const uint8_t *body, int n, uint16_t jmp_t
     return at;
 }
 
+/**
+ * Makes the field controls answer at once.
+ *
+ * The game only starts a step when its 16-frame counter $4F is 0, and opens the command window or pauses when
+ * it is 1, so a press while standing waits up to 15 frames and a short tap can be missed. NPCs move on that
+ * counter too, so a step started out of time lets the hero walk through one.
+ *
+ * On the overworld, which has no NPCs, a new press clears the counter, so it answers at once. Anywhere else
+ * a new press is kept until the counter comes round. Clearing only on a new press keeps held buttons in the
+ * game's own rhythm, such as walking into a wall. The buttons are also not read during a step, so a press
+ * made while walking is lost. Here the frame waits in a step read them, and the next read adds new presses.
+ *
+ * @param rom The rom struct
+ */
 static void responsive_controls(dw_rom *rom)
 {
     const uint16_t stamp = 0x680b, state = 0x680c, buf = 0x680d, prev = 0x680e, pend = 0x680f;
@@ -4868,7 +4716,7 @@ static void run_bank(dw_rom *rom)
     /* Window code $F8 is only in the window when Quick Spell is on. */
     if (QUICK_SPELL(rom)) {
         /* Window code $F8: print the last spell's short name, 5 letters from entry `last` of a table whose entry 0
-         * is "-----", so the slot shows before the first cast. The code (30 bytes) and the 55 byte table go in the
+         * is "QUICK", so the slot reads as a command before the first cast. The code (30 bytes) and the 55 byte table go in the
          * fixed bank when they fit. When it is full they go in bank 7 behind a far call, where the code ends with
          * rts (28 bytes), and a 6 byte stub in the fixed bank makes that call and then jumps to the window's exit
          * at $A62B. `last` is 0-10, so both asl leave the carry clear for the adc. */
@@ -4891,7 +4739,7 @@ static void run_bank(dw_rom *rom)
         memcpy(body, spell, (size_t)code_len);
         names = MODERN_SPELLS(rom) ? modern_names : vanilla_names;
         for (i = 0; i < 55; i++) {
-            char ch = i < 5 ? '-' : names[i - 5];
+            char ch = i < 5 ? "QUICK"[i] : names[i - 5];
             body[code_len + i] = (ch == ' ') ? 0x5f : (ch == '-') ? 0x49 : (uint8_t)(0x24 + ch - 'A');
         }
         if (in_far) {
@@ -5197,7 +5045,7 @@ void new_flags_ram_init(dw_rom *rom)
         0x4c, 0x47, 0xcb    // JMP to the vanilla subroutine, which returns for us
     };
     const size_t n = (RETURN_TO_ZOOM(rom) || WARP_WHISTLE(rom)) ? sizeof(towns) : 0;
-    const uint16_t newcode = find_free_space(rom->content, 0xc82b, n + sizeof(steps)); // Starting address for new code
+    const uint16_t newcode = find_free_space(rom->content, FIXED_FREE_START, n + sizeof(steps)); // Starting address for new code
 
     // Hook start of the game
     vpatch(rom, 0xca1a, 3, 0x20, newcode & 0xff, (newcode >> 8) & 0xff); // JSR new code
@@ -5450,7 +5298,7 @@ void instant_name_print(dw_rom *rom)
     );
 
     // When finding name length, we know the buffer contains the player name if we set MessageSpeed to 0xff: replace it with the name length
-    newcodeFindNameLength = find_free_space(rom->content, 0xc82b, 15);
+    newcodeFindNameLength = find_free_space(rom->content, FIXED_FREE_START, 15);
     vpatch(rom, 0x7897, 2, newcodeFindNameLength & 0xff, (newcodeFindNameLength >> 8) & 0xff); // Hook in NameToNameBuf at JSR FindNameEnd
     vpatch(rom, newcodeFindNameLength, 15,
         0x20, 0xd9, 0xb8,   // JSR FindNameEnd (original code)
@@ -5465,7 +5313,7 @@ void instant_name_print(dw_rom *rom)
     );
 
     // Set MessageSpeed = ff when we know we're about to print the name.
-    newcodeSetSpeed = find_free_space(rom->content, 0xc82b, 9);
+    newcodeSetSpeed = find_free_space(rom->content, FIXED_FREE_START, 9);
     vpatch(rom, 0x76b6, 2, newcodeSetSpeed & 0xff, (newcodeSetSpeed >> 8) & 0xff); // Hook over JMP DoNAME
     vpatch(rom, newcodeSetSpeed, 9,
         0x48,               // PHA
@@ -5742,13 +5590,11 @@ static uint64_t without_winter_once(const char* input_file, uint64_t seed, char 
 /* Why the build without the Winter theme stopped, for the build that asked for it. */
 static BOOL winter_no_room = FALSE;
 
+/* Runs before the Winter build starts (see dwr_randomize_once), so the Winter build sets every static of its
+ * own afterwards and nothing that this build leaves behind needs to be restored. */
 uint64_t dwr_randomizeWithoutWinterTheme(const char* input_file, uint64_t seed, char *flags)
 {
     BOOL saved_fit = fit_best, saved_ran_out = ran_out_of_room;
-    /* This inner build sets its own addresses and far-call state; the outer build still needs its own after it. */
-    uint16_t saved_win = run_bank_win_code, saved_up = run_bank_up_code;
-    const int saved_far_used = far_used;
-    const uint16_t saved_far_next = far_next;
     uint64_t crc;
 
     /* Chosen on its own, so it matches a build made without the Winter theme. */
@@ -5763,11 +5609,18 @@ uint64_t dwr_randomizeWithoutWinterTheme(const char* input_file, uint64_t seed, 
     winter_no_room = !crc && ran_out_of_room;
     fit_best = saved_fit;
     ran_out_of_room = saved_ran_out;
-    run_bank_win_code = saved_win;
-    run_bank_up_code = saved_up;
-    far_used = saved_far_used;
-    far_next = saved_far_next;
     return crc;
+}
+
+/* The Winter Theme flag of a flag code, before a build reads it. Not a maybe flag (byte 22), so no RNG. */
+static BOOL flags_want_winter(const char *flags)
+{
+    struct { uint8_t flags[28]; } f = {{0}};
+    char code[64] = {0};
+
+    strncpy(code, flags, 44);
+    base32_decode((const unsigned char *)code, f.flags);
+    return WINTER_THEME((&f)) != 0;
 }
 
 /**
@@ -5783,12 +5636,11 @@ uint64_t dwr_randomizeWithoutWinterTheme(const char* input_file, uint64_t seed, 
 static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *flags,
         const char *sprite_name, const char* output_dir, BOOL fit_game, BOOL fit_extras)
 {
-    uint64_t crc = 0;
+    uint64_t crc = 0, winter_crc = 0;
     char output_file[1025] = { 0 };
     dw_rom *rom = malloc(sizeof(dw_rom));
     jmp_buf on_no_space;
 
-    check_structs();
     if (!rom)
         return 0;
 
@@ -5798,6 +5650,21 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
             seed, out_flags[0] ? out_flags : flags);
     printf("Using seed# %"PRIu64"\n", seed);
     printf("Using flags %s\n", flags);
+
+    /* A Winter ROM carries the checksum of the same build without the Winter theme. That build runs
+     * first and on its own (it seeds the RNG itself), so the build below starts from the same state as
+     * any other build and no static has to be saved around it. */
+    if (flags_want_winter(flags)) {
+        fail_stage = 1;
+        winter_crc = dwr_randomizeWithoutWinterTheme(input_file, seed, flags);
+        if (!winter_crc) {
+            if (!winter_no_room)
+                printf("Could not make the checksum without the Winter theme.\n");
+            ran_out_of_room = winter_no_room;
+            free(rom);
+            return 0;
+        }
+    }
 
     mt_init(seed);
     if (!dwr_init(rom, input_file, flags)) {
@@ -5828,14 +5695,8 @@ static uint64_t dwr_randomize_once(const char* input_file, uint64_t seed, char *
     fit_best = fit_extras;
     fail_stage = 2;
     printf("Checksum: %016"PRIX64"\n", crc);
-    if(WINTER_THEME(rom))
-    {
-        crc = dwr_randomizeWithoutWinterTheme(input_file, seed, flags);
-        if (!crc) {
-            if (winter_no_room)
-                dwr_no_room();
-            dwr_give_up("Could not make the checksum without the Winter theme.");
-        }
+    if (winter_crc) {
+        crc = winter_crc;
         printf("Checksum without winter theme: %016"PRIX64"\n", crc);
     }
 

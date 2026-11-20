@@ -1099,8 +1099,8 @@ static BOOL music_wait_loop(dw_rom *rom, uint16_t tail)
      * hero is between tiles then: the low 4 bits of the pixel position ($90 x, $92 y) are not 0. Text,
      * menus and battles happen on a tile, so their music keeps its speed: the tick plays a frame later.
      * (Battles, text and walking wait from the same routines, so the caller cannot tell them apart.) */
-    skipj = n; EMIT(0xad, LO8(MW_SKIP), HI8(MW_SKIP), 0xf0, 0);         /* lda SKIP; beq run */
-    EMIT(0xa9, 0x00, 0x8d, LO8(MW_SKIP), HI8(MW_SKIP));                 /* lda #0; sta SKIP */
+    /* The overrun path only writes 1 to SKIP, so one LSR both tests and clears it. */
+    skipj = n; EMIT(0x4e, LO8(MW_SKIP), HI8(MW_SKIP), 0x90, 0);         /* lsr SKIP; bcc run */
     EMIT(0xa5, 0x90, 0x05, 0x92, 0x29, 0x0f);                           /* lda $90; ora $92; and #$0f */
     stepj = n; EMIT(0xf0, 0);                                           /* beq run: on a tile; drop: */
     /* Never two drops in a row: a step that runs late every frame would otherwise get no ticks at all. */

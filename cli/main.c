@@ -1,5 +1,6 @@
 
 #include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -14,7 +15,6 @@
 #include "sprites.h"
 
 
-/* Reads on or off, and stops on anything else. */
 /* Whether two words match, ignoring case. */
 static int same_word(const char *a, const char *b)
 {
@@ -37,6 +37,7 @@ static int off_on_random(const char *option, const char *value)
     return !strcmp(value, "on");
 }
 
+/* Reads on or off, and stops on anything else. */
 static int on_off(const char *option, const char *value)
 {
     if (strcmp(value, "on") && strcmp(value, "off")) {
@@ -133,6 +134,31 @@ static void print_race_card(const char *flags, uint64_t seed, uint64_t crc)
         printf("This build repacked the game code to make room, so its checksum can differ from racers with "
                 "other personal options.\n");
     printf("Your personal options are not in these flags.\n");
+}
+
+/* After a failed build with Random Map on: the same advice as the site's map message, with the Biome and Map Size
+ * the flags ask for. The build prints "Could not draw a map ..." itself, but a random biome or size is picked
+ * inside it, so this names the setting as given. */
+static void print_map_failure_help(const char *flags)
+{
+    static const char *const sizes[4] = {"Normal", "Small", "Very Small", "Random"};
+    uint8_t raw[28] = {0};
+    char code[64] = {0};
+    const char *biome;
+
+    strncpy(code, flags, 44);
+    base32_decode((uint8_t *)code, raw);
+    if (!(raw[0] & 0x03))
+        return;
+    if (raw[25] == BIOME_RANDOM)
+        biome = "Random";
+    else {
+        const int b = raw[25] ? raw[25] : (((raw[2] & 0x10) >> 3) | (raw[2] & 0x01));
+        biome = b < BIOME_COUNT ? dwr_biome_names[b] : "Continent";
+    }
+    fprintf(stderr, "If the build said it could not draw a map: it could not draw one for this seed with Biome %s and "
+            "Map Size %s. This is rare. Try another seed first, then Map Size Normal or Biome Continent (the original "
+            "land).\n", biome, sizes[(raw[13] >> 6) & 3]);
 }
 
 int main(int argc, char **argv)
@@ -266,7 +292,19 @@ int main(int argc, char **argv)
     } else {
         flags = default_flags;
     }
-    if (argc < 5 || sscanf(argv[3], "%"PRIu64, &seed) != 1) {
+    if (argc >= 5) {
+        /* Only digits: sscanf would read "12a" as 12 and treat "abc" as no seed. */
+        char *end = NULL;
+        unsigned long long n;
+
+        errno = 0;
+        n = isdigit((unsigned char)argv[3][0]) ? strtoull(argv[3], &end, 10) : 0;
+        if (!end || *end || errno == ERANGE) {
+            fprintf(stderr, "The seed must be a whole number from 0 to 18446744073709551615, not '%s'\n", argv[3]);
+            exit(1);
+        }
+        seed = (uint64_t)n;
+    } else {
         srand((unsigned)time(NULL) ^ (unsigned)clock());
         /* RAND_MAX is only 32767 on Windows, so take 16 bits at a time. */
         seed = ((uint64_t)(rand() & 0xffff) << 48) | ((uint64_t)(rand() & 0xffff) << 32) |
@@ -392,8 +430,10 @@ int main(int argc, char **argv)
     printf("Randomizing using seed: %"PRIu64" with flags %s\n", seed, flags);
 
     const uint64_t crc = dwr_randomize(input_file, seed, flags, sprite, output_dir);
-    if (!crc)
+    if (!crc) {
+        print_map_failure_help(flags);
         return 1;
+    }
     if (race_card)
         print_race_card(flags, seed, crc);
 

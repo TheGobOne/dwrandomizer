@@ -45,9 +45,9 @@ SEGMENTS {
  DPCM: load=PRG,type=ro,optional=yes;
 }
 ''')
-subprocess.check_call([CC65 + '/ca65', '-g', 'driver2.s', '-I', HERE + '/driver', '--bin-include-dir', HERE + '/driver',
-                       '-D', 'RELOCATE_MUSIC', '-D', 'USE_OLDVIBRATO', '-D', 'NAMCO_CHANNELS=8', '-D', 'CHANNEL_CONTROL',
-                       '-o', 'drv.o'])
+CA65_DEFINES = ['RELOCATE_MUSIC', 'USE_OLDVIBRATO', 'NAMCO_CHANNELS=8', 'CHANNEL_CONTROL']
+subprocess.check_call([CC65 + '/ca65', '-g', 'driver2.s', '-I', HERE + '/driver', '--bin-include-dir', HERE + '/driver']
+                      + [a for d in CA65_DEFINES for a in ('-D', d)] + ['-o', 'drv.o'])
 subprocess.check_call([CC65 + '/ld65', '-o', 'drv.bin', '-C', 'drv.cfg', '-Ln', 'drv.lbl', 'drv.o'])
 L = {m[2]: int(m[1], 16) for m in re.finditer(r'al (\w+) \.(\w+)', open('drv.lbl').read())}
 D = open('drv.bin', 'rb').read()
@@ -58,9 +58,13 @@ W = 0x8100 + len(D)
 # without loops.
 # Scratch bytes are rebuilt by the driver each frame, so only the game's values are kept for them.
 assert L['var_Note_Table'] == 0xdc
-# $D3, $D8 and $D9 are the expansion-chip temporaries (var_Temp4, var_Temp_Pointer2). Without those chips the
-# driver should never touch them, but they are still swapped below until that is checked in the driver code.
-ZP_SCRATCH = list(range(0xd0, 0xdc))
+# $D3 (var_Temp4) and $D8-$D9 (var_Temp_Pointer2) are used only by n163.s and vrc6.s, which driver.s includes
+# only under USE_N163 and USE_VRC6. Neither is defined here, so the driver never touches them and the swap
+# leaves them out. Building with an expansion chip would need them back in the list.
+assert L['var_Temp4'] == 0xd3 and L['var_Temp_Pointer2'] == 0xd8
+assert not re.search(r'^USE_(N163|VRC6|ALL)\b', no_pal, re.M)
+assert not any(re.match(r'USE_(N163|VRC6|ALL)\b', d) for d in CA65_DEFINES)
+ZP_SCRATCH = [a for a in range(0xd0, 0xdc) if a not in (0xd3, 0xd8, 0xd9)]
 ZP_KEPT = [0xdc, 0xdd]
 # Nothing to do while the game's own music plays and no new song is wanted, so skip the swap too.
 swap_in = ' lda SONG\n bpl full\n lda WANT\n cmp CUR\n bne full\n lda $03bf\n cmp #$5a\n bne full\n rts\nfull:\n'

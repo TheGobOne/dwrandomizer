@@ -190,13 +190,31 @@ BOOL dwr_load_ap_patch(const char *path)
     }
     fclose(f);
     if (ap_have_text && !whole_sentences) {
-        /* An older patch holds only the item name ("Herb"): make it the sentence "Thou hast found the Herb." */
+        /* An older patch holds only the item name ("Herb"): make it the sentence "Thou hast found the Herb."
+         * A long name gets the shorter "Found the ...", or just the name and a period, and one too long even
+         * for that is cut at a word and given a period, so the sentence never ends mid-word. */
         char sentence[AP_TEXT_LEN + 1];
         for (i = 0; i < AP_TEXT_LOCS; i++) {
-            if (ap_text[i][0]) {
+            const size_t nlen = strlen(ap_text[i]);
+            if (!nlen)
+                continue;
+            if (nlen + sizeof("Thou hast found the .") - 1 <= AP_TEXT_LEN) {
                 snprintf(sentence, sizeof(sentence), "Thou hast found the %s.", ap_text[i]);
-                memcpy(ap_text[i], sentence, sizeof(sentence));
+            } else if (nlen + sizeof("Found the .") - 1 <= AP_TEXT_LEN) {
+                snprintf(sentence, sizeof(sentence), "Found the %s.", ap_text[i]);
+            } else if (nlen + 1 <= AP_TEXT_LEN) {
+                snprintf(sentence, sizeof(sentence), "%s.", ap_text[i]);
+            } else {
+                size_t cut = AP_TEXT_LEN - 1; /* room for the period */
+                while (cut > 0 && ap_text[i][cut] != ' ')
+                    cut--;
+                if (!cut)
+                    cut = AP_TEXT_LEN - 1;
+                memcpy(sentence, ap_text[i], cut);
+                sentence[cut] = '.';
+                sentence[cut + 1] = '\0';
             }
+            memcpy(ap_text[i], sentence, sizeof(sentence));
         }
     }
     return ap_enabled;

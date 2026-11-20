@@ -13,7 +13,7 @@
 - Warp Whistle adds Hauksness as a seventh stop.
 - Return and Warp Whistle land on a nearby grass, desert, hills or trees tile.
 - Earth biome bridges and raft docks land on the main island, and mountains that cut off islands are opened to hills.
-- The Quick Spell battle slot shows "-----" until the first cast.
+- The Quick Spell battle slot reads QUICK until the first cast.
 - NPC Guillotine keeps the NPCs the quest needs.
 - The Key & Herb counter shows herbs first, then keys, the same order as the item menu.
 - Disable Music keeps a music pack's songs out too.

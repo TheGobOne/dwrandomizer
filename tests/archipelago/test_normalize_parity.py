@@ -61,7 +61,7 @@ class NormalizeParity(unittest.TestCase):
         with tempfile.TemporaryDirectory() as out:
             run = subprocess.run([EXE, ROM, code, "1", "Loto", out], capture_output=True, text=True, timeout=120)
         self.assertEqual(run.returncode, 0, f"the CLI failed on {code}: {run.stderr.strip()[-300:]}")
-        m = re.search(r"Fixed flag code: (\S+)", run.stdout)
+        m = re.search(r"Fixed flag code[^:]*: (\S+)", run.stdout)
         return m.group(1) if m else None
 
     def test_cases_agree(self):

@@ -426,13 +426,13 @@ class GameNotes(unittest.TestCase):
         with self.assertLogs("Client", level="WARNING"):
             writes, _ = give(["Herb"], self.ram, client=self.client)[0]
         self.assertEqual(mail_texts(writes), [C.tiles("Herb from Friend.")])
-        self.assertEqual(self.client.mail_queue, [C.tiles("No room for the Herb: 100 Gold.")])
+        self.assertEqual(self.client.mail_queue, [C.tiles("No room: Herb became 100 Gold.")])
 
     def test_own_chest_herb_at_the_cap_explains_in_one_window(self):
         self.ram[C.HERBS] = 6
         with self.assertLogs("Client", level="WARNING"):
             writes, _ = give(["Herb"], self.ram, client=self.client, sender=1, location=C.BASE + 4, chests=1 << 4)[0]
-        self.assertEqual(mail_texts(writes), [C.tiles("No room for the Herb: 100 Gold.")])
+        self.assertEqual(mail_texts(writes), [C.tiles("No room: Herb became 100 Gold.")])
         self.assertEqual(self.client.mail_queue, [])
 
     def test_dropped_item_is_said_in_the_game(self):

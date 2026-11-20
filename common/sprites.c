@@ -9,108 +9,103 @@
 #include "dwr_types.h"
 #include "mt64.h"
 
+/* The selectable sprites as X(name, function), in menu order after "Random" and "Loto". The names
+ * array and the function table before sprite() are both built from this one list, so they stay in step. */
+#define DWR_SPRITES(X) \
+    X("Gwaelin", gwaelin)                           \
+    X("Slime", slime)                               \
+    X("Red Slime", red_slime)                       \
+    X("Metal Slime", metal_slime)                   \
+    X("Dragonlord", dragonlord)                     \
+    X("DW2 Prince of Cannock", dw2_cannock)         \
+    X("DW2 Prince of Midenhall", dw2_midenhall)     \
+    X("DW2 Princess of Moonbrooke", dw2_moonbrooke) \
+    X("DW3 Female Fighter", dw3_female_fighter)     \
+    X("DW3 Male Fighter", dw3_male_fighter)         \
+    X("DW3 Female Goof-off", dw3_female_goof_off)   \
+    X("DW3 Male Goof-off", dw3_male_goof_off)       \
+    X("DW3 Ghost", dw3_ghost)                       \
+    X("DW3 Hero", dw3_hero)                         \
+    X("DW3 Female Merchant", dw3_female_merchant)   \
+    X("DW3 Male Merchant", dw3_male_merchant)       \
+    X("DW3 Female Pilgrim", dw3_female_pilgrim)     \
+    X("DW3 Male Pilgrim", dw3_male_pilgrim)         \
+    X("DW3 Female Sage", dw3_female_sage)           \
+    X("DW3 Male Sage", dw3_male_sage)               \
+    X("DW3 Female Soldier", dw3_female_soldier)     \
+    X("DW3 Male Soldier", dw3_male_soldier)         \
+    X("DW3 Female Wizard", dw3_female_wizard)       \
+    X("DW3 Male Wizard", dw3_male_wizard)           \
+    X("DW4 Alena", dw4_alena)                       \
+    X("DW4 Brey", dw4_brey)                         \
+    X("DW4 Celia", dw4_celia)                       \
+    X("DW4 Cristo", dw4_cristo)                     \
+    X("DW4 Doran", doran)                           \
+    X("DW4 Healie", dw4_healie)                     \
+    X("DW4 Heroine", dw4_heroine)                   \
+    X("DW4 Hero", dw4_hero)                         \
+    X("DW4 Mara", dw4_mara)                         \
+    X("DW4 Nara", dw4_nara)                         \
+    X("DW4 Ragnar", dw4_ragnar)                     \
+    X("DW4 Taloon", dw4_taloon)                     \
+    X("DW4 Tov (The Dog)", dw4_tov_the_dog)         \
+    X("DW4 Yeti", dw4_yeti)                         \
+    X("FF Black Belt", ff_black_belt)               \
+    X("FF Black Mage", ff_black_mage)               \
+    X("FF Black Wizard", ff_black_wizard)           \
+    X("FF Fighter", ff_fighter)                     \
+    X("FF Knight", ff_knight)                       \
+    X("FF Master", ff_master)                       \
+    X("FF Ninja", ff_ninja)                         \
+    X("FF Red Mage", ff_red_mage)                   \
+    X("FF Red Wizard", ff_red_wizard)               \
+    X("FF Thief", ff_thief)                         \
+    X("FF White Mage", ff_white_mage)               \
+    X("FF White Wizard", ff_white_wizard)           \
+    X("FF4 DK Cecil", ff4_cecil)                    \
+    X("FF4 Edge", ff4_edge)                         \
+    X("Link", link)                                 \
+    X("Mario", mario)                               \
+    X("Luigi", luigi)                               \
+    X("Yoshi", yoshi)                               \
+    X("Wario", wario)                               \
+    X("Waluigi", waluigi)                           \
+    X("Pac-Man", pacman)                            \
+    X("Ms. Pac-Man", ms_pacman)                     \
+    X("Inky", inky)                                 \
+    X("Blinky", blinky)                             \
+    X("Pinky", pinky)                               \
+    X("Clyde", clyde)                               \
+    X("Sue", sue)                                   \
+    X("Blaster Master Jason", blaster_master)       \
+    X("Bomberman", bomberman)                       \
+    X("Arkista's Ring Christine", christine)        \
+    X("Kirby", kirby)                               \
+    X("Lala", lala)                                 \
+    X("Lolo", lolo)                                 \
+    X("StarTropics Mike", st_mike)                  \
+    X("Mina the Hollower", mina_the_hollower)       \
+    X("Plumplim", plumplim)                         \
+    X("DoaE Guan Yu", guanyu)                       \
+    X("DoaE Zhang Fei", zhangfei)                   \
+    X("DoaE Zhao Yun", zhaoyun)                     \
+    X("DoaE Huang Zhong", huangzhong)               \
+    X("DoaE Ma Chao", machao)                       \
+    X("DoaE Zhuge Liang", zhugeliang)               \
+    X("DoaE Jiang Wei", jiangwei)                   \
+    X("DoaE Lu Bu", lubu)                           \
+    X("Bo Jackson", bo_jackson)                     \
+    X("Jerry Rice", jerry_rice)                     \
+    X("Barry Sanders", barry_sanders)
+
+#define DWR_SPRITE_NAME(name, func) name,
 const char * const dwr_sprite_names[] = {
         "Random",
         "Loto",
-        "Gwaelin",
-        "Slime",
-        "Red Slime",
-        "Metal Slime",
-        "Dragonlord",
-
-        "DW2 Prince of Cannock",
-        "DW2 Prince of Midenhall",
-        "DW2 Princess of Moonbrooke",
-
-        "DW3 Female Fighter",
-        "DW3 Male Fighter",
-        "DW3 Female Goof-off",
-        "DW3 Male Goof-off",
-        "DW3 Ghost",
-        "DW3 Hero",
-        "DW3 Female Merchant",
-        "DW3 Male Merchant",
-        "DW3 Female Pilgrim",
-        "DW3 Male Pilgrim",
-        "DW3 Female Sage",
-        "DW3 Male Sage",
-        "DW3 Female Soldier",
-        "DW3 Male Soldier",
-        "DW3 Female Wizard",
-        "DW3 Male Wizard",
-
-        "DW4 Alena",
-        "DW4 Brey",
-        "DW4 Celia",
-        "DW4 Cristo",
-        "DW4 Doran",
-        "DW4 Healie",
-        "DW4 Heroine",
-        "DW4 Hero",
-        "DW4 Mara",
-        "DW4 Nara",
-        "DW4 Ragnar",
-        "DW4 Taloon",
-        "DW4 Tov (The Dog)",
-        "DW4 Yeti",
-
-        "FF Black Belt",
-        "FF Black Mage",
-        "FF Black Wizard",
-        "FF Fighter",
-        "FF Knight",
-        "FF Master",
-        "FF Ninja",
-        "FF Red Mage",
-        "FF Red Wizard",
-        "FF Thief",
-        "FF White Mage",
-        "FF White Wizard",
-
-        "FF4 DK Cecil",
-        "FF4 Edge",
-
-        "Link",
-        "Mario",
-        "Luigi",
-        "Yoshi",
-        "Wario",
-        "Waluigi",
-
-        "Pac-Man",
-        "Ms. Pac-Man",
-        "Inky",
-        "Blinky",
-        "Pinky",
-        "Clyde",
-        "Sue",
-        "Blaster Master Jason",
-        "Bomberman",
-        "Arkista's Ring Christine",
-        "Kirby",
-        "Lala",
-        "Lolo",
-        "StarTropics Mike",
-
-        "Mina the Hollower",
-
-        "Plumplim",
-
-        "DoaE Guan Yu",
-        "DoaE Zhang Fei",
-        "DoaE Zhao Yun",
-        "DoaE Huang Zhong",
-        "DoaE Ma Chao",
-        "DoaE Zhuge Liang",
-        "DoaE Jiang Wei",
-        "DoaE Lu Bu",
-
-        "Bo Jackson",
-        "Jerry Rice",
-        "Barry Sanders",
-
+        DWR_SPRITES(DWR_SPRITE_NAME)
         NULL
 };
+#undef DWR_SPRITE_NAME
 
 /**
  * Finds the number of sprites defined above. The result is cached so the
@@ -2652,112 +2647,23 @@ static void mina_the_hollower(dw_rom *rom)
         0x8f, 0x0e, 0x4e, 0xde);
 }
 
+/* Each sprite's function, in the order of dwr_sprite_names from index 2. */
+#define DWR_SPRITE_FUNC(name, func) &func,
+static void (* const sprite_func[])(dw_rom *rom) = {
+    DWR_SPRITES(DWR_SPRITE_FUNC)
+};
+#undef DWR_SPRITE_FUNC
+_Static_assert(sizeof(sprite_func) / sizeof(sprite_func[0]) + 3
+        == sizeof(dwr_sprite_names) / sizeof(dwr_sprite_names[0]),
+        "every sprite name after Random and Loto needs a function");
+
 void sprite(dw_rom *rom, const char *sprite_name)
 {
-    void (*sprite_func[sprite_count()-2])(dw_rom *rom);
-    size_t i=0;
+    size_t i;
 
     if (INVISIBLE_HERO(rom)) {
         return;
     }
-
-    sprite_func[i++] = &gwaelin;
-    sprite_func[i++] = &slime;
-    sprite_func[i++] = &red_slime;
-    sprite_func[i++] = &metal_slime;
-    sprite_func[i++] = &dragonlord;
-
-    sprite_func[i++] = &dw2_cannock;
-    sprite_func[i++] = &dw2_midenhall;
-    sprite_func[i++] = &dw2_moonbrooke;
-
-    sprite_func[i++] = &dw3_female_fighter;
-    sprite_func[i++] = &dw3_male_fighter;
-
-    sprite_func[i++] = &dw3_female_goof_off;
-    sprite_func[i++] = &dw3_male_goof_off;
-    sprite_func[i++] = &dw3_ghost;
-    sprite_func[i++] = &dw3_hero;
-    sprite_func[i++] = &dw3_female_merchant;
-    sprite_func[i++] = &dw3_male_merchant;
-    sprite_func[i++] = &dw3_female_pilgrim;
-    sprite_func[i++] = &dw3_male_pilgrim;
-    sprite_func[i++] = &dw3_female_sage;
-    sprite_func[i++] = &dw3_male_sage;
-    sprite_func[i++] = &dw3_female_soldier;
-    sprite_func[i++] = &dw3_male_soldier;
-    sprite_func[i++] = &dw3_female_wizard;
-    sprite_func[i++] = &dw3_male_wizard;
-
-    sprite_func[i++] = &dw4_alena;
-    sprite_func[i++] = &dw4_brey;
-    sprite_func[i++] = &dw4_celia;
-    sprite_func[i++] = &dw4_cristo;
-    sprite_func[i++] = &doran;
-    sprite_func[i++] = &dw4_healie;
-    sprite_func[i++] = &dw4_heroine;
-    sprite_func[i++] = &dw4_hero;
-    sprite_func[i++] = &dw4_mara;
-    sprite_func[i++] = &dw4_nara;
-    sprite_func[i++] = &dw4_ragnar;
-    sprite_func[i++] = &dw4_taloon;
-    sprite_func[i++] = &dw4_tov_the_dog;
-    sprite_func[i++] = &dw4_yeti;
-
-    sprite_func[i++] = &ff_black_belt;
-    sprite_func[i++] = &ff_black_mage;
-    sprite_func[i++] = &ff_black_wizard;
-    sprite_func[i++] = &ff_fighter;
-    sprite_func[i++] = &ff_knight;
-    sprite_func[i++] = &ff_master;
-    sprite_func[i++] = &ff_ninja;
-    sprite_func[i++] = &ff_red_mage;
-    sprite_func[i++] = &ff_red_wizard;
-    sprite_func[i++] = &ff_thief;
-    sprite_func[i++] = &ff_white_mage;
-    sprite_func[i++] = &ff_white_wizard;
-    sprite_func[i++] = &ff4_cecil;
-    sprite_func[i++] = &ff4_edge;
-
-    sprite_func[i++] = &link;
-    sprite_func[i++] = &mario;
-    sprite_func[i++] = &luigi;
-    sprite_func[i++] = &yoshi;
-    sprite_func[i++] = &wario;
-    sprite_func[i++] = &waluigi;
-
-    sprite_func[i++] = &pacman;
-    sprite_func[i++] = &ms_pacman;
-    sprite_func[i++] = &inky;
-    sprite_func[i++] = &blinky;
-    sprite_func[i++] = &pinky;
-    sprite_func[i++] = &clyde;
-    sprite_func[i++] = &sue;
-
-    sprite_func[i++] = &blaster_master;
-    sprite_func[i++] = &bomberman;
-    sprite_func[i++] = &christine;
-    sprite_func[i++] = &kirby;
-    sprite_func[i++] = &lala;
-    sprite_func[i++] = &lolo;
-    sprite_func[i++] = &st_mike;
-
-    sprite_func[i++] = &mina_the_hollower;
-
-    sprite_func[i++] = &plumplim;
-
-    sprite_func[i++] = &guanyu;
-    sprite_func[i++] = &zhangfei;
-    sprite_func[i++] = &zhaoyun;
-    sprite_func[i++] = &huangzhong;
-    sprite_func[i++] = &machao;
-    sprite_func[i++] = &zhugeliang;
-    sprite_func[i++] = &jiangwei;
-    sprite_func[i++] = &lubu;
-
-    sprite_func[i++] = &bo_jackson;
-    sprite_func[i++] = &jerry_rice;
-    sprite_func[i++] = &barry_sanders;
 
     if (!strcmp("Random", sprite_name)) {
 
