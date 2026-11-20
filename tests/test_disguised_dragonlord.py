@@ -9,7 +9,8 @@ For each seed it checks that:
 - the button wait ($FB) at $B8E6 after the King's line is still there,
 - if Gwaelin is the Dragonlord, the King's line is the 30-byte replacement,
 - the Tantegel merchant keeps his line ($20) only when the Dragonlord stays in Charlock,
-- with Auto Return, $EA03 is still JMP $DB00,
+- in the fixed (last) PRG bank, $EA03 is JMP $DB00 with Auto Return (second set), and otherwise
+  ldx #warp : lda #$02 : jmp $D9E2, with the warp for the hint's place,
 - with Three's Company, Gwaelin is never the Dragonlord.
 
 Run from the repo root after cmake --build build:
@@ -42,6 +43,10 @@ LOOKS = {"a male villager", "a soldier", "a guard", "a shopkeeper", "an old man"
          "Princess Gwaelin"}
 HINT_RE = re.compile(r"^`The Dragonlord is in (.+), disguised as (.+)\.'$")
 KING_LINE = "`Hmm, that was unfortunate...'"
+# Warp byte (warp index * 3) set_dl_warp writes for each hint place; Charlock keeps the vanilla $12.
+WARPS = {"Tantegel": 0x0C, "the Tantegel throne room": 0x0C, "Charlock": 0x12, "Kol": 0x06, "Brecconary": 0x09,
+         "Garinham": 0x00, "Cantlin": 0x21, "Rimuldar": 0x1B, "the Tantegel basement": 0x33,
+         "the Staff of Rain shrine": 0x03, "the Rainbow Drop shrine": 0x24}
 
 
 def decode(code):
@@ -69,6 +74,7 @@ def flags(group):
         set_bits(raw, 15, 0xC0, 6, 1)   # INN_IN_CHARLOCK on: the Charlock innkeeper can be the Dragonlord
     if group == 2:
         set_bits(raw, 8, 0x03, 0, 1)    # THREES_COMPANY on
+    set_bits(raw, 3, 0x02, 1, 1 if group == 1 else 0)  # AUTO_RETURN on in the second set only
     set_bits(raw, 11, 0x02, 1, 0)   # FREE_CHARLOCK off (it turns Disguised Dragonlord off)
     set_bits(raw, 16, 0x0C, 2, 1)   # DISGUISED_DRAGONLORD on
     set_bits(raw, 11, 0x0C, 2, 1)   # RUN_BANK on
@@ -116,15 +122,21 @@ def main():
             failures.append("seed %d: build failed\n%s" % (seed, run.stdout[-400:]))
             continue
         with open(os.path.join(out_dir, built[0]), "rb") as f:
-            rom = f.read()[16:]
+            full = f.read()
+        rom = full[16:]
+        prg = full[4] * 0x4000
+        ea03 = rom[prg - 0x4000 + 0x2A03:prg - 0x4000 + 0x2A0A]  # CPU $EA03 in the fixed bank
 
         if rom[0x5C35:0x5C37] != vanilla[0x5C35:0x5C37]:
             failures.append("seed %d: sprite bytes at $5C35 changed" % seed)
         if rom[0xB8E6] != 0xFB:
             failures.append("seed %d: button wait at $B8E6 is %02x" % (seed, rom[0xB8E6]))
 
-        if rom[0xEA03] == 0x4C and rom[0xEA04:0xEA06] != bytes([0x00, 0xDB]):
-            failures.append("seed %d: Auto Return JMP at $EA03 is %s" % (seed, rom[0xEA03:0xEA06].hex()))
+        if group == 1:
+            if ea03[:3] != bytes([0x4C, 0x00, 0xDB]):
+                failures.append("seed %d: Auto Return JMP at $EA03 is %s" % (seed, ea03.hex()))
+        elif ea03[0] != 0xA2 or ea03[2:] != bytes([0xA9, 0x02, 0x4C, 0xE2, 0xD9]):
+            failures.append("seed %d: warp code at $EA03 is %s" % (seed, ea03.hex()))
         merchant = 0x20 in tantegel_controls(rom)
         if rom[HINT_AT:HINT_END] == vanilla[HINT_AT:HINT_END]:
             seen["(vanilla Dragonlord)"] = seen.get("(vanilla Dragonlord)", 0) + 1
@@ -139,6 +151,8 @@ def main():
             failures.append("seed %d: bad hint %r (ended in slot: %s)" % (seed, hint, ended))
             continue
         seen[m.group(1)] = seen.get(m.group(1), 0) + 1
+        if group != 1 and ea03[1] != WARPS[m.group(1)]:
+            failures.append("seed %d: warp byte %02x for %s" % (seed, ea03[1], m.group(1)))
         if m.group(2) == "Princess Gwaelin":
             if group == 2:
                 failures.append("seed %d: Gwaelin is the Dragonlord with Three's Company" % seed)
