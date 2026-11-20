@@ -1747,6 +1747,9 @@ static BOOL biome_earth(dw_map *map)
         }
     }
     earth_connect(map);
+    /* earth_connect turns mountains into hills to join cut-off pieces, so the biggest pieces are judged again
+     * here before the rafts pick their docks. */
+    earth_mark_big(map);
     return TRUE;
 }
 
@@ -1789,7 +1792,8 @@ static BOOL earth_dock(dw_map *map, char region, uint8_t *dock_x, uint8_t *dock_
                 continue;
             nx = x + dir4[side][0];
             ny = y + dir4[side][1];
-            /* Not beside a town, cave or castle, and the land is a real stretch, not a single tile. */
+            /* Not beside a town, cave or castle, and the land is a real stretch, not a single tile. It must also
+             * be on the biggest piece of its land, so a raft never lands in a pocket that is cut off. */
             for (j = 0; j < 4; j++) {
                 mx = nx + dir4[j][0];
                 my = ny + dir4[j][1];
@@ -1797,7 +1801,7 @@ static BOOL earth_dock(dw_map *map, char region, uint8_t *dock_x, uint8_t *dock_
                 if (t == TILE_TOWN || t == TILE_CAVE || t == TILE_CASTLE)
                     break;
             }
-            if (j < 4 || map->walkable[nx][ny] == 0)
+            if (j < 4 || map->walkable[nx][ny] == 0 || !earth_big[nx][ny])
                 continue;
             if (mt_rand(0, count++) == 0) {
                 *dock_x = x;
