@@ -1,0 +1,34 @@
+DWR TheGobOne Remix 1.3 is out!
+
+Release notes: https://github.com/TheGobOne/dwrandomizer/releases/tag/v1.3
+
+Race checksums changed, so everyone in a race needs 1.3.
+
+__**Gameplay**__
+• Warp Whistle adds Hauksness as a 7th stop.
+• Return and Warp Whistle land on a nearby grass, desert, hills or trees tile.
+• Earth biome bridges and raft docks land on the main island. Mountains that cut off islands are opened to hills.
+• NPC Guillotine keeps the NPCs the quest needs.
+• Safe Start works with Random Map off.
+
+__**Fixes**__
+• Fighter's Ring adds exactly 2. It could add 3.
+• Disguised Dragonlord: the hint names the Tantegel throne room, the Tantegel basement and the 2 shrines instead of "a cave".
+• Disguised Dragonlord: with *Three's Company* on, Princess Gwaelin is never the Dragonlord.
+• Disguised Dragonlord: when Princess Gwaelin is the Dragonlord, the King's new line no longer removes the button wait after it.
+• Build Options text: Original builds are -10%/+3 on their stats, not -3/+10%.
+
+__**Site**__
+• *Needs* and *Off while* tags show on options, and options grey out when what they need is off.
+• Bad flag codes show the error under the Flags box, keep what you typed, and block Randomize until fixed.
+• Saved presets have their own column. Deleting one asks in place with Delete or Keep.
+• The 1st preset is Full Remix.
+• Downloads are named DWR.<seed>.<flags>.nes.
+
+__**Command line**__
+• `--race-card on` prints the version, flags, seed and checksum.
+• The CLI and the site give the same checksum for the same flags and seed.
+
+Tested in FCEUX and Mesen, not on hardware.
+
+***Any feedback on anything is very welcome!***
