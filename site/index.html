@@ -460,7 +460,8 @@ body.compact .opt .tog{min-height:1.5rem}
 /* The skip links float over the page when focused, so they never push the layout. */
 .skipopts:focus{position:fixed;top:.4rem;left:.4rem;width:auto;margin:0;z-index:60;background:var(--blue);border:3px solid var(--focus)}
 /* The Flags error sits in the Archipelago line, in the warning color. */
-#flagerr{flex:1 1 0;min-width:0;color:#ffd23f}
+.seedrow{position:relative}
+#flagerr{position:absolute;top:0;bottom:0;display:flex;align-items:center;box-sizing:border-box;padding:0 .5rem;border:2px solid #ffd23f;background:var(--panel,#10104a);color:#ffd23f;z-index:2;overflow:hidden}
 #apmsg[hidden]{display:none}
 /* Under 1000px wide the page scrolls once. The left column stays in view while it does. */
 @media (min-width:721px){
@@ -1078,12 +1079,14 @@ function flagsBlock(){
   const fe=el('span',{id:'flagerr',role:'alert'});
   const apMsg=el('span',{id:'apmsg',role:'status'});
   /* While the error shows, the box is described by the error alone, and marked invalid. */
-  const showErr=t=>{ fe.textContent=t; shareNote.hidden=!!t; fi.setAttribute('aria-describedby',t?'flagerr':'apmsg apnote'); if(t) fi.setAttribute('aria-invalid','true'); else fi.removeAttribute('aria-invalid'); };
+  /* The error box covers the Seed box and Random Seed button. */
+  const showErr=t=>{ fe.textContent=t; shareNote.hidden=!!t;
+    if(t&&sd.offsetParent){ fe.style.left=sd.offsetLeft+'px'; fe.style.width=(rnd.offsetLeft+rnd.offsetWidth-sd.offsetLeft)+'px'; } fi.setAttribute('aria-describedby',t?'flagerr':'apmsg apnote'); if(t) fi.setAttribute('aria-invalid','true'); else fi.removeAttribute('aria-invalid'); };
   fi.addEventListener('change',()=>{ let ok; State.oddFlags=false; State.oddBits=false;
     const raw=fi.value, clean=cleanFlags(raw);
     State.keepPersonal(()=>{ ok=State.setFlags(clean); return ok; });
     if(ok){ showErr(''); State.say&&State.say(State.flagNote()); }
-    else showErr((/[^A-Z2-7]/.test(clean)?'Flags only use the letters A-Z and the digits 2-7.':'Flags are '+lengthText()+' letters; this has '+clean.length+'.')+' Your flags did not change.'); });
+    else showErr((/[^A-Z2-7]/.test(clean)?'Flags only use the letters A-Z and the digits 2-7.':'Flags are '+lengthText()+' letters; this has '+clean.length+'.')); });
   const sd=el('input',{id:'seed',type:'text',inputmode:'numeric',maxlength:20,'aria-label':'Seed',value:State.seed});
   sd.addEventListener('change',()=>{ let v=sd.value.replace(/\D/g,''); if(v) v=(BigInt(v)>18446744073709551615n?18446744073709551615n:BigInt(v)).toString(); if(!v){ State.newSeed(); State.say&&State.say('A seed is a number, so a new random one was chosen.'); return; } State.seed=v; sd.value=v; State.emit('seed'); });
   const rnd=el('button',{type:'button',class:'btn',text:'Random Seed',onclick:()=>State.newSeed()});
@@ -1123,7 +1126,7 @@ function flagsBlock(){
   yamlBtn.className='btn'; fullBtn.className='btn';
   /* Under the Flags box: the share note, or the error in its place. */
   const shareNote=el('p',{id:'apnote',class:'apnote'},'Share this code, or use Copy (no personal options).');
-  const ap=el('div',{class:'row apcheck'},el('label',{'aria-hidden':'true'}),el('div',{class:'apbody'},el('div',{class:'apslot'},fe,shareNote)));
+  const ap=el('div',{class:'row apcheck'},el('label',{'aria-hidden':'true'}),el('div',{class:'apbody'},el('div',{class:'apslot'},shareNote)));
   const apPanel=el('div',{class:'appanel'},el('p',{class:'apline apstat'},apMsg),
     el('label',{for:'apname',text:'Player name'}), nameIn,
     el('p',{id:'apnamehelp',class:'secnote',text:'Up to 16 letters, digits, spaces, _ . -. The name is the slot name in the multiworld.'}),
@@ -1145,7 +1148,7 @@ function flagsBlock(){
     shareNote.textContent=on.length?'Archipelago rejects '+on.length+' flag'+(on.length>1?'s':'')+' (see the Archipelago command).':'Share this code, or use Copy (no personal options).';
     if(apMsg.textContent!==text) apMsg.textContent=text; };
   State.on(apPaint); apPaint(); syncName();
-  return {flags:fi,seed:sd,rnd,copy:cp,sum,ap,apPanel};
+  return {flags:fi,seed:sd,rnd,copy:cp,sum,ap,apPanel,err:fe};
 }
 /* Header and minimum size dwr_init expects. */
 function romProblem(b){ return b.length>=81936&&b[0]===0x4e&&b[1]===0x45&&b[2]===0x53&&b[3]===0x1a?'':'That file is not an uncompressed Dragon Warrior ROM (.nes, at least 81,936 bytes).'; }
@@ -1256,7 +1259,7 @@ function goBlock(out){
     if(!wasmReady){ o.textContent=wasmError||'Still loading the randomizer. Try again in a moment.'; return; }
     /* A code with an error was not taken, so the build would use the last good flags while the box shows the bad code. */
     { const fe=document.getElementById('flagerr'); if(fe&&fe.textContent){ o.textContent='Fix the Flags box first. Your last good flags are still set.'; const fi=document.getElementById('flags'); if(fi) fi.focus(); return; } }
-    b.disabled=true; o.textContent='Randomizing...';
+    b.disabled=true; o.textContent='';
     await new Promise(r=>setTimeout(r,20));
     try{
       const r=buildCached(State.spoiler); const {picks,log,sum,out_name}=r;
@@ -1291,7 +1294,7 @@ function goBlock(out){
           if(missed.length) lines.push({text:'These songs did not fit, so their slots play the default game music:',items:missed.map(p=>p.tag+': '+p.title),keys:missed.map(p=>p.key)});
         }
       }
-      o.textContent=r.spoilerText?'ROM and spoiler log downloaded.':'ROM downloaded.'; if(State.logSeed) State.logSeed();
+      o.textContent=''; if(State.logSeed) State.logSeed();
       showResult(out_name,lines);
     }catch(e){ o.textContent=e.message||'Something went wrong while randomizing.'; }
     b.disabled=false; }});
@@ -1576,7 +1579,7 @@ scr.append(...skipLinks(),
  el('section',{class:'win title'},el('h1',null,'DRAGON WARRIOR RANDOMIZER - ',el('span',{class:'gobone',text:'THEGOBONE'}),' REMIX')),
  el('section',{class:'win'},el('h2',{text:'Setup'}),
    el('div',{class:'idrow'},el('div',{class:'idfields'},el('div',{class:'row romrow'},el('label',{text:'ROM'}),rb.label,rb.input,rb.name,rb.status,rb.forget),el('div',{class:'row flagsrow'},el('label',{for:'flags',text:'Flags'}),fb.flags),fb.ap,
-   el('div',{class:'row'},el('label',{for:'seed',text:'Seed'}),fb.seed,fb.rnd),
+   el('div',{class:'row seedrow'},el('label',{for:'seed',text:'Seed'}),fb.seed,fb.rnd,fb.err),
    el('div',{class:'row ckrow'},el('label',{for:'checksum',text:'Checksum'}),fb.sum,fb.copy,gb.button),gb.result),
    el('div',{class:'idpresets'},presetArea()))));
 /* Seed history sits under the Checksum row. */

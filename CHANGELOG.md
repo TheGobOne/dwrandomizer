@@ -1,4 +1,4 @@
-# 1.2.2 - TheGobOne Remix #
+# 1.3 - TheGobOne Remix #
 ## Space
 
 - ROM is 256 KB (16 banks, MMC1 as before). The fixed bank is last, bank 7 holds far-call routines, bank 6 holds music packs, and banks 8 to 14 are empty for later features.

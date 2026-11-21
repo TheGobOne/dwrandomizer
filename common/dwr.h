@@ -9,10 +9,10 @@
 #include "build.h"
 #include "dwr_types.h"
 
-#define DWR_VERSION "TheGobOne Remix v1.2.2"
+#define DWR_VERSION "TheGobOne Remix v1.3"
 #define VERSION DWR_VERSION
 /* The title screen font has no lower case. */
-#define DWR_EDITION "THEGOBONE REMIX V1.2.2"
+#define DWR_EDITION "THEGOBONE REMIX V1.3"
 
 #define DEFAULT_FLAGS "IVIAAVCEKACAAAAAAAAAAEAUAAQBAAAAABYCAAAA"
 #define CHEST_COUNT 31
