@@ -13,11 +13,10 @@
 - Warp Whistle adds Hauksness as a seventh stop.
 - Return and Warp Whistle land on a nearby grass, desert, hills or trees tile.
 - Earth biome bridges and raft docks land on the main island, and mountains that cut off islands are opened to hills.
-- The Quick Spell battle slot reads QUICK until the first cast.
+- The Quick Spell battle slot reads ----- until the first cast.
 - NPC Guillotine keeps the NPCs the quest needs.
 - The Key & Herb counter shows herbs first, then keys, the same order as the item menu.
 - Disable Music keeps a music pack's songs out too.
-- Archipelago: when there is no room for an item, the message reads "No room: Magic Key became 100 Gold." so it says the gold was given.
 
 ## Fixes
 
@@ -39,7 +38,6 @@
 - The checksum shows 16 digits, and the title screen shows the first 6. The Status line reads "Free ROM space: N bytes", the same number the Flag sizes dialog shows.
 - On a 1280x720 or similar screen the page fits without scrolling, and the options panel shows more of its list.
 - The Search box, Site Color menu and menu rows are easier to click. Tab from the Command menu goes straight to the options.
-- The Archipelago "coming soon" line under the Flags box is gone. The Command menu ends with a ??? entry marked coming soon.
 - Downloads are named DWR.<seed>.<flags>.nes.
 
 ## Command line

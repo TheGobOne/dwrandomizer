@@ -36,7 +36,7 @@ Adds a battle command that casts your last spell again, without opening the spel
 
 #### Swap Quick Spell ####
 
-Needs Quick Spell. Puts SPELL in the top right slot of the battle window and the quick spell command under it. Until a spell is cast, the command reads QUICK. Without it the quick spell is the top right slot and SPELL is under it. The flag is the first bit of the 27th flag byte, so a code with it on is at least 42 characters.
+Needs Quick Spell. Puts SPELL in the top right slot of the battle window and the quick spell command under it. Until a spell is cast, the command reads -----. Without it the quick spell is the top right slot and SPELL is under it. The flag is the first bit of the 27th flag byte, so a code with it on is at least 42 characters.
 
 
 #### Biome ####

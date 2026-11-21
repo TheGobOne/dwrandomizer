@@ -1,4 +1,10 @@
-# DWR 1.2.2 release notes (draft)
+# Dragon Warrior Randomizer, TheGobOne Remix 1.2.2
+
+Build your own ROM at https://thegobone.github.io/dwrandomizer/ (you supply your own vanilla Dragon Warrior ROM).
+
+This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer) of [mcgrew's randomizer](https://dwrandomizer.com/). Seeds and flags are not compatible with either.
+
+Race checksums change in this version, so everyone in a race needs 1.2.2.
 
 ## Space
 
@@ -14,8 +20,7 @@
 - Warp Whistle adds Hauksness as a seventh stop.
 - Return and Warp Whistle land on a nearby grass, desert, hills or trees tile.
 - Earth biome bridges and raft docks land on the main island, and mountains that cut off islands are opened to hills.
-- The Quick Spell battle slot reads "QUICK" until the first cast.
-- Archipelago: when there is no room for an item, the message reads "No room: Magic Key became 100 Gold." so it says the gold was given.
+- The Quick Spell battle slot reads "-----" until the first cast.
 - NPC Guillotine keeps the NPCs the quest needs.
 - The Key & Herb counter shows herbs first, then keys, the same order as the item menu.
 - Disable Music keeps a music pack's songs out too.
@@ -34,13 +39,19 @@
 
 - Copy and the page link carry gameplay flags and the version, and personal options stay.
 - Safe Start works with Random Map off.
-- Options show "Needs" and "Off while" tags and grey out when what they need is off. Presets have an Undo button.
+- Options show "Needs" and "Off while" tags and grey out when what they need is off.
+- The first preset is Full Remix (was Gob Standard). Loading a preset applies it with no message.
+- Saved presets sit in their own column. Deleting one asks in place with Delete or Keep, not a browser prompt.
+- Counts only is on in Status by default.
+- A remembered ROM reads "(saved in browser)". Randomize with no ROM says "Choose your ROM first." next to Choose File.
+- The title shows THEGOBONE in the REMIX green.
 - Renamed labels: Discard Flute (was DK Flute), Summer Sale Chance, Death Necklace, Menu Wrapping, Torches in Battle, Custom Spell Names.
 - Bad flag codes show their error under the Flags box, keep what you typed, and block Randomize until fixed.
 - The checksum shows 16 digits, and the title screen shows the first 6. The Status line reads "Free ROM space: N bytes", the same number the Flag sizes dialog shows.
 - On a 1280x720 or similar screen the page fits without scrolling, and the options panel shows more of its list.
 - The Search box, Site Color menu and menu rows are easier to click.
 - Tab from the Command menu goes straight to the options.
+- The Command menu ends with a ??? entry, coming soon.
 - Downloads are named DWR.<seed>.<flags>.nes.
 
 ## Command line

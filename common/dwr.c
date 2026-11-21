@@ -4716,7 +4716,7 @@ static void run_bank(dw_rom *rom)
     /* Window code $F8 is only in the window when Quick Spell is on. */
     if (QUICK_SPELL(rom)) {
         /* Window code $F8: print the last spell's short name, 5 letters from entry `last` of a table whose entry 0
-         * is "QUICK", so the slot reads as a command before the first cast. The code (30 bytes) and the 55 byte table go in the
+         * is "-----", so the slot reads as a command before the first cast. The code (30 bytes) and the 55 byte table go in the
          * fixed bank when they fit. When it is full they go in bank 7 behind a far call, where the code ends with
          * rts (28 bytes), and a 6 byte stub in the fixed bank makes that call and then jumps to the window's exit
          * at $A62B. `last` is 0-10, so both asl leave the carry clear for the adc. */
@@ -4739,7 +4739,7 @@ static void run_bank(dw_rom *rom)
         memcpy(body, spell, (size_t)code_len);
         names = MODERN_SPELLS(rom) ? modern_names : vanilla_names;
         for (i = 0; i < 55; i++) {
-            char ch = i < 5 ? "QUICK"[i] : names[i - 5];
+            char ch = i < 5 ? "-----"[i] : names[i - 5];
             body[code_len + i] = (ch == ' ') ? 0x5f : (ch == '-') ? 0x49 : (uint8_t)(0x24 + ch - 'A');
         }
         if (in_far) {
