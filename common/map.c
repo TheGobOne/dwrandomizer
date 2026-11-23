@@ -85,9 +85,9 @@ static int optimize_map(uint8_t *encoded_map, uint16_t *pointers)
     uint8_t *start, *end;
     uint16_t at;
 
-    end = &encoded_map[120 * 120];
+    end = &encoded_map[MAP_DIM * MAP_DIM];
 
-    for (i=1; i < 120; i++) {
+    for (i=1; i < MAP_DIM; i++) {
         /* a row that shares an earlier row's bytes has none of its own */
         for (j=0; j < i; j++) {
             if (pointers[j] == pointers[i])
@@ -100,7 +100,7 @@ static int optimize_map(uint8_t *encoded_map, uint16_t *pointers)
             ++saved;
             at = pointers[i];
             shift_bytes(start, end);
-            for (j=0; j < 120; j++) {
+            for (j=0; j < MAP_DIM; j++) {
                 if (pointers[j] >= at)
                     --pointers[j];
             }
@@ -118,6 +118,9 @@ static int optimize_map(uint8_t *encoded_map, uint16_t *pointers)
 /* Tile $D, never used on the overworld before: a bridge drawn running north to south. The game treats it
  * as a normal bridge (see vertical_bridges in dwr.c). */
 #define TILE_BRIDGE_V 0xd
+
+/* Set while the Zelda II map is encoded: every bridge is stored as an across bridge (see map_z2). */
+static BOOL flat_bridges = FALSE;
 
 static BOOL bridge_tile_is(dw_map *map, int x, int y, dw_tile tile)
 {
@@ -142,7 +145,7 @@ static uint8_t map_encoded_tile(dw_map *map, int x, int y)
 {
     int across, down;
 
-    if (map->tiles[x][y] != TILE_BRIDGE)
+    if (map->tiles[x][y] != TILE_BRIDGE || flat_bridges)
         return map->tiles[x][y];
     across = bridge_run(map, x, y, 1, 0);
     down = bridge_run(map, x, y, 0, 1);
@@ -160,12 +163,12 @@ static uint8_t map_encoded_tile(dw_map *map, int x, int y)
 static BOOL map_encode(dw_map *map)
 {
     int x, y;
-    int k, len, row_len[120];
-    uint8_t t, *e, *row, encoded[120 * 120];
-    uint16_t pointers[120];
-    BOOL shared[120];
+    int k, len, row_len[MAP_DIM];
+    uint8_t t, *e, *row, encoded[MAP_DIM * MAP_DIM];
+    uint16_t pointers[MAP_DIM];
+    BOOL shared[MAP_DIM];
 
-    memset(encoded, 0xff, 120 * 120);
+    memset(encoded, 0xff, MAP_DIM * MAP_DIM);
     e = encoded;
     map->vertical_bridges = FALSE;
 
@@ -2496,7 +2499,7 @@ static const uint8_t z2_map_data[MAP_ENCODED_SIZE] = {
 };
 
 /* Where each of the 120 rows starts, as ROM bytes (low, high). */
-static const uint8_t z2_pointer_data[240] = {
+static const uint8_t z2_pointer_data[2 * MAP_DIM] = {
     0x5D, 0x9D, 0x67, 0x9D, 0x73, 0x9D, 0x83, 0x9D, 0x90, 0x9D, 0x9D, 0x9D, 0xAD, 0x9D, 0xBD, 0x9D,
     0xCD, 0x9D, 0xDF, 0x9D, 0xF7, 0x9D, 0x11, 0x9E, 0x2B, 0x9E, 0x44, 0x9E, 0x57, 0x9E, 0x6A, 0x9E,
     0x81, 0x9E, 0x97, 0x9E, 0xAB, 0x9E, 0xC4, 0x9E, 0xDF, 0x9E, 0xF7, 0x9E, 0x13, 0x9F, 0x2F, 0x9F,
@@ -2529,9 +2532,11 @@ static const uint8_t z2_zones[32] = {
  * decoded, towns and caves are placed on them, the result is checked and encoded again. So the rest of the
  * build (Zoom, border tiles, Safe Start, vertical bridges) sees the real map.
  *
- * Plain: every place in its Zelda II spot. Lite: towns trade places with towns, caves with caves and palaces
- * with palaces. Deep: all of them mix. Lock Tantegel keeps the starting palace as Tantegel.
- * Entrances without a place become mountain, so nothing says "Thou cannot enter here".
+ * Plain: every place in its Zelda II spot. Lite: towns trade places with towns and caves with caves; Tantegel
+ * stays in the starting palace. Deep: all of them mix. Lock Tantegel keeps Tantegel in the starting palace in
+ * Deep. Entrances without a place become mountain, so nothing says "Thou cannot enter here".
+ * Bridges are all stored as across bridges, as in the base game: the 2 single bridges at (16,52) and (105,29)
+ * would otherwise need the 80-byte vertical bridge code, which a full ROM may have no room for.
  * --------------------------------------------------------------------------------------------------------- */
 
 typedef struct {
@@ -2601,9 +2606,17 @@ static BOOL z2_is_entrance(dw_tile tile)
     return tile == TILE_TOWN || tile == TILE_CAVE || tile == TILE_CASTLE || tile == TILE_BRIDGE;
 }
 
-/* The first walkable tile beside (x, y): west, east, north, south. With strict on it is not another entrance,
- * and it is never (skip_x, skip_y). */
-static BOOL z2_beside(dw_map *map, int x, int y, BOOL strict, int skip_x, int skip_y, uint8_t *ox, uint8_t *oy)
+static BOOL z2_plain_land(dw_tile tile)
+{
+    return tile == TILE_GRASS || tile == TILE_DESERT || tile == TILE_HILL || tile == TILE_TREES;
+}
+
+/* How picky z2_beside is: plain land, then any ground but an entrance, then any walkable tile. */
+enum { Z2_PLAIN, Z2_GROUND, Z2_ANY };
+
+/* The first walkable tile beside (x, y): west, east, north, south, at the given pickiness. It is never
+ * (skip_x, skip_y). */
+static BOOL z2_beside(dw_map *map, int x, int y, int pick, int skip_x, int skip_y, uint8_t *ox, uint8_t *oy)
 {
     static const int dir[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
     int i, nx, ny;
@@ -2615,7 +2628,9 @@ static BOOL z2_beside(dw_map *map, int x, int y, BOOL strict, int skip_x, int sk
             continue;
         if (nx == skip_x && ny == skip_y)
             continue;
-        if (strict && z2_is_entrance(map->tiles[nx][ny]))
+        if (pick == Z2_PLAIN && !z2_plain_land(map->tiles[nx][ny]))
+            continue;
+        if (pick == Z2_GROUND && z2_is_entrance(map->tiles[nx][ny]))
             continue;
         *ox = (uint8_t)nx;
         *oy = (uint8_t)ny;
@@ -2624,10 +2639,16 @@ static BOOL z2_beside(dw_map *map, int x, int y, BOOL strict, int skip_x, int sk
     return FALSE;
 }
 
-static void z2_land_beside(dw_map *map, int x, int y, int skip_x, int skip_y, uint8_t *ox, uint8_t *oy)
+/* Where Return and Wings land: plain land beside the place if there is any, so not swamp. */
+static BOOL z2_land_beside(dw_map *map, int x, int y, uint8_t *ox, uint8_t *oy)
 {
-    if (!z2_beside(map, x, y, TRUE, skip_x, skip_y, ox, oy) && !z2_beside(map, x, y, FALSE, skip_x, skip_y, ox, oy))
-        dwr_give_up("The Zelda II map has no walkable tile beside a place.");
+    int pick;
+
+    for (pick = Z2_PLAIN; pick <= Z2_ANY; pick++) {
+        if (z2_beside(map, x, y, pick, -1, -1, ox, oy))
+            return TRUE;
+    }
+    return FALSE;
 }
 
 static void z2_set_warp(dw_rom *rom, dw_warp_index idx, const z2_spot *s)
@@ -2646,14 +2667,16 @@ static void z2_put(dw_rom *rom, const z2_spot *s, dw_tile tile)
         rom->map.tiles[s->x][s->y] = (uint8_t)tile;
 }
 
+/* Town maps keep 2 tiles in a byte, left tile in the high nibble. Only the right nibble is the stairs spot:
+ * 7 is stairs down, and z2_default_places sets 2 (water) or 4 (block) there, the tile beside it. */
 static void z2_put_cave(dw_rom *rom, const z2_spot *s)
 {
     if (s->map == OVERWORLD)
         rom->map.tiles[s->x][s->y] = TILE_CAVE;
     else if (s->map == TANTEGEL)
-        rom->content[Z2_TANTEGEL_STAIRS_ADDR] = 0x27;   /* water, with stairs down */
+        rom->content[Z2_TANTEGEL_STAIRS_ADDR] = 0x27;   /* water, then stairs down */
     else if (s->map == GARINHAM)
-        rom->content[Z2_GARINHAM_STAIRS_ADDR] = 0x47;   /* block, with stairs down */
+        rom->content[Z2_GARINHAM_STAIRS_ADDR] = 0x47;   /* block, then stairs down */
 }
 
 static void z2_tantegel_at(dw_rom *rom, const z2_spot *s)
@@ -2717,24 +2740,19 @@ static void z2_shuffle_token(dw_rom *rom)
     rom->search_table->y[0] = spots[0][1];
 }
 
-/* Lite: towns among the town slots, caves among the cave slots, palaces among the palace slots. */
+/* Lite: towns among the town slots and caves among the cave slots. Tantegel stays in the starting palace
+ * and the other palaces are mountain. */
 static void z2_lite(dw_rom *rom)
 {
-    z2_spot palaces[7], towns[8], caves[9];
+    z2_spot towns[8], caves[9];
     int i;
 
-    memcpy(palaces, z2_palaces, sizeof(palaces));
     memcpy(towns, z2_towns, sizeof(towns));
     memcpy(caves, z2_caves, sizeof(caves));
     z2_shuffle_token(rom);
 
-    if (!LOCK_TANTEGEL(rom))
-        mt_shuffle(palaces, 7, sizeof(z2_spot));
-    z2_tantegel_at(rom, &palaces[0]);
     for (i = 1; i < 7; i++)
-        z2_put(rom, &palaces[i], TILE_MOUNTAIN);
-    /* Every palace slot but Tantegel's is mountain. If the shuffle moved Tantegel, its old slot is among them
-     * and the new one is a castle already. */
+        z2_put(rom, &z2_palaces[i], TILE_MOUNTAIN);
 
     mt_shuffle(towns, 8, sizeof(z2_spot));
     for (i = 0; i < 6; i++)
@@ -2773,16 +2791,18 @@ static void z2_deep(dw_rom *rom)
 
     memcpy(everything, slots, sizeof(everything));
     /* Tantegel and the 6 towns must be on the overworld: the stairs inside Tantegel and Garinham are not
-     * places a town can stand. Shuffle until the first 7 are. */
+     * places a town can stand. Shuffle until they are. With Lock Tantegel, slot 0 is a leftover and Tantegel
+     * is the last slot, which is not shuffled. */
     do {
         mt_shuffle(everything, 26 - lock, sizeof(z2_spot));
-        for (i = 0; i < 7; i++) {
+        for (i = lock; i < 7; i++) {
             if (everything[i].map != OVERWORLD)
                 break;
         }
     } while (i < 7);
 
-    z2_put(rom, &everything[0], TILE_MOUNTAIN);
+    if (lock)
+        z2_put(rom, &everything[0], TILE_MOUNTAIN);
     z2_tantegel_at(rom, &everything[tant]);
     z2_put(rom, &everything[tant], TILE_CASTLE);
     for (i = 1; i < 7; i++) {
@@ -2812,8 +2832,11 @@ static BOOL z2_key_reachable(dw_map *map, uint8_t lm)
     if (w->map == OVERWORLD && map->walkable[w->x][w->y] == lm)
         return TRUE;
     for (i = 0; i < sizeof(sources) / sizeof(sources[0]); i++) {
-        w = &map->warps_from[sources[i].warp];
-        if (w->map == OVERWORLD && map->walkable[w->x][w->y] == lm && (map->key_access & sources[i].access))
+        int x, y;
+
+        /* A key cave inside Tantegel or Garinham counts where that town is. */
+        if (overworld_spot(map, &map->warps_from[sources[i].warp], &x, &y) && map->walkable[x][y] == lm &&
+                (map->key_access & sources[i].access))
             return TRUE;
     }
     return FALSE;
@@ -2850,7 +2873,7 @@ static BOOL z2_crossing_works(dw_rom *rom)
 static void z2_cut_bridge(dw_rom *rom)
 {
     dw_map *map = &rom->map;
-    int lm_sizes[256], largest, next, x, sx[2], sy[2], i;
+    int lm_sizes[256], largest, next, x, sx[2], sy[2], i;   /* largest and next are not used here */
     static const dw_warp_index swamp[2] = {WARP_SWAMP_NORTH, WARP_SWAMP_SOUTH};
 
     for (x = Z2_BRIDGE_X0; x <= Z2_BRIDGE_X1; x++)
@@ -2867,6 +2890,27 @@ static void z2_cut_bridge(dw_rom *rom)
     for (x = Z2_BRIDGE_X0; x <= Z2_BRIDGE_X1; x++)
         map->tiles[x][Z2_BRIDGE_Y] = TILE_BRIDGE;
     find_walkable_area(map, lm_sizes, &largest, &next);
+}
+
+/* A shuffle must leave a town near Tantegel, on its side of the water: within this many steps (x plus y). */
+#define Z2_TOWN_NEAR 30
+
+static BOOL z2_town_near(dw_map *map)
+{
+    static const dw_warp_index towns[6] = {
+        WARP_BRECCONARY, WARP_GARINHAM, WARP_KOL, WARP_RIMULDAR, WARP_HAUKSNESS, WARP_CANTLIN
+    };
+    const dw_warp *t = &map->warps_from[WARP_TANTEGEL];
+    size_t i;
+
+    for (i = 0; i < 6; i++) {
+        const dw_warp *w = &map->warps_from[towns[i]];
+
+        if (w->map == OVERWORLD && map->walkable[w->x][w->y] == map->walkable[t->x][t->y] &&
+                abs(w->x - t->x) + abs(w->y - t->y) <= Z2_TOWN_NEAR)
+            return TRUE;
+    }
+    return FALSE;
 }
 
 /* The border tile of a town is the kind of ground it stands on, taken from the ground beside it. */
@@ -2890,15 +2934,65 @@ static dw_border_tile z2_border(dw_map *map, int x, int y)
  *
  * @param rom The rom struct
  */
-void map_z2(dw_rom *rom)
+/* Can every place but Cantlin still be reached with (x, y) blocked? And with Cantlin counted too? */
+static void z2_reach_without(dw_rom *rom, int x, int y, BOOL *others, BOOL *all)
 {
     dw_map *map = &rom->map;
+    dw_warp *cantlin = &map->warps_from[WARP_CANTLIN];
+    const uint8_t tile = map->tiles[x][y];
+    const uint8_t cantlin_map = cantlin->map;
+
+    map->tiles[x][y] = TILE_MOUNTAIN;
+    *all = places_reachable(rom);
+    cantlin->map = NO_MAP;   /* places_reachable only checks entrances on the overworld */
+    *others = places_reachable(rom);
+    cantlin->map = cantlin_map;
+    map->tiles[x][y] = tile;
+}
+
+/* Where the Golem stands in a shuffle: beside Cantlin, on a tile that blocks nothing else, so every other
+ * place, the token and the Return point stay reachable while it is unbeaten. A tile that also shuts off
+ * Cantlin is picked first. FALSE when no tile is safe. */
+static BOOL z2_golem_spot(dw_rom *rom, uint8_t *x, uint8_t *y)
+{
+    static const int dir[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+    dw_map *map = &rom->map;
+    const dw_warp *cantlin = &map->warps_from[WARP_CANTLIN];
+    int i, nx, ny, found = 0;   /* 1: a safe tile, 2: a safe tile that is also the only way in */
+
+    for (i = 0; i < 4 && found < 2; i++) {
+        BOOL others, all;
+
+        nx = cantlin->x + dir[i][0];
+        ny = cantlin->y + dir[i][1];
+        if (map_ob(nx) || map_ob(ny) || !tile_is_walkable(map->tiles[nx][ny]) ||
+                z2_is_entrance(map->tiles[nx][ny]))
+            continue;
+        /* Not the Return point, and not the token: a treasure guard there (added later, in a higher entry)
+         * would be hidden behind the Golem, since the first spike entry on a tile wins. */
+        if ((nx == map->return_point->x && ny == map->return_point->y) ||
+                (nx == rom->search_table->x[0] && ny == rom->search_table->y[0]))
+            continue;
+        z2_reach_without(rom, nx, ny, &others, &all);
+        if (!others)
+            continue;
+        if (!found || !all) {
+            *x = (uint8_t)nx;
+            *y = (uint8_t)ny;
+            found = all ? 1 : 2;
+        }
+    }
+    return found > 0;
+}
+
+/* One try at the Zelda II map. FALSE when a shuffle left something out of reach, so map_z2 tries again. */
+static BOOL z2_try(dw_rom *rom)
+{
+    dw_map *map = &rom->map;
+    const BOOL shuffled = LITE_SHUFFLE(rom) || DEEP_SHUFFLE(rom);
     uint8_t rx, ry;
     size_t i;
 
-    printf("Drawing the Zelda II map...\n");
-    check_keys(rom);
-    map->size = 120;
     memcpy(map->encoded, z2_map_data, MAP_ENCODED_SIZE);
     memcpy(map->pointers, z2_pointer_data, sizeof(z2_pointer_data));
     map_decode(map);
@@ -2914,12 +3008,16 @@ void map_z2(dw_rom *rom)
     }
 
     /* Return and Wings land beside Tantegel. */
-    z2_land_beside(map, map->warps_from[WARP_TANTEGEL].x, map->warps_from[WARP_TANTEGEL].y, -1, -1, &rx, &ry);
+    if (!z2_land_beside(map, map->warps_from[WARP_TANTEGEL].x, map->warps_from[WARP_TANTEGEL].y, &rx, &ry))
+        return FALSE;
     map->return_point->x = rx;
     map->return_point->y = ry;
 
-    if (LITE_SHUFFLE(rom) || DEEP_SHUFFLE(rom))
-        z2_cut_bridge(rom);
+    if (shuffled) {
+        z2_cut_bridge(rom);   /* also fills map->walkable for the check below */
+        if (!z2_town_near(map))
+            return FALSE;
+    }
 
     for (i = 0; i < sizeof(z2_border_towns) / sizeof(z2_border_towns[0]); i++) {
         const dw_warp *w = &map->warps_from[z2_border_towns[i].warp];
@@ -2928,27 +3026,52 @@ void map_z2(dw_rom *rom)
     }
     if (SAFE_START(rom))
         safe_start(map);
-
     if (!places_reachable(rom))
-        dwr_give_up("A place cannot be reached on the Zelda II map.");
-    if (!map_encode(map))
+        return FALSE;
+    return !shuffled || z2_golem_spot(rom, &rx, &ry);
+}
+
+#define Z2_TRIES 500
+
+void map_z2(dw_rom *rom)
+{
+    dw_map *map = &rom->map;
+    const int tries = LITE_SHUFFLE(rom) || DEEP_SHUFFLE(rom) ? Z2_TRIES : 1;
+    BOOL encoded;
+    int i;
+
+    printf("Drawing the Zelda II map...\n");
+    check_keys(rom);
+    map->size = MAP_DIM;
+    for (i = 0; i < tries; i++) {
+        if (z2_try(rom))
+            break;
+    }
+    if (i == tries)
+        dwr_give_up("No Zelda II map layout could be finished.");
+    flat_bridges = TRUE;
+    encoded = map_encode(map);
+    flat_bridges = FALSE;
+    if (!encoded)
         dwr_give_up("The Zelda II map does not fit in the ROM.");
 }
 
 /**
  * Puts the Golem on the road to Cantlin: spike entry 3, which the base leaves free for treasure guards.
- * Runs after spike_rewrite, which writes the whole spike table.
+ * Runs after spike_rewrite, which writes the whole spike table. Treasure guards come later, in entry 4 on.
+ * In a shuffle the spot comes from z2_golem_spot; map_z2 only keeps layouts that have one.
  *
  * @param rom The rom struct
  */
 void map_z2_guard(dw_rom *rom)
 {
     dwr_spike_table *spike = rom->spike_table;
-    const dw_warp *cantlin = &rom->map.warps_from[WARP_CANTLIN];
     uint8_t x = 71, y = 44;   /* where it stands in Zelda II */
 
-    if (LITE_SHUFFLE(rom) || DEEP_SHUFFLE(rom))
-        z2_land_beside(&rom->map, cantlin->x, cantlin->y, rom->map.return_point->x, rom->map.return_point->y, &x, &y);
+    if ((LITE_SHUFFLE(rom) || DEEP_SHUFFLE(rom)) && !z2_golem_spot(rom, &x, &y)) {
+        printf("No safe spot for the Golem beside Cantlin, so it is left out.\n");
+        return;
+    }
     spike->map[3] = OVERWORLD;
     spike->x[3] = x;
     spike->y[3] = y;

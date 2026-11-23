@@ -135,6 +135,14 @@ BOOL dwr_normalize_flags(uint8_t raw[28])
         raw[26] &= (uint8_t)~0x0e;
         odd = TRUE;
     }
+    if ((raw[26] & 0x02) && (raw[26] & 0x0c) != 0x08) {   /* Lock Tantegel only does something in Deep */
+        raw[26] &= (uint8_t)~0x02;
+        odd = TRUE;
+    }
+    if ((raw[26] & 0x10) && (raw[0] & 0x03)) {   /* the Z2 map cannot go with Random Map, on or Random */
+        raw[26] &= (uint8_t)~0x1e;
+        odd = TRUE;
+    }
     return odd;
 }
 
@@ -977,7 +985,8 @@ static void randomize_growth(dw_rom *rom)
         }
     }
 
-    if (BIG_SWAMP(rom)) {
+    /* Big Swamp's HP goes with its swamp, which the Zelda II map does not draw. */
+    if (BIG_SWAMP(rom) && !Z2_MAP(rom)) {
         printf("Boosting early HP...\n");
         rom->stats[0].hp += 10;
         for (i=1; i < 10; i++) {
@@ -1943,10 +1952,8 @@ static void other_patches(dw_rom *rom)
 {
     printf("Applying various patches...\n");
 
-    if (!Z2_MAP(rom) || LITE_SHUFFLE(rom) || DEEP_SHUFFLE(rom)) {
-        /* Replace "Thou cannot enter here.". If a player finds this, it's a bug */
-        set_text(rom, 0x8256, "Thou hast found a bug/ ");
-    }
+    /* Replace "Thou cannot enter here.". If a player finds this, it's a bug */
+    set_text(rom, 0x8256, "Thou hast found a bug/ ");
 
     /* Faster town sprite drawing, same results. The NPC sprite builder runs every frame and was the
      * game's biggest cost while walking in towns, which left little time for the music.
@@ -5516,6 +5523,11 @@ static void spoiler_log(dw_rom *rom, const char *path)
     fprintf(out, "Seed %"PRIu64"\nFlags %s\n", rom->seed, rom->flags_encoded);
     if (RANDOM_MAP(rom)) {
         fprintf(out, "Biome %s\n", BIOME(rom) < BIOME_COUNT ? dwr_biome_names[BIOME(rom)] : "?");
+    }
+    if (Z2_MAP(rom)) {
+        fprintf(out, "Zelda II map, %s%s\n",
+                LITE_SHUFFLE(rom) ? "Lite shuffle" : DEEP_SHUFFLE(rom) ? "Deep shuffle" : "no shuffle",
+                LOCK_TANTEGEL(rom) ? ", Tantegel locked" : "");
     }
     fprintf(out, "\nPlaces (x, y on the overworld unless noted)\n");
     for (i = 0; i < sizeof(places) / sizeof(places[0]); i++) {

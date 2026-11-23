@@ -65,7 +65,7 @@ Licenses: DWR and Archipelago are MIT. The APWorld repo inherits Archipelago's M
 | Client | Serpikmin's `client.py` | Keep as is for the proof of concept. Later: read a persistent checked-locations bitfield and use a mailbox for received items. |
 | Logic | `regions.py` | Today assumes vanilla map, no stair shuffle. DWR's stair shuffle, random map and biomes need either "disabled in AP" or new logic. |
 
-DWR flags that conflict with AP and should start disabled: Random Chest Locations (`flags[0] & 0x30`), Stair Shuffle, Cursed Princess and Three's Company (they move or replace quest items), Radish Finish and Disguised Dragonlord. As built, `archipelago/dwr/flags.py` rejects these six; No Keys is allowed, since key doors are not in logic.
+DWR flags that conflict with AP and should start disabled: Random Chest Locations (`flags[0] & 0x30`), Stair Shuffle, Cursed Princess and Three's Company (they move or replace quest items), Radish Finish and Disguised Dragonlord, and the Zelda II Map (`flags[26] & 0x10`), since the logic does not model its cut bridge or moved places. As built, `archipelago/dwr/flags.py` rejects these 7; No Keys is allowed, since key doors are not in logic.
 
 ## 3. DWR locations, items and RAM
 
@@ -180,7 +180,7 @@ How the mailbox works: the client writes the message in DW tiles to `$6850` (a s
 
 ## Phase 4 status (2026-11-16)
 
-- Flags the logic does not cover are rejected at generation when on, and turned off with a warning when set to Random (`archipelago/dwr/flags.py`): Random Chest Locations, Stair Shuffle, Cursed Princess, Three's Company, Radish Finish and Disguised Dragonlord. Free Charlock is read from the flag string.
+- Flags the logic does not cover are rejected at generation when on, and turned off with a warning when set to Random (`archipelago/dwr/flags.py`): Random Chest Locations, Stair Shuffle, Cursed Princess, Three's Company, Radish Finish, Disguised Dragonlord and Zelda II Map. Free Charlock is read from the flag string.
 - Random Map: covered. The default flags turn it on, and a seed with it on was beaten in FCEUX turbo.
 - Open Charlock: generates and builds. Covered by the logic argument (the Rainbow Drop rules are stricter than needed). Not played through; the first real play of an Open Charlock seed is the test.
 

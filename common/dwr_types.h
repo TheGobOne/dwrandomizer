@@ -203,6 +203,9 @@ typedef enum {
     SHOP_END = 0xfd,
 } dw_shop_item;
 
+/** Width and height of the overworld, in tiles */
+#define MAP_DIM 120
+
 /** Calculation code for Gwaelin's Love */
 typedef struct {
     uint8_t y;
@@ -308,8 +311,8 @@ typedef struct {
     dw_return_point *return_point;
     dw_rainbow_drop *rainbow_drop;
     dw_rainbow_drop *rainbow_bridge;
-    uint8_t tiles[120][120];
-    uint8_t walkable[120][120];
+    uint8_t tiles[MAP_DIM][MAP_DIM];
+    uint8_t walkable[MAP_DIM][MAP_DIM];
     uint8_t *chest_access;
     uint8_t key_access;
     /* Set by map_encode when the map has a north-south bridge (tile $D), so its drawing code goes in. */
