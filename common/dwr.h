@@ -61,7 +61,7 @@ extern const char *const dwr_biome_names[BIOME_COUNT];
 #define FAST_HILLS(x)             (x->flags[26] & 0x20)
 /* The bits of byte 26 that hold a flag. A new flag there goes in this mask, and in the site's check for
  * unused bits (site/index.html, oddBits). Byte 27 holds nothing yet: 44 characters reach only its top 4 bits. */
-#define FLAGS_26_USED 0xe0
+#define FLAGS_26_USED 0xfe
 #define FLAGS_27_USED 0x00
 /* How long a flag code is for these 27 flag bytes: 40, or 42 when byte 25 or the top 2 bits of byte 26 are
  * set, or 44 when any other bit of byte 26 is. The site has the same rule (flags() in site/index.html). */
@@ -185,12 +185,14 @@ extern const char *const dwr_biome_names[BIOME_COUNT];
 #define ALL_BUILDS(x)             (BUILD_OPTIONS(x) == 3)
 #define RANDOM_TOWN_ENTRANCES(x)  ((x->flags[24] & 0x03)     ) // 2
 
-//I HAVE NO CLUE WHERE YOU WANT THESE OPTIONS IN YOUR FLAGS.
-#define LOCK_TANTEGEL(x)          
-#define LITE_SHUFFLE(x)           
-#define DEEP_SHUFFLE(x)          
-#define RANDOM_SHUFFLE(x)
-#define Z2_MAP(x)       
+/* Zelda II map, byte 26: 0x10 map on, 0x0c shuffle (0 off, 1 Lite, 2 Deep), 0x02 Lock Tantegel.
+ * Lite moves towns among town slots, caves among cave slots and palaces among palace slots; Deep mixes all
+ * of them. update_flags clears all of these when Random Map is on, and the shuffle and lock without the map. */
+#define Z2_MAP(x)                 ((x->flags[26] & 0x10) >> 4) // 1
+#define Z2_SHUFFLE(x)             ((x->flags[26] & 0x0c) >> 2) // 2
+#define LITE_SHUFFLE(x)           (Z2_MAP(x) && Z2_SHUFFLE(x) == 1)
+#define DEEP_SHUFFLE(x)           (Z2_MAP(x) && Z2_SHUFFLE(x) == 2)
+#define LOCK_TANTEGEL(x)          (Z2_MAP(x) && ((x->flags[26] & 0x02) >> 1))
 
 
 #ifdef __cplusplus

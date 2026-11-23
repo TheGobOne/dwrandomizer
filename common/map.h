@@ -109,6 +109,20 @@ void map_decode(dw_map *map);
 void map_generate_terrain(dw_rom *rom);
 
 /**
+ * Builds the Zelda II map in place of a generated one (the Z2 Map flag).
+ *
+ * @param rom The rom struct
+ */
+void map_z2(dw_rom *rom);
+
+/**
+ * Puts the Z2 Golem guard in the spike table. Runs after the spike table is written.
+ *
+ * @param rom The rom struct
+ */
+void map_z2_guard(dw_rom *rom);
+
+/**
  * Changes directions in various NPC dialogs to reflect new map
  *
  * @param rom The rom struct

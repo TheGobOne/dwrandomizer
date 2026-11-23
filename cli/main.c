@@ -66,6 +66,8 @@ static void print_usage(const char *command, char *default_flags)
     printf("  --encounters default|low|medium|high\n");
     printf("  --biome continent|caldera|wasteland|riverlands|lake|earth|westeros|random\n");
     printf("  --free-charlock on|off\n");
+    printf("  --z2-map off|on|lite|deep   (Zelda 2 map; blocked with Random Map)\n");
+    printf("  --lock-tantegel on|off\n");
     printf("  --auto-return on|off\n");
     printf("  --responsive-controls on|off\n");
     printf("  --auto-stairs on|off\n");
@@ -170,7 +172,7 @@ int main(int argc, char **argv)
     char *input_file, *output_dir;
     static const char *const bank_levels[4] = {"normal", "easy", "strict", "verystrict"};
     /* -1 and 0 for the cap: not given, so the flags decide. */
-    int responsive = -1, bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, quick_swap = -1, no_blink = -1, fast_hills = -1, key_herb = -1, free_charlock = -1, auto_return = -1, auto_stairs = -1, biome = -1;
+    int responsive = -1, bank_cap = 0, bank_level = -1, encounters = -1, quick_spell = -1, quick_swap = -1, no_blink = -1, fast_hills = -1, key_herb = -1, free_charlock = -1, auto_return = -1, auto_stairs = -1, biome = -1, z2_map = -1, lock_tantegel = -1;
     int run_bank = -1, safe_start = -1, fast_flute = -1, discard_flute = -1, no_shake = -1;
     int no_spell_flash = -1, no_red_flash = -1, no_music = -1, dont_mute_jingles = -1, skip_credits = -1, menu_wrap = -1, race_card = 0;
     static const char *const encounter_rates[4] = {"default", "low", "medium", "high"};
@@ -223,6 +225,21 @@ int main(int argc, char **argv)
             auto_stairs = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--responsive-controls")) {
             responsive = on_off(argv[1], argv[2]);
+        } else if (!strcmp(argv[1], "--z2-map")) {
+            if (!strcmp(argv[2], "off"))
+                z2_map = 0;
+            else if (!strcmp(argv[2], "on"))
+                z2_map = 1;
+            else if (!strcmp(argv[2], "lite"))
+                z2_map = 2;
+            else if (!strcmp(argv[2], "deep"))
+                z2_map = 3;
+            else {
+                fprintf(stderr, "--z2-map must be off, on, lite or deep\n");
+                return 1;
+            }
+        } else if (!strcmp(argv[1], "--lock-tantegel")) {
+            lock_tantegel = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--free-charlock")) {
             free_charlock = on_off(argv[1], argv[2]);
         } else if (!strcmp(argv[1], "--quick-spell")) {
@@ -339,7 +356,7 @@ int main(int argc, char **argv)
         printf("Some flag values are not recognized, so those options use their normal setting.\n");
     /* A cap or level with Run Bank off is cleared below even when no option is given, so a code gives the
      * same flags and file name with or without other options. */
-    if (odd_flags || bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || quick_swap >= 0 || no_blink >= 0 || fast_hills >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0 || responsive >= 0 || auto_stairs >= 0 || biome >= 0 ||
+    if (odd_flags || bank_cap || bank_level >= 0 || encounters >= 0 || quick_spell >= 0 || quick_swap >= 0 || no_blink >= 0 || fast_hills >= 0 || key_herb >= 0 || free_charlock >= 0 || auto_return >= 0 || responsive >= 0 || auto_stairs >= 0 || biome >= 0 || z2_map >= 0 || lock_tantegel >= 0 ||
             run_bank >= 0 || safe_start >= 0 || fast_flute >= 0 || discard_flute >= 0 || no_shake >= 0 ||
             no_spell_flash >= 0 || no_red_flash >= 0 || no_music >= 0 || dont_mute_jingles >= 0 || skip_credits >= 0 || menu_wrap >= 0 ||
             (!(raw[11] & 0x0c) && (raw[12] || (raw[14] & 0x01)))) {
@@ -404,6 +421,19 @@ int main(int argc, char **argv)
             raw[26] = (uint8_t)((raw[26] & 0xbf) | (no_blink ? 0x40 : 0));
         if (fast_hills >= 0)
             raw[26] = (uint8_t)((raw[26] & 0xdf) | (fast_hills ? 0x20 : 0));
+        /* Z2 Map: 0x10 on, 0x0c shuffle (1 Lite, 2 Deep), 0x02 Lock Tantegel. The shuffle and the lock mean nothing
+         * without the map, and the map cannot go with Random Map (dwr_randomize drops it, with a message). */
+        if (z2_map >= 0) {
+            raw[26] &= (uint8_t)~0x1c;
+            if (z2_map)
+                raw[26] |= (uint8_t)(0x10 | ((z2_map - 1) << 2));
+        }
+        if (lock_tantegel >= 0)
+            raw[26] = (uint8_t)((raw[26] & 0xfd) | (lock_tantegel ? 0x02 : 0));
+        if (!(raw[26] & 0x10))
+            raw[26] &= (uint8_t)~0x0e;
+        if ((raw[26] & 0x10) && (raw[0] & 0x03))
+            fprintf(stderr, "--z2-map cannot go with Random Map, so it will be ignored.\n");
         if (biome >= 0) {
             raw[2] &= (uint8_t)~0x33;
             raw[25] = 0;

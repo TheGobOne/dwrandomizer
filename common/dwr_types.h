@@ -203,14 +203,6 @@ typedef enum {
     SHOP_END = 0xfd,
 } dw_shop_item;
 
-/** Table for Z2 overworld map locations. */
-typedef struct {
-    uint8_t map;
-    uint8_t x;
-    uint8_t y;
-    uint32_t addr;
-} z2_location;
-
 /** Calculation code for Gwaelin's Love */
 typedef struct {
     uint8_t y;

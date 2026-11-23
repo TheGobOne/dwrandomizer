@@ -88,6 +88,15 @@ On the overworld, walking, the command window and pause answer a press at once i
 A step onto a hill takes as long as a step onto grass. The original game waits extra frames on every hill step. It is the third bit of the 27th flag byte, so a code with it on is 44 characters. Command line: `--fast-hills on`.
 
 
+#### Zelda II Map ####
+
+The overworld is the Zelda II overworld map. Tantegel stands at the north palace, and the Dragon Warrior towns and caves stand on Zelda II towns and caves. It cannot go with Random Map: with Random Map on, it is turned off, and on the site it is greyed out. It uses the 27th flag byte, so a code with it on is 44 characters. Command line: `--z2-map on`.
+
+Zelda II Shuffle moves the places. Lite swaps towns with towns, caves with caves and Tantegel among the palaces. Deep puts any place in any spot, including the stairs inside Tantegel and Garinham. With either one, the bridge between the 2 continents is cut when the swamp cave joins them and the game can still be finished. Spots with no place turn into mountain. Command line: `--z2-map lite` or `--z2-map deep`.
+
+Lock Tantegel keeps Tantegel at the north palace while the rest shuffle. Command line: `--lock-tantegel on`.
+
+
 #### Auto Stairs ####
 
 Stepping onto stairs takes them at once, the way stepping onto a town enters it, so there is no need to open the command window and choose `STAIRS`. It happens before any fight check on that step. Arriving on stairs, from other stairs or a warp, does nothing until you step off and back on. Charlock's hidden stairs work once you have found them by searching, and then you step off and back on. The `STAIRS` command still works, and Stair Shuffle is followed. It is part of the checksum. Command line: `--auto-stairs on`.
@@ -469,6 +478,8 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--quick-spell-swap` | `on` or `off`. `on`: SPELL top right, quick spell under it. Needs Quick Spell |
 | `--cursor-blink` | `on` or `off`. `off` turns on Disable Cursor Blink. `on` keeps the blinking cursor |
 | `--fast-hills` | `on` or `off`: Fast Hills |
+| `--z2-map` | `off`, `on`, `lite`, `deep`: Zelda II Map and its shuffle. Cannot go with Random Map |
+| `--lock-tantegel` | `on` or `off`: Tantegel stays put with Zelda II Shuffle |
 | `--key-herb` | `on` or `off`: the keys and herbs row in the stats window |
 | `--auto-stairs` | `on` or `off`: stepping onto stairs takes them |
 | `--ap-slot` | `<name>`: builds an Archipelago ROM for that slot name |
