@@ -185,6 +185,12 @@ extern const char *const dwr_biome_names[BIOME_COUNT];
 #define ALL_BUILDS(x)             (BUILD_OPTIONS(x) == 3)
 #define RANDOM_TOWN_ENTRANCES(x)  ((x->flags[24] & 0x03)     ) // 2
 
+//I HAVE NO CLUE WHERE YOU WANT THESE OPTIONS IN YOUR FLAGS.
+#define LOCK_TANTEGEL(x)          
+#define LITE_SHUFFLE(x)           
+#define DEEP_SHUFFLE(x)          
+#define RANDOM_SHUFFLE(x)
+#define Z2_MAP(x)       
 
 
 #ifdef __cplusplus
