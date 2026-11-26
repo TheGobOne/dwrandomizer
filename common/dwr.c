@@ -135,7 +135,7 @@ BOOL dwr_normalize_flags(uint8_t raw[28])
         raw[26] &= (uint8_t)~0x0e;
         odd = TRUE;
     }
-    if ((raw[26] & 0x02) && (raw[26] & 0x0c) != 0x08) {   /* Lock Tantegel only does something in Deep */
+    if ((raw[26] & 0x02) && !(raw[26] & 0x0c)) {   /* Lock Tantegel does nothing without a shuffle */
         raw[26] &= (uint8_t)~0x02;
         odd = TRUE;
     }

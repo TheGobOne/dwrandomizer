@@ -2,7 +2,7 @@
 
 * New flag: Zelda II Map. The overworld is the Zelda II map, with the Dragon Warrior places on its towns, caves and palaces. Cannot go with Random Map. CLI: --z2-map on
 * New flag: Zelda II Shuffle. Lite swaps towns with towns and caves with caves; Deep mixes every place. CLI: --z2-map lite or --z2-map deep
-* New flag: Lock Tantegel. Tantegel stays at the north palace while the rest shuffle (Deep shuffle only). CLI: --lock-tantegel on
+* New flag: Lock Tantegel. Tantegel stays at the north palace while the rest shuffle (Lite or Deep). CLI: --lock-tantegel on
 
 # 1.3 - TheGobOne Remix #
 ## Space

@@ -67,7 +67,7 @@ static void print_usage(const char *command, char *default_flags)
     printf("  --biome continent|caldera|wasteland|riverlands|lake|earth|westeros|random\n");
     printf("  --free-charlock on|off\n");
     printf("  --z2-map off|on|lite|deep   (Zelda 2 map; blocked with Random Map)\n");
-    printf("  --lock-tantegel on|off   (Deep shuffle only)\n");
+    printf("  --lock-tantegel on|off   (needs --z2-map lite or deep)\n");
     printf("  --auto-return on|off\n");
     printf("  --responsive-controls on|off\n");
     printf("  --auto-stairs on|off\n");
@@ -432,9 +432,9 @@ int main(int argc, char **argv)
             raw[26] = (uint8_t)((raw[26] & 0xfd) | (lock_tantegel ? 0x02 : 0));
         if (!(raw[26] & 0x10))
             raw[26] &= (uint8_t)~0x0e;
-        if ((raw[26] & 0x02) && (raw[26] & 0x0c) != 0x08) {
+        if ((raw[26] & 0x02) && !(raw[26] & 0x0c)) {
             raw[26] &= (uint8_t)~0x02;
-            fprintf(stderr, "--lock-tantegel only works with --z2-map deep, so it will be ignored.\n");
+            fprintf(stderr, "--lock-tantegel needs --z2-map lite or deep, so it will be ignored.\n");
         }
         if ((raw[26] & 0x10) && (raw[0] & 0x03)) {
             raw[26] &= (uint8_t)~0x1e;
