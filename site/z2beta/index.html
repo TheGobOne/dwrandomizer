@@ -657,8 +657,8 @@ const State = {
     this.v.quickswap=(bytes[26]&0x80)&&(this.v.quickspell|0)?1:0;
     if((bytes[26]&0x80)&&!this.v.quickswap) this.oddBits=true;
     if((bytes[26]&0x0c)===0x0c) this.oddBits=true;
-    /* Lock Tantegel only works with Deep shuffle, and the Zelda II map cannot go with Random Map (on or Random). */
-    if((bytes[26]&0x02)&&(bytes[26]&0x0c)!==0x08){ this.v.locktantegel=0; this.oddBits=true; }
+    /* Lock Tantegel needs a shuffle (Lite or Deep), and the Zelda II map cannot go with Random Map (on or Random). */
+    if((bytes[26]&0x02)&&!(bytes[26]&0x0c)){ this.v.locktantegel=0; this.oddBits=true; }
     if((bytes[26]&0x10)&&(bytes[0]&0x03)) this.oddBits=true;
     if((bytes[26]&~FLAGS_26_USED&255)||(bytes[27]&~FLAGS_27_USED&255)) this.oddBits=true;
     this.bankCap=(bytes[12]&0x7f)||9;
@@ -966,7 +966,7 @@ function selectCtl(it){
    Run Mechanics replaces the run rate code that Easy Charlock changes (Random counts as on). */
 const DEPENDS={
   mapsize:{needs:'map'}, biome:{needs:'map'},
-  z2map:{blockedBy:['map']}, z2shuffle:{needs:'z2map',blockedBy:['map']}, locktantegel:{needs:'z2shuffle',ok:v=>v===2,label:'Zelda II Shuffle: Deep',blockedBy:['map']},
+  z2map:{blockedBy:['map']}, z2shuffle:{needs:'z2map',blockedBy:['map']}, locktantegel:{needs:'z2shuffle',blockedBy:['map']},
   swamp:{blockedBy:['z2map']},
   onlyhealmore:{needs:'spells'}, healbefore:{needs:'spells'}, nohurtmore:{needs:'spells'},
   l1radiant:{needs:'spells'}, l1repel:{needs:'spells'},
