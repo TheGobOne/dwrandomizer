@@ -421,24 +421,20 @@ int main(int argc, char **argv)
             raw[26] = (uint8_t)((raw[26] & 0xbf) | (no_blink ? 0x40 : 0));
         if (fast_hills >= 0)
             raw[26] = (uint8_t)((raw[26] & 0xdf) | (fast_hills ? 0x20 : 0));
-        /* Z2 Map: 0x10 on, 0x0c shuffle (1 Lite, 2 Deep), 0x02 Lock Tantegel. The shuffle and the lock mean nothing
-         * without the map, and the map cannot go with Random Map (dwr_randomize drops it, with a message). */
+        /* Z2 Map: 0x10 on, 0x0c shuffle (1 Lite, 2 Deep), 0x02 Lock Tantegel. The rules between them (the shuffle and
+         * the lock need the map, the lock needs Deep, the map cannot go with Random Map) are in dwr_normalize_flags. */
         if (z2_map >= 0) {
-            raw[26] &= (uint8_t)~0x1c;
+            raw[26] &= (uint8_t)(z2_map ? ~0x1c : ~0x1e);
             if (z2_map)
                 raw[26] |= (uint8_t)(0x10 | ((z2_map - 1) << 2));
         }
         if (lock_tantegel >= 0)
             raw[26] = (uint8_t)((raw[26] & 0xfd) | (lock_tantegel ? 0x02 : 0));
-        if (!(raw[26] & 0x10))
-            raw[26] &= (uint8_t)~0x0e;
-        if ((raw[26] & 0x02) && !(raw[26] & 0x08)) {
-            raw[26] &= (uint8_t)~0x02;
-            fprintf(stderr, "--lock-tantegel needs --z2-map deep, so it will be ignored.\n");
-        }
-        if ((raw[26] & 0x10) && (raw[0] & 0x03)) {
-            raw[26] &= (uint8_t)~0x1e;
-            fprintf(stderr, "--z2-map cannot go with Random Map, so it will be ignored.\n");
+        {
+            const uint8_t z2_before = raw[26];
+            dwr_normalize_flags(raw);
+            if (raw[26] != z2_before)
+                fprintf(stderr, "The Zelda II options conflict, so some are ignored: the shuffle and --lock-tantegel need --z2-map, --lock-tantegel needs --z2-map deep, and --z2-map cannot go with Random Map.\n");
         }
         if (biome >= 0) {
             raw[2] &= (uint8_t)~0x33;

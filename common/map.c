@@ -2660,7 +2660,7 @@ static void z2_set_warp(dw_rom *rom, dw_warp_index idx, const z2_spot *s)
     warp->y = s->y;
 }
 
-/* Draws a tile at a spot. A spot inside Tantegel or Garinham is the stairs on that town's map. */
+/* Draws a tile at an overworld spot. Stairs inside Tantegel and Garinham are drawn by z2_put_cave. */
 static void z2_put(dw_rom *rom, const z2_spot *s, dw_tile tile)
 {
     if (s->map == OVERWORLD)
@@ -2930,12 +2930,6 @@ static dw_border_tile z2_border(dw_map *map, int x, int y)
     return BORDER_GRASS;
 }
 
-/**
- * Builds the Zelda II map in place of a generated one. Used by apply_stuff_to_rom when the Z2 Map flag is on,
- * after the quest items are settled and before the spike table is written.
- *
- * @param rom The rom struct
- */
 /* Can every place but Cantlin still be reached with (x, y) blocked? And with Cantlin counted too? */
 static void z2_reach_without(dw_rom *rom, int x, int y, BOOL *others, BOOL *all)
 {
@@ -2998,6 +2992,7 @@ static BOOL z2_try(dw_rom *rom)
     memcpy(map->encoded, z2_map_data, MAP_ENCODED_SIZE);
     memcpy(map->pointers, z2_pointer_data, sizeof(z2_pointer_data));
     map_decode(map);
+    /* Lite and Deep shuffle overwrite these zones with random ones in randomize_zone_layout. */
     memcpy(rom->zone_layout, z2_zones, sizeof(z2_zones));
 
     z2_default_places(rom);
@@ -3035,6 +3030,12 @@ static BOOL z2_try(dw_rom *rom)
 
 #define Z2_TRIES 500
 
+/**
+ * Builds the Zelda II map in place of a generated one. Used by apply_stuff_to_rom when the Z2 Map flag is on,
+ * after the quest items are settled and before the spike table is written.
+ *
+ * @param rom The rom struct
+ */
 void map_z2(dw_rom *rom)
 {
     dw_map *map = &rom->map;

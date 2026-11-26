@@ -139,6 +139,10 @@ BOOL dwr_normalize_flags(uint8_t raw[28])
         raw[26] &= (uint8_t)~0x02;
         odd = TRUE;
     }
+    if (raw[27] & 0x80) {   /* bit 0x80 of byte 27 is unused; the site ignores it */
+        raw[27] &= (uint8_t)~0x80;
+        odd = TRUE;
+    }
     if ((raw[26] & 0x10) && (raw[0] & 0x03)) {   /* the Z2 map cannot go with Random Map, on or Random */
         raw[26] &= (uint8_t)~0x1e;
         odd = TRUE;
@@ -2851,8 +2855,6 @@ static void skip_vanilla_credits(dw_rom *rom)
         add_hook(rom, JMP, 0x542b, START_DWR_CREDITS);
     }
 }
-
-
 
 /* New fixed-bank code may go from the first flag-only routine of the bank 3 patch up (dwr.h). */
 _Static_assert(FIXED_FREE_START == TORCH_IN_BATTLE, "FIXED_FREE_START must be the first flag-only routine");

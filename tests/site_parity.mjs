@@ -164,7 +164,9 @@ const withByte27 = (code, v) => { const raw = decode(code); raw[27] = (raw[27] &
 const flagSets = [['Gob Standard', GOB_STANDARD], ['No Sword in Charlock', withByte27(GOB_STANDARD, 0x40)], ['Bigger Radiant', withByte27(GOB_STANDARD, 0x20)]]
   .concat(BIOMES.map((b, i) => [b, withBiome(GOB_STANDARD, i)]))
   .concat([['Z2', withZ2(GOB_STANDARD, 0, false)], ['Z2 Lite', withZ2(GOB_STANDARD, 1, false)],
-    ['Z2 Deep Lock', withZ2(GOB_STANDARD, 2, true)]]);
+    ['Z2 Deep Lock', withZ2(GOB_STANDARD, 2, true)]])
+  // Free Charlock on with No Sword and No Armor left off in the code: both builds must turn them on.
+  .concat([['Free Charlock', (() => { const raw = decode(GOB_STANDARD); raw[11] |= 0x02; raw[27] &= 0x1f; return encode(raw); })()]]);
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'dwr-parity-'));
 const rom = fs.readFileSync(ROM);
 
@@ -256,6 +258,20 @@ function run() {
         (siteRom ? ' sha ' + sha(siteRom).slice(0, 12) : '') + (tries > 1 ? ' (try ' + tries + ')' : '') + (musicOnly ? ' (music banks differ only: clock reseed)' : '') +
         (romDiff ? ' ROM: ' + romDiff : ''));
     }
+  }
+  // The Zelda II shuffle retries up to 500 layouts. Many seeds per mode must all build. CLI only, so it is
+  // quick; DWR_Z2_SEEDS sets how many per mode (default 60).
+  const Z2_SEEDS = Number(process.env.DWR_Z2_SEEDS || 60);
+  for (const [name, flags] of [['Z2 Lite', withZ2(GOB_STANDARD, 1, false)], ['Z2 Deep', withZ2(GOB_STANDARD, 2, false)],
+    ['Z2 Deep Lock', withZ2(GOB_STANDARD, 2, true)]]) {
+    let failed = 0;
+    for (let n = 1; n <= Z2_SEEDS; n++) {
+      const r = cliBuild(flags, 5000 + n, fs.mkdtempSync(path.join(work, 'z')));
+      if (!/^[0-9a-f]{16}$/.test(r.sum) || !r.rom) { failed++; console.log('DIFF ' + name + ' seed ' + (5000 + n) + ' did not build: ' + r.sum); }
+    }
+    total++;
+    if (failed) bad++;
+    console.log((failed ? 'DIFF ' : 'same ') + name.padEnd(12) + ' ' + Z2_SEEDS + ' seeds build' + (failed ? ', ' + failed + ' failed' : ''));
   }
   fs.rmSync(work, { recursive: true, force: true });
   console.log(bad ? bad + ' of ' + total + ' differ' : 'all ' + total + ' match');

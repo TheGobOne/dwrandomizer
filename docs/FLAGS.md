@@ -95,7 +95,7 @@ Erdrick's Sword is never in a chest in Charlock Castle. It works like No Armor i
 
 #### Bigger Radiant ####
 
-Radiant starts at a circle of radius 5 in a cave, where the original starts at radius 3. It stays at 5 for the spell, as tested in Mesen. It is the third bit of the 27th flag byte, so a code with it on is 44 characters.
+Radiant starts at a circle of radius 5 in a cave, where the original starts at radius 3. It stays at 5 for the spell, as tested in Mesen. With Permanent Torch on, a cave already starts at radius 3, so the original Radiant also gives 5 on the first cast and this flag changes nothing there. It is the third bit of the 27th flag byte, so a code with it on is 44 characters.
 #### Zelda II Map ####
 
 Beta: the site marks the 3 Zelda II flags BETA, and the maps they make may change before the next release.

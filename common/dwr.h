@@ -116,7 +116,7 @@ extern const char *const dwr_biome_names[BIOME_COUNT];
 #define BIG_SWAMP(x)              (x->flags[10] & 0x03)
 #define ROTATE_DUNGEONS(x)        (x->flags[10] & 0x0c)
 #define NO_ARMOR_IN_CHARLOCK(x)   (x->flags[10] & 0x30)
-#define NO_SWORD_IN_CHARLOCK(x)   (x->flags[27] & 0xc0)
+#define NO_SWORD_IN_CHARLOCK(x)   (x->flags[27] & 0x40)
 #define BIGGER_RADIANT(x)         (x->flags[27] & 0x20)
 #define EASY_CHARLOCK(x)          (x->flags[10] & 0xc0)
 
