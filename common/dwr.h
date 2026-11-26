@@ -60,9 +60,9 @@ extern const char *const dwr_biome_names[BIOME_COUNT];
 #define DISABLE_CURSOR_BLINK(x)   (x->flags[26] & 0x40)
 #define FAST_HILLS(x)             (x->flags[26] & 0x20)
 /* The bits of byte 26 that hold a flag. A new flag there goes in this mask, and in the site's check for
- * unused bits (site/index.html, oddBits). Byte 27 holds nothing yet: 44 characters reach only its top 4 bits. */
+ * unused bits (site/index.html, oddBits). Byte 27: 44 characters reach only its top 4 bits (0xf0). */
 #define FLAGS_26_USED 0xe0
-#define FLAGS_27_USED 0x00
+#define FLAGS_27_USED 0xe0
 /* How long a flag code is for these 27 flag bytes: 40, or 42 when byte 25 or the top 2 bits of byte 26 are
  * set, or 44 when any other bit of byte 26 is. The site has the same rule (flags() in site/index.html). */
 /* Byte 27's top 4 bits fall in the 44th letter, the same rule as the site. */
@@ -116,6 +116,8 @@ extern const char *const dwr_biome_names[BIOME_COUNT];
 #define BIG_SWAMP(x)              (x->flags[10] & 0x03)
 #define ROTATE_DUNGEONS(x)        (x->flags[10] & 0x0c)
 #define NO_ARMOR_IN_CHARLOCK(x)   (x->flags[10] & 0x30)
+#define NO_SWORD_IN_CHARLOCK(x)   (x->flags[27] & 0xc0)
+#define BIGGER_RADIANT(x)         (x->flags[27] & 0x20)
 #define EASY_CHARLOCK(x)          (x->flags[10] & 0xc0)
 
 #define CURSED_PRINCESS(x)        (x->flags[ 8] & 0x0c)

@@ -24,6 +24,8 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 | Auto Stairs | Stepping onto stairs takes them right away, with no STAIRS command. |
 | Responsive Controls | Short presses are no longer missed; on the overworld, walking and the command window answer at once. |
 | Fast Hills | A step onto a hill takes as long as a step onto grass. |
+| No Sword in Charlock | Erdrick's Sword is never in a chest in Charlock Castle. |
+| Bigger Radiant | Radiant lights a radius 7 circle in a cave instead of radius 3. |
 | Disable Cursor Blink | The menu cursor arrow stays on instead of blinking. |
 | Fast Flute | The Fairy Flute plays only the climb up the scale from its song, with or without Speed Hacks. |
 | Discard Flute | With a full inventory, the flute can be dropped for a new item, or sold to a shop for 1 G. |

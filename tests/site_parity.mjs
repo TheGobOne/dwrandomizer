@@ -96,13 +96,15 @@ function decode(code) {
   for (const c of code) bits += A.indexOf(c).toString(2).padStart(5, '0');
   const out = new Array(FLAG_BYTES).fill(0);
   for (let i = 0; i * 8 + 8 <= bits.length && i < FLAG_BYTES; i++) out[i] = parseInt(bits.slice(i * 8, i * 8 + 8), 2);
+  const rest = bits.length % 8;
+  if (rest && bits.length / 8 < FLAG_BYTES) out[Math.floor(bits.length / 8)] = parseInt(bits.slice(bits.length - rest).padEnd(8, '0'), 2);   // the 44th letter holds the top 4 bits of byte 27
   return out;
 }
 
 function encode(raw) {
   const n = codeLength(raw);
   let bits = '';
-  for (let i = 0; i < FLAG_BYTES; i++) bits += (i < FLAG_BYTES - 1 ? raw[i] : 0).toString(2).padStart(8, '0');
+  for (let i = 0; i < FLAG_BYTES; i++) bits += (i < FLAG_BYTES - 1 ? raw[i] : raw[i] & 0xf0).toString(2).padStart(8, '0');
   let s = '';
   for (let i = 0; i < n; i++) s += A[parseInt(bits.slice(i * 5, i * 5 + 5), 2)];
   return s;
@@ -148,7 +150,10 @@ function firstDiff(a, b) {
 }
 const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
 
-const flagSets = [['Gob Standard', GOB_STANDARD]].concat(BIOMES.map((b, i) => [b, withBiome(GOB_STANDARD, i)]));
+// No Sword in Charlock and Bigger Radiant are in byte 27 (the top 3 bits).
+const withByte27 = (code, v) => { const raw = decode(code); raw[27] = (raw[27] & 0x1f) | v; return encode(raw); };
+const flagSets = [['Gob Standard', GOB_STANDARD], ['No Sword in Charlock', withByte27(GOB_STANDARD, 0x40)], ['Bigger Radiant', withByte27(GOB_STANDARD, 0x20)]]
+  .concat(BIOMES.map((b, i) => [b, withBiome(GOB_STANDARD, i)]));
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'dwr-parity-'));
 const rom = fs.readFileSync(ROM);
 

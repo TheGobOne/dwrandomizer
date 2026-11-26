@@ -88,6 +88,16 @@ On the overworld, walking, the command window and pause answer a press at once i
 A step onto a hill takes as long as a step onto grass. The original game waits extra frames on every hill step. It is the third bit of the 27th flag byte, so a code with it on is 44 characters. Command line: `--fast-hills on`.
 
 
+#### No Sword in Charlock ####
+
+Erdrick's Sword is never in a chest in Charlock Castle. It works like No Armor in Charlock, and the two can be on together. Free Charlock turns it on. It uses the top 2 bits of the 27th flag byte, so a code with it on is 44 characters.
+
+
+#### Bigger Radiant ####
+
+Radiant lights a circle of radius 7 in a cave, where the original lights radius 3 (it adds 2 to the current radius). The circle shrinks 7, 5, 3, 1 as the spell wears off, the same way the original shrinks. It is the third bit of the 27th flag byte, so a code with it on is 44 characters.
+
+
 #### Auto Stairs ####
 
 Stepping onto stairs takes them at once, the way stepping onto a town enters it, so there is no need to open the command window and choose `STAIRS`. It happens before any fight check on that step. Arriving on stairs, from other stairs or a warp, does nothing until you step off and back on. Charlock's hidden stairs work once you have found them by searching, and then you step off and back on. The `STAIRS` command still works, and Stair Shuffle is followed. It is part of the checksum. Command line: `--auto-stairs on`.
@@ -95,7 +105,7 @@ Stepping onto stairs takes them at once, the way stepping onto a town enters it,
 
 #### Free Charlock ####
 
-Entering Charlock from the overworld puts you in the Dragonlord's room, beside him and facing him. Nothing starts by itself: talk to him when you are ready, and the usual dialogue and fight follow. Erdrick's Sword and Erdrick's Armor are never in a Charlock chest, since most of Charlock is skipped. Short Charlock, Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. No Armor in Charlock is also turned off on the website. In the game it has no effect with Free Charlock, since Erdrick's Armor is never in a Charlock chest. On a very full ROM the build stops, as it does for other flags that need space. It is part of the checksum, along with Auto Return. Command line: `--free-charlock on`.
+Entering Charlock from the overworld puts you in the Dragonlord's room, beside him and facing him. Nothing starts by itself: talk to him when you are ready, and the usual dialogue and fight follow. Erdrick's Sword and Erdrick's Armor are never in a Charlock chest, since most of Charlock is skipped. Short Charlock, Easy Charlock, Three's Company, Cursed Princess, Radish Finish and Disguised Dragonlord are turned off and disabled while it is on. No Armor in Charlock and No Sword in Charlock are turned on and locked while it is on, on the website and in the generator. On a very full ROM the build stops, as it does for other flags that need space. It is part of the checksum, along with Auto Return. Command line: `--free-charlock on`.
 
 
 #### Show Key & Herb Counter ####

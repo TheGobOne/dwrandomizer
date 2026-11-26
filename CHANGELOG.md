@@ -1,3 +1,9 @@
+# Unreleased #
+
+* New flag: No Sword in Charlock. Erdrick's Sword is never in a Charlock chest, like No Armor in Charlock. Free Charlock turns both on.
+* New flag: Bigger Radiant. Radiant lights a radius 7 circle in a cave instead of radius 3, shrinking 7, 5, 3, 1.
+* Flag codes with either one are 44 characters (they are in the 27th flag byte).
+
 # 1.3 - TheGobOne Remix #
 ## Space
 

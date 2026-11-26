@@ -69,6 +69,17 @@ static BOOL is_quest_item_incl_armor(uint8_t item)
 }
 
 /**
+ * Quest items plus Erdrick's Sword. For use when "No Sword in Charlock" is on.
+ *
+ * @param item The item member of a chest
+ * @return TRUE if the item must stay out of Charlock
+ */
+static BOOL is_quest_item_incl_sword(uint8_t item)
+{
+    return is_quest_item(item) || item == SWORD;
+}
+
+/**
  * Quest items plus Erdrick's Armor and Sword. For use when "Free Charlock" is
  * on: the walk in skips the castle, so its chests can't be reached.
  *
@@ -114,6 +125,10 @@ void check_quest_items(dw_rom *rom)
     if (NO_ARMOR_IN_CHARLOCK(rom)) {
         printf("Disallowing Armor in Charlock...\n");
         quest_item_check = &is_quest_item_incl_armor;
+    }
+    if (NO_SWORD_IN_CHARLOCK(rom)) {
+        printf("Disallowing Erdrick's Sword in Charlock...\n");
+        quest_item_check = NO_ARMOR_IN_CHARLOCK(rom) ? &is_quest_item_incl_erdrick : &is_quest_item_incl_sword;
     }
     if (FREE_CHARLOCK(rom)) {
         printf("Free Charlock: keeping Erdrick's Sword and Armor out of Charlock...\n");

@@ -23,8 +23,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: site
+          sparse-checkout: |
+            site
+            archipelago
           sparse-checkout-cone-mode: true
+      # This remix is not on the official Archipelago servers, so the site serves its world file.
+      - name: Build dwr.apworld
+        run: cd archipelago && zip -r ../site/dwr.apworld dwr -x '*__pycache__*'
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

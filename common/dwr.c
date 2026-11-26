@@ -164,8 +164,11 @@ static void update_flags(dw_rom *rom)
     rom->flags[6] |= responsive_flag;
     /* Free Charlock cannot go with these: Short Charlock, Easy Charlock (exclusive), and Three's Company, Cursed Princess,
      * Radish Finish and Disguised Dragonlord, which depend on the Dragonlord and the ending he gives.
-     * Open Charlock is fine beside it. */
+     * Open Charlock is fine beside it. No Armor and No Sword in Charlock are turned on, since Free Charlock keeps
+     * both out of Charlock anyway; the site does the same, so a code reads the same on both. */
     if (free_charlock_flag) {
+        rom->flags[10] = (uint8_t)((rom->flags[10] & ~0x30) | 0x10);   /* No Armor in Charlock */
+        rom->flags[27] = (uint8_t)((rom->flags[27] & ~0xc0) | 0x40);   /* No Sword in Charlock */
         rom->flags[7] &= (uint8_t)~0x03;   /* Short Charlock */
         rom->flags[8] &= (uint8_t)~0x0f;
         rom->flags[10] &= (uint8_t)~0xc0;
@@ -1754,6 +1757,25 @@ static void permanent_torch(dw_rom *rom)
     vpatch(rom, 0xca60,    2,
             0xc9, 0x03          /* CMP #$03  ; Don't decrease the light */
                                 /*           ; radius if it's 3. */
+    );
+}
+
+/**
+ * Bigger Radiant: the spell always lights a radius 7 circle (vanilla adds 2 to the current radius, so 3 in a
+ * cave). It shrinks 7, 5, 3, 1 with the game's own step: 2 every time the radiant timer runs out.
+ *
+ * @param rom The rom struct
+ */
+static void bigger_radiant(dw_rom *rom)
+{
+    if (!BIGGER_RADIANT(rom))
+        return;
+
+    printf("Making radiant bigger...\n");
+
+    vpatch(rom, 0xda84,    3,
+            0xa9, 0x07,         /* LDA #$07  ; Light radius 7 ...      */
+            0xea                /* NOP       ; ... instead of CLC, ADC #$02 */
     );
 }
 
@@ -5392,6 +5414,7 @@ void apply_stuff_to_rom(dw_rom *rom)
     torch_in_battle(rom);
     repel_mods(rom);
     permanent_torch(rom);
+    bigger_radiant(rom);
     random_princess_location(rom);
     hints(rom);
     rotate_dungeons(rom);
