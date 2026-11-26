@@ -1,11 +1,11 @@
-# 1.4 - TheGobOne Remix #
+# AP support and a Zelda II map #
 
 * New flag: No Sword in Charlock. Erdrick's Sword is never in a Charlock chest, like No Armor in Charlock. Free Charlock turns both on.
 * New flag: Bigger Radiant. Radiant starts at radius 5 in a cave instead of 3.
 * Flag codes with either one are 44 characters (they are in the 27th flag byte).
 * New flag (beta): Zelda II Map. The overworld is the Zelda II map, with the Dragon Warrior places on its towns, caves and palaces. Cannot go with Random Map. CLI: --z2-map on
 * New flag (beta): Zelda II Shuffle. Lite swaps towns with towns and caves with caves; Deep mixes every place. CLI: --z2-map lite or --z2-map deep
-* Site: new Archipelago tab in the ??? slot. It makes your player YAML and has a Download dwr.apworld button. This remix is not built into Archipelago, so the host installs this world file.
+* Site: Archipelago tab, replacing the ??? tab. It makes your player YAML and downloads dwr.apworld. The host installs that world file, since this remix is not built into Archipelago.
 * New flag (beta): Lock Tantegel. Tantegel stays at the north palace while the rest shuffle (Lite or Deep). CLI: --lock-tantegel on
 
 # 1.3 - TheGobOne Remix #

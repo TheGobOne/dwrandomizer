@@ -460,8 +460,10 @@ input[type=file]::file-selector-button{color:buttontext}
 .win>h2+*{margin-top:0!important}
 .win:has(>h2)>:last-child{margin-bottom:0!important}
 /* The Sprite window fills the rest of the left column, so its bottom edge is the column's bottom edge, which matches the options panel. */
-.herostack{flex:1 1 auto}
-.herostack>.herowin{flex:1 1 auto;display:flex;flex-direction:column;align-items:stretch}
+.leftcol>.herostack{flex:1 1 auto}
+.leftcol>.herostack>.herowin{flex:1 1 auto;display:flex;flex-direction:column;align-items:stretch;container-type:inline-size}
+/* The picture grows into the spare height and stays square, no wider than the window. */
+.herowin>.heropic{flex:1 1 auto;height:auto;width:auto;min-height:var(--hero);max-height:100cqi;max-width:100%;aspect-ratio:1;align-self:center}
 body.compact .opt .desc,body.compact .opt .secnote{display:none}
 body.compact .opt{padding-top:.2rem;padding-bottom:.2rem}
 body.compact .opt .tog{min-height:1.5rem}
@@ -573,7 +575,6 @@ function showTier(chip,i){
 function hideTier(){ tierTip().hidden=true; }
 document.addEventListener('keydown',e=>{ if(e.key==='Escape') hideTier(); });
 const PRESETS = [
- {id:'gob',name:'Full Remix',blurb:"Gob's Standard flags. Random Map with a random biome, Free Charlock, Run Bank, Quick Spell, Fast Text, Responsive Controls, the Free Selection Plus build, Medium encounters, shuffled chests, random growth, spells and monsters. Your own personal options stay as they are.",flags:'IVIAAV2EKADEAMAAAADYKEBWAAAJACAAAAIBQAAM75QA'},
  {id:'standard',name:'Standard',blurb:"juef's Standard flags. Random Map, shuffled chests, random growth, spells, monster abilities and zones, Fast leveling, Death Necklace, Safer Vanilla runs, Permanent Torch, Repel in Dungeons, random flute music. The published code also has Skip Original Credits on. That is a personal option, so the code the page shows leaves it out and differs from the published one in a few letters of the code.",flags:'IVIAAVCEKACAAAAAAAAAAEAUAAQBAAAAABYCAAAA'},
  {id:'fast',name:'Fast Standard',blurb:"juef's Fast Standard flags. Standard with Very Fast leveling, Fast Text and Speed Hacks. Like Standard, the code the page shows leaves out Skip Original Credits and differs from the published one in a few letters of the code.",flags:'IVIAAVCEKACFAAAAAAAAAIAUAAQBAAAAABYCAAAA'},
  {id:'easy',name:'Easy Standard',blurb:"juef's Easy Standard flags. Standard with a Small map, Short Charlock, Alternate Running, Summer Sale, no Magic Keys and no Armor in Charlock. The published code also has Easy Charlock on, but Safer Vanilla runs switch it off in the game, so this code leaves it off. The code the page shows differs from the published one by one letter. Alternate Running is in the code too, but it only works with Vanilla runs, so it does nothing here. The checksum is the same.",flags:'IVIAAVCFKACACQAACAAAAZAUAAQBAAAAABYCAAAA'},
@@ -1638,13 +1639,13 @@ const tabs=TABS.map(t=>({id:t.id,label:t.label,head:t.head,contents:()=>[documen
 const apCount=()=>{ const n=AP_REJECT.filter(id=>(State.v[id]|0)===1).length; const s=el('span',{class:'count'}); const p=()=>{ const k=AP_REJECT.filter(id=>(State.v[id]|0)===1).length; s.replaceChildren(String(k),el('span',{class:'sr',text:' refused'})); }; State.on(p); p(); return s; };
 /* Patch notes. Put each new update first in CHANGELOG with a new id: the tab glows for anyone who has not opened that id yet. */
 const CHANGELOG=[
-  {id:'2026-11-26',title:'Bigger Radiant and No Sword in Charlock',notes:[
+  {id:'2026-11-26',title:'AP support and a Zelda II map',notes:[
     'New flag: Bigger Radiant. Radiant starts at radius 5 in a cave instead of 3.',
     'New flag: No Sword in Charlock. Erdrick\'s Sword is never in a Charlock chest, like No Armor in Charlock. The 2 can be on together.',
     'Free Charlock now turns No Armor in Charlock and No Sword in Charlock on and locks them.',
     'Flag codes with either new flag are 44 letters.',
     'New (BETA): Zelda II Map. The overworld is the Zelda II map, with the Dragon Warrior places on its towns, caves and palaces. Zelda II Shuffle has Lite (towns with towns, caves with caves, Tantegel among the palaces) and Deep (every place mixed). Lock Tantegel keeps Tantegel at the north palace. These 3 are marked BETA and may change.',
-    'New: an Archipelago tab in the ??? slot. It makes your player YAML and has a Download dwr.apworld button for the host.']}
+    'New: Archipelago tab, replacing the ??? tab. It makes your player YAML and downloads dwr.apworld, which the host installs because this remix is not built into Archipelago.']}
 ];
 const CLOG_KEY='dwrChangelogSeen';
 const clogSeen=()=>{ try{ return localStorage.getItem(CLOG_KEY); }catch(e){ return null; } };
