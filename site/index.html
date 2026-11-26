@@ -666,8 +666,8 @@ const State = {
     this.v.quickswap=(bytes[26]&0x80)&&(this.v.quickspell|0)?1:0;
     if((bytes[26]&0x80)&&!this.v.quickswap) this.oddBits=true;
     if((bytes[26]&0x0c)===0x0c) this.oddBits=true;
-    /* Lock Tantegel needs a shuffle (Lite or Deep), and the Zelda II map cannot go with Random Map (on or Random). */
-    if((bytes[26]&0x02)&&!(bytes[26]&0x0c)){ this.v.locktantegel=0; this.oddBits=true; }
+    /* Lock Tantegel needs Deep shuffle, and the Zelda II map cannot go with Random Map (on or Random). */
+    if((bytes[26]&0x02)&&!(bytes[26]&0x08)){ this.v.locktantegel=0; this.oddBits=true; }
     if((bytes[26]&0x10)&&(bytes[0]&0x03)) this.oddBits=true;
     if((bytes[26]&~FLAGS_26_USED&255)||(bytes[27]&~FLAGS_27_USED&255)) this.oddBits=true;
     this.bankCap=(bytes[12]&0x7f)||9;
@@ -976,7 +976,7 @@ function selectCtl(it){
    Run Mechanics replaces the run rate code that Easy Charlock changes (Random counts as on). */
 const DEPENDS={
   mapsize:{needs:'map'}, biome:{needs:'map'},
-  z2map:{blockedBy:['map']}, z2shuffle:{needs:'z2map',blockedBy:['map']}, locktantegel:{needs:'z2shuffle',blockedBy:['map']},
+  z2map:{blockedBy:['map']}, z2shuffle:{needs:'z2map',blockedBy:['map']}, locktantegel:{needs:'z2shuffle',ok:v=>v===2,label:'Zelda II Shuffle on Deep',blockedBy:['map']},
   swamp:{blockedBy:['z2map']},
   onlyhealmore:{needs:'spells'}, healbefore:{needs:'spells'}, nohurtmore:{needs:'spells'},
   l1radiant:{needs:'spells'}, l1repel:{needs:'spells'},
@@ -1644,7 +1644,7 @@ const CHANGELOG=[
     'New flag: No Sword in Charlock. Erdrick\'s Sword is never in a Charlock chest, like No Armor in Charlock. The 2 can be on together.',
     'Free Charlock now turns No Armor in Charlock and No Sword in Charlock on and locks them.',
     'Flag codes with either new flag are 44 letters.',
-    'New (BETA): Zelda II Map. The overworld is the Zelda II map, with the Dragon Warrior places on its towns, caves and palaces. Zelda II Shuffle has Lite (towns with towns, caves with caves, Tantegel among the palaces) and Deep (every place mixed). Lock Tantegel keeps Tantegel at the north palace. These 3 are marked BETA and may change.',
+    'New (BETA): Zelda II Map. The overworld is the Zelda II map, with the Dragon Warrior places on its towns, caves and palaces. Zelda II Shuffle has Lite (towns with towns, caves with caves, Tantegel stays put) and Deep (every place mixed). Deep only: Lock Tantegel keeps Tantegel at the north palace. These 3 are marked BETA and may change.',
     'New: Archipelago tab, replacing the ??? tab. It makes your player YAML and downloads dwr.apworld, which the host installs because this remix is not built into Archipelago.']}
 ];
 const CLOG_KEY='dwrChangelogSeen';

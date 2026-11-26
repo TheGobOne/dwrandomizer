@@ -188,8 +188,9 @@ extern const char *const dwr_biome_names[BIOME_COUNT];
 #define RANDOM_TOWN_ENTRANCES(x)  ((x->flags[24] & 0x03)     ) // 2
 
 /* Zelda II map, byte 26: 0x10 map on, 0x0c shuffle (0 off, 1 Lite, 2 Deep), 0x02 Lock Tantegel.
- * Lite moves towns among town slots, caves among cave slots and palaces among palace slots; Deep mixes all
- * of them. update_flags clears all of these when Random Map is on, and the shuffle and lock without the map. */
+ * Lite moves towns among town slots and caves among cave slots; Tantegel stays put. Deep mixes all of them,
+ * and Lock Tantegel keeps Tantegel put in Deep. update_flags clears all of these when Random Map is on, and
+ * the shuffle and lock without the map. Lock Tantegel is cleared without Deep. */
 #define Z2_MAP(x)                 ((x->flags[26] & 0x10) >> 4) // 1
 #define Z2_SHUFFLE(x)             ((x->flags[26] & 0x0c) >> 2) // 2
 #define LITE_SHUFFLE(x)           (Z2_MAP(x) && Z2_SHUFFLE(x) == 1)

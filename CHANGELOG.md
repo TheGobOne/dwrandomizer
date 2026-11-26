@@ -6,7 +6,7 @@
 * New flag (beta): Zelda II Map. The overworld is the Zelda II map, with the Dragon Warrior places on its towns, caves and palaces. Cannot go with Random Map. CLI: --z2-map on
 * New flag (beta): Zelda II Shuffle. Lite swaps towns with towns and caves with caves; Deep mixes every place. CLI: --z2-map lite or --z2-map deep
 * Site: Archipelago tab, replacing the ??? tab. It makes your player YAML and downloads dwr.apworld. The host installs that world file, since this remix is not built into Archipelago.
-* New flag (beta): Lock Tantegel. Tantegel stays at the north palace while the rest shuffle (Lite or Deep). CLI: --lock-tantegel on
+* New flag (beta): Lock Tantegel. Tantegel stays at the north palace while the rest shuffle (Deep only). CLI: --lock-tantegel on
 
 # 1.3 - TheGobOne Remix #
 ## Space
