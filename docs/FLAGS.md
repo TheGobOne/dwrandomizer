@@ -96,6 +96,15 @@ Erdrick's Sword is never in a chest in Charlock Castle. It works like No Armor i
 #### Bigger Radiant ####
 
 Radiant lights a circle of radius 7 in a cave, where the original lights radius 3 (it adds 2 to the current radius). The circle shrinks 7, 5, 3, 1 as the spell wears off, the same way the original shrinks. It is the third bit of the 27th flag byte, so a code with it on is 44 characters.
+#### Zelda II Map ####
+
+Beta: the site marks the 3 Zelda II flags BETA, and the maps they make may change before the next release.
+
+The overworld is the Zelda II overworld map. Tantegel stands at the north palace, and the Dragon Warrior towns and caves stand on Zelda II towns and caves. It cannot go with Random Map: with Random Map on, it is turned off, and on the site it is greyed out. It uses the 27th flag byte, so a code with it on is 44 characters. Command line: `--z2-map on`.
+
+Zelda II Shuffle moves the places. Lite swaps towns with towns, caves with caves and Tantegel among the palaces. Deep puts any place in any spot, including the stairs inside Tantegel and Garinham. With either one, the bridge between the 2 continents is cut when the swamp cave joins them and the game can still be finished. Spots with no place turn into mountain. Command line: `--z2-map lite` or `--z2-map deep`.
+
+Lock Tantegel keeps Tantegel at the north palace while the rest shuffle. It works with Lite or Deep shuffle. Command line: `--lock-tantegel on`.
 
 
 #### Auto Stairs ####
@@ -479,6 +488,8 @@ Usage: `dwrandomizer [options] <rom_file> [flags [seed [sprite]]] <output_dir>`.
 | `--quick-spell-swap` | `on` or `off`. `on`: SPELL top right, quick spell under it. Needs Quick Spell |
 | `--cursor-blink` | `on` or `off`. `off` turns on Disable Cursor Blink. `on` keeps the blinking cursor |
 | `--fast-hills` | `on` or `off`: Fast Hills |
+| `--z2-map` | `off`, `on`, `lite`, `deep`: Zelda II Map and its shuffle. Cannot go with Random Map |
+| `--lock-tantegel` | `on` or `off`: Tantegel stays put with Lite or Deep shuffle |
 | `--key-herb` | `on` or `off`: the keys and herbs row in the stats window |
 | `--auto-stairs` | `on` or `off`: stepping onto stairs takes them |
 | `--ap-slot` | `<name>`: builds an Archipelago ROM for that slot name |

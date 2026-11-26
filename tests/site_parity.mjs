@@ -150,10 +150,21 @@ function firstDiff(a, b) {
 }
 const sha = (b) => crypto.createHash('sha256').update(b).digest('hex');
 
+// Gob Standard with Random Map off and the Zelda II map on, set the way cli/main.c --z2-map and
+// --lock-tantegel set byte 26: 0x10 map, 0x0c shuffle (1 Lite, 2 Deep), 0x02 Lock Tantegel.
+function withZ2(code, shuffle, lock) {
+  const raw = decode(code);
+  raw[0] &= ~0x03 & 0xff;
+  raw[26] = (raw[26] & ~0x1e & 0xff) | 0x10 | (shuffle << 2) | (lock ? 0x02 : 0);
+  return encode(raw);
+}
+
 // No Sword in Charlock and Bigger Radiant are in byte 27 (the top 3 bits).
 const withByte27 = (code, v) => { const raw = decode(code); raw[27] = (raw[27] & 0x1f) | v; return encode(raw); };
 const flagSets = [['Gob Standard', GOB_STANDARD], ['No Sword in Charlock', withByte27(GOB_STANDARD, 0x40)], ['Bigger Radiant', withByte27(GOB_STANDARD, 0x20)]]
-  .concat(BIOMES.map((b, i) => [b, withBiome(GOB_STANDARD, i)]));
+  .concat(BIOMES.map((b, i) => [b, withBiome(GOB_STANDARD, i)]))
+  .concat([['Z2', withZ2(GOB_STANDARD, 0, false)], ['Z2 Lite', withZ2(GOB_STANDARD, 1, false)],
+    ['Z2 Deep Lock', withZ2(GOB_STANDARD, 2, true)]]);
 const work = fs.mkdtempSync(path.join(os.tmpdir(), 'dwr-parity-'));
 const rom = fs.readFileSync(ROM);
 

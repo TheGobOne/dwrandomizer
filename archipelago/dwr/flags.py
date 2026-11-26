@@ -18,6 +18,7 @@ UNSUPPORTED = [
     ("Three's Company", 8, 0x03, 0x01, "the win is not the Dragonlord, so the client cannot see the goal"),
     ("Radish Finish", 20, 0xC0, 0x40, "the win is not the Dragonlord, so the client cannot see the goal"),
     ("Disguised Dragonlord", 16, 0x0C, 0x04, "not tested with AP yet"),
+    ("Zelda II Map", 26, 0x10, 0x10, "the logic assumes the DWR overworld, not the cut bridge or the moved places"),
 ]
 FREE_CHARLOCK = (11, 0x02)
 
@@ -49,7 +50,8 @@ def decode(flags: str) -> List[int]:
 def unsupported(flags: str) -> List[str]:
     """'Name: why' for each flag in this string that the APWorld does not support."""
     data = decode(flags)
-    return [f"{name}: {why}" for name, index, mask, _, why in UNSUPPORTED if data[index] & mask]
+    # A 40-letter string has 25 bytes; the flags in byte 26 on are off in it.
+    return [f"{name}: {why}" for name, index, mask, _, why in UNSUPPORTED if index < len(data) and data[index] & mask]
 
 
 def random_off(flags: str) -> Tuple[str, List[str]]:
@@ -63,6 +65,8 @@ def random_off(flags: str) -> Tuple[str, List[str]]:
     bits = [(BASE32.find(c) >> (4 - k)) & 1 for c in text for k in range(5)]
     names = []
     for name, index, mask, on, _ in UNSUPPORTED:
+        if index >= len(data):
+            continue
         value = data[index] & mask
         if value and not value & on:   # only the "maybe" bit is set
             names.append(name)

@@ -26,6 +26,7 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 | Fast Hills | A step onto a hill takes as long as a step onto grass. |
 | No Sword in Charlock | Erdrick's Sword is never in a chest in Charlock Castle. |
 | Bigger Radiant | Radiant lights a radius 7 circle in a cave instead of radius 3. |
+| Zelda II Map | The overworld is the Zelda II map, with Lite or Deep shuffle and Lock Tantegel. Cannot go with Random Map. |
 | Disable Cursor Blink | The menu cursor arrow stays on instead of blinking. |
 | Fast Flute | The Fairy Flute plays only the climb up the scale from its song, with or without Speed Hacks. |
 | Discard Flute | With a full inventory, the flute can be dropped for a new item, or sold to a shop for 1 G. |
@@ -52,7 +53,7 @@ What the page adds on top of the options:
 
 ### Command line
 
-Flag codes are 40, 42 or 44 letters (A-Z and 2-7). A code stays 40 letters unless it uses the Random biome, Lake or a later biome, Swap Quick Spell or Disable Cursor Blink (42), or Fast Hills (44). Other lengths are refused. An old 40 letter code with Biome set to Random still works: the command line picks from the first four biomes for it, and the website reads it as the new Random (all seven) and writes a 42 letter code, so the map can differ.
+Flag codes are 40, 42 or 44 letters (A-Z and 2-7). A code stays 40 letters unless it uses the Random biome, Lake or a later biome, Swap Quick Spell or Disable Cursor Blink (42), or Fast Hills or the Zelda II Map options (44). Other lengths are refused. An old 40 letter code with Biome set to Random still works: the command line picks from the first four biomes for it, and the website reads it as the new Random (all seven) and writes a 42 letter code, so the map can differ.
 
 Build with CMake 3.7 or newer and a C compiler. The author builds on Windows with GCC and MinGW Makefiles:
 

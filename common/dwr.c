@@ -127,6 +127,22 @@ BOOL dwr_normalize_flags(uint8_t raw[28])
         raw[2] &= (uint8_t)~0x33;
         odd = TRUE;
     }
+    if ((raw[26] & 0x0c) == 0x0c) {   /* Z2 shuffle: no 4th mode */
+        raw[26] &= (uint8_t)~0x0c;
+        odd = TRUE;
+    }
+    if (!(raw[26] & 0x10) && (raw[26] & 0x0e)) {   /* shuffle and Lock Tantegel need the Z2 map */
+        raw[26] &= (uint8_t)~0x0e;
+        odd = TRUE;
+    }
+    if ((raw[26] & 0x02) && !(raw[26] & 0x0c)) {   /* Lock Tantegel does nothing without a shuffle */
+        raw[26] &= (uint8_t)~0x02;
+        odd = TRUE;
+    }
+    if ((raw[26] & 0x10) && (raw[0] & 0x03)) {   /* the Z2 map cannot go with Random Map, on or Random */
+        raw[26] &= (uint8_t)~0x1e;
+        odd = TRUE;
+    }
     return odd;
 }
 
@@ -221,6 +237,11 @@ static void update_flags(dw_rom *rom)
     /* Byte 25 is the biome number for biomes past the first four. BIOME_RANDOM picks any biome. */
     rom->flags[26] &= FLAGS_26_USED;   /* the other bits of byte 26 are unused */
     rom->flags[27] &= FLAGS_27_USED;
+    if (Z2_MAP(rom) && RANDOM_MAP(rom)) {
+        /* The Z2 map replaces the generated map, so the two cannot go together. The site blocks it too. */
+        rom->flags[26] &= (uint8_t)~0x1e;
+        printf("Z2 Map cannot go with Random Map, so it is ignored.\n");
+    }
     if (QUICK_SPELL_SWAP(rom) && !QUICK_SPELL(rom)) {
         rom->flags[26] &= 0x7f;
         printf("Swap Quick Spell needs Quick Spell, so it is ignored.\n");
@@ -805,6 +826,9 @@ static void randomize_zone_layout(dw_rom *rom)
     int i;
     dw_warp *tantegel = &rom->map.warps_from[WARP_TANTEGEL];
 
+    if (Z2_MAP(rom) && !LITE_SHUFFLE(rom) && !DEEP_SHUFFLE(rom))
+        return;
+
     printf("Randomizing enemy zone layout...\n");
 
     for (i=0; i < 32; i++) {
@@ -964,7 +988,8 @@ static void randomize_growth(dw_rom *rom)
         }
     }
 
-    if (BIG_SWAMP(rom)) {
+    /* Big Swamp's HP goes with its swamp, which the Zelda II map does not draw. */
+    if (BIG_SWAMP(rom) && !Z2_MAP(rom)) {
         printf("Boosting early HP...\n");
         rom->stats[0].hp += 10;
         for (i=1; i < 10; i++) {
@@ -2299,7 +2324,7 @@ static BOOL should_be_guarded(dw_chest_content item)
  */
 static void treasure_guards(dw_rom *rom)
 {
-    size_t i, spike_entry = 3;
+    size_t i, spike_entry = Z2_MAP(rom) ? 4 : 3;   /* Z2 keeps entry 3 for the Golem */
     dwr_spike_table *spike = rom->spike_table;
     dw_chest *chest = rom->chests;
     dwr_search_table *search = rom->search_table;
@@ -2826,6 +2851,8 @@ static void skip_vanilla_credits(dw_rom *rom)
         add_hook(rom, JMP, 0x542b, START_DWR_CREDITS);
     }
 }
+
+
 
 /* New fixed-bank code may go from the first flag-only routine of the bank 3 patch up (dwr.h). */
 _Static_assert(FIXED_FREE_START == TORCH_IN_BATTLE, "FIXED_FREE_START must be the first flag-only routine");
@@ -5380,8 +5407,16 @@ void apply_stuff_to_rom(dw_rom *rom)
     do_chest_flags(rom);
     stair_shuffle(rom);
     check_quest_items(rom);
-    map_generate_terrain(rom);
+    /* The Z2 map takes the place of the generated map. It must come before the spike table (the Golem guard) and
+     * before the code that goes in the map's spare end. */
+    if (Z2_MAP(rom))
+        map_z2(rom);
+    else
+        map_generate_terrain(rom);
+
     spike_rewrite(rom);
+    if (Z2_MAP(rom))
+        map_z2_guard(rom);
     auto_stairs(rom);  /* must follow spike_rewrite: it uses the spike hole at $CD5C */
     raft_piers(rom);
     randomize_attack_patterns(rom);
@@ -5511,6 +5546,11 @@ static void spoiler_log(dw_rom *rom, const char *path)
     fprintf(out, "Seed %"PRIu64"\nFlags %s\n", rom->seed, rom->flags_encoded);
     if (RANDOM_MAP(rom)) {
         fprintf(out, "Biome %s\n", BIOME(rom) < BIOME_COUNT ? dwr_biome_names[BIOME(rom)] : "?");
+    }
+    if (Z2_MAP(rom)) {
+        fprintf(out, "Zelda II map, %s%s\n",
+                LITE_SHUFFLE(rom) ? "Lite shuffle" : DEEP_SHUFFLE(rom) ? "Deep shuffle" : "no shuffle",
+                LOCK_TANTEGEL(rom) ? ", Tantegel locked" : "");
     }
     fprintf(out, "\nPlaces (x, y on the overworld unless noted)\n");
     for (i = 0; i < sizeof(places) / sizeof(places[0]); i++) {
