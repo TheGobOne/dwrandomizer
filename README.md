@@ -2,24 +2,45 @@
 
 <img src="site/sprites/Loto.png" width="64" alt="Loto sprite"> <img src="site/sprites/Slime.png" width="64" alt="Slime sprite"> <img src="site/sprites/Metal%20Slime.png" width="64" alt="Metal Slime sprite"> <img src="site/sprites/Gwaelin.png" width="64" alt="Gwaelin sprite"> <img src="site/sprites/Dragonlord.png" width="64" alt="Dragonlord sprite">
 
-Version 1.4. A randomizer for the NES game *Dragon Warrior*. This remix adds a safer start, an encounter meter, banked escapes, custom music packs, a Zelda II overworld map and a web page that sets the options.
+Version 1.4. A randomizer for the NES game *Dragon Warrior*. This remix adds its own options and a web page that builds the ROM.
 
 This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer), which builds on [mcgrew's Dragon Warrior Randomizer](https://dwrandomizer.com/). For balanced tournament play, use mcgrew's official version.
 
 ## What the remix adds
 
-- Custom music: load a JSON5 pack of FamiTracker modules and tagged scenes play your songs.
-- Safe Start: swamp within 3 tiles of Tantegel becomes grass.
-- Encounter Rate: Low, Medium and High use a danger meter instead of a roll on every step.
-- Run Bank: wins earn banked escapes, spent with the `BANK` battle command.
-- Free Charlock: entering Charlock puts you beside the Dragonlord. Talk to him to start the fight.
-- Biome: with Random Map, the map can be a Caldera, Wasteland, Riverlands, Lake, Earth or Westeros.
-- Zelda II Map (BETA): the overworld is the Zelda II map, with Lite or Deep shuffle and Lock Tantegel (also BETA). It cannot go with Random Map.
-- Archipelago: builds a ROM for an Archipelago multiworld (Windows only, tested in FCEUX only). See [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md).
-
 New in 1.4: Zelda II Map, Lock Tantegel, Bigger Radiant, No Sword in Charlock and the Archipelago tab. See [docs/release-1.4.md](docs/release-1.4.md).
 
-Smaller options (Quick Spell, Auto Stairs, Responsive Controls, Fast Hills, Fast Flute, Discard Flute, Disable Screen Shake and others) and every flag from the fork are in [docs/FLAGS.md](docs/FLAGS.md).
+<details>
+<summary>All remix features (22)</summary>
+
+| Feature | In one line |
+|---|---|
+| Custom music | Load a JSON5 pack of FamiTracker modules; tagged scenes and events play your songs. |
+| Biome | Generated maps can be a Caldera, a Wasteland, Riverlands, a Lake, Earth or Westeros (needs Random Map). |
+| Safe Start | Swamp within 3 tiles of Tantegel becomes grass (except within 3 tiles of Charlock). |
+| Encounter Rate | Low, Medium or High use a danger meter instead of a roll on every step. |
+| Run Bank | Wins earn banked escapes; spend one with the `BANK` battle command. |
+| Auto Return | Winning against the Dragonlord returns you to Tantegel. |
+| Free Charlock | Entering Charlock puts you beside the Dragonlord. Talk to him to start the fight. |
+| Quick Spell | A battle command that casts your last spell again. |
+| Swap Quick Spell | Puts SPELL in the top right slot and the quick spell under it. |
+| Show Key & Herb Counter | Keys and herbs on the bottom row of the stats window. |
+| Disable Screen Shake | Keeps the screen still when you take damage. |
+| Auto Stairs | Stepping onto stairs takes them right away, with no STAIRS command. |
+| Responsive Controls | Short presses are no longer missed; on the overworld, walking and the command window answer at once. |
+| Fast Hills | A step onto a hill takes as long as a step onto grass. |
+| No Sword in Charlock | Erdrick's Sword is never in a chest in Charlock Castle. |
+| Bigger Radiant | Radiant starts at radius 5 in a cave instead of 3. |
+| Zelda II Map (BETA) | The overworld is the Zelda II map, with Lite or Deep shuffle, and Lock Tantegel with Deep. All 3 are BETA. Cannot go with Random Map. |
+| Disable Cursor Blink | The menu cursor arrow stays on instead of blinking. |
+| Fast Flute | The Fairy Flute plays only the climb up the scale from its song, with or without Speed Hacks. |
+| Discard Flute | With a full inventory, the flute can be dropped for a new item, or sold to a shop for 1 G. |
+| Archipelago | Builds a ROM for an Archipelago multiworld (Windows; tested in FCEUX only). See [docs/ARCHIPELAGO_SETUP.md](docs/ARCHIPELAGO_SETUP.md). |
+| Website | A single-page generator with the options grouped into tabs. |
+
+</details>
+
+Every option, including the ones from the fork, is in [docs/FLAGS.md](docs/FLAGS.md).
 
 ## You need
 
