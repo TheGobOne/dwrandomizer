@@ -5,6 +5,7 @@
 * Flag codes with either one are 44 characters (they are in the 27th flag byte).
 * New flag (beta): Zelda II Map. The overworld is the Zelda II map, with the Dragon Warrior places on its towns, caves and palaces. Cannot go with Random Map. CLI: --z2-map on
 * New flag (beta): Zelda II Shuffle. Lite swaps towns with towns and caves with caves; Deep mixes every place. CLI: --z2-map lite or --z2-map deep
+* Site: the Archipelago tab is back, in the slot ??? held, with a Download dwr.apworld button for the host. Archipelago is not hosted officially, so the host installs this world file.
 * New flag (beta): Lock Tantegel. Tantegel stays at the north palace while the rest shuffle (Lite or Deep). CLI: --lock-tantegel on
 
 # 1.3 - TheGobOne Remix #
