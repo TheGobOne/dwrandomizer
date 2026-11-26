@@ -1786,8 +1786,8 @@ static void permanent_torch(dw_rom *rom)
 }
 
 /**
- * Bigger Radiant: the spell always lights a radius 7 circle (vanilla adds 2 to the current radius, so 3 in a
- * cave). It shrinks 7, 5, 3, 1 with the game's own step: 2 every time the radiant timer runs out.
+ * Bigger Radiant: the spell starts at radius 5 instead of 3 in a cave (vanilla adds 2 to the current radius).
+ * The game's own grow and shrink steps then run as before, up to 7.
  *
  * @param rom The rom struct
  */
@@ -1799,7 +1799,7 @@ static void bigger_radiant(dw_rom *rom)
     printf("Making radiant bigger...\n");
 
     vpatch(rom, 0xda84,    3,
-            0xa9, 0x07,         /* LDA #$07  ; Light radius 7 ...      */
+            0xa9, 0x05,         /* LDA #$05  ; Light radius 5 ...      */
             0xea                /* NOP       ; ... instead of CLC, ADC #$02 */
     );
 }

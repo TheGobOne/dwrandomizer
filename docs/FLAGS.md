@@ -95,7 +95,7 @@ Erdrick's Sword is never in a chest in Charlock Castle. It works like No Armor i
 
 #### Bigger Radiant ####
 
-Radiant lights a circle of radius 7 in a cave, where the original lights radius 3 (it adds 2 to the current radius). The circle shrinks 7, 5, 3, 1 as the spell wears off, the same way the original shrinks. It is the third bit of the 27th flag byte, so a code with it on is 44 characters.
+Radiant starts at a circle of radius 5 in a cave, where the original starts at radius 3. It stays at 5 for the spell, as tested in Mesen. It is the third bit of the 27th flag byte, so a code with it on is 44 characters.
 #### Zelda II Map ####
 
 Beta: the site marks the 3 Zelda II flags BETA, and the maps they make may change before the next release.

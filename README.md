@@ -25,7 +25,7 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 | Responsive Controls | Short presses are no longer missed; on the overworld, walking and the command window answer at once. |
 | Fast Hills | A step onto a hill takes as long as a step onto grass. |
 | No Sword in Charlock | Erdrick's Sword is never in a chest in Charlock Castle. |
-| Bigger Radiant | Radiant lights a radius 7 circle in a cave instead of radius 3. |
+| Bigger Radiant | Radiant starts at radius 5 in a cave instead of 3. |
 | Zelda II Map | The overworld is the Zelda II map, with Lite or Deep shuffle and Lock Tantegel. Cannot go with Random Map. |
 | Disable Cursor Blink | The menu cursor arrow stays on instead of blinking. |
 | Fast Flute | The Fairy Flute plays only the climb up the scale from its song, with or without Speed Hacks. |
