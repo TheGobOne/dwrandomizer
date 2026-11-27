@@ -67,7 +67,7 @@ static void print_usage(const char *command, char *default_flags)
     printf("  --biome continent|caldera|wasteland|riverlands|lake|earth|westeros|random\n");
     printf("  --free-charlock on|off\n");
     printf("  --z2-map off|on|lite|deep   (Zelda 2 map; blocked with Random Map)\n");
-    printf("  --lock-tantegel on|off   (needs --z2-map deep)\n");
+    printf("  --lock-tantegel on|off   (needs --z2-map lite or deep)\n");
     printf("  --auto-return on|off\n");
     printf("  --responsive-controls on|off\n");
     printf("  --auto-stairs on|off\n");
@@ -422,7 +422,7 @@ int main(int argc, char **argv)
         if (fast_hills >= 0)
             raw[26] = (uint8_t)((raw[26] & 0xdf) | (fast_hills ? 0x20 : 0));
         /* Z2 Map: 0x10 on, 0x0c shuffle (1 Lite, 2 Deep), 0x02 Lock Tantegel. The rules between them (the shuffle and
-         * the lock need the map, the lock needs Deep, the map cannot go with Random Map) are in dwr_normalize_flags. */
+         * the lock need the map, the lock needs a shuffle, the map cannot go with Random Map) are in dwr_normalize_flags. */
         if (z2_map >= 0) {
             raw[26] &= (uint8_t)(z2_map ? ~0x1c : ~0x1e);
             if (z2_map)
@@ -434,7 +434,7 @@ int main(int argc, char **argv)
             const uint8_t z2_before = raw[26];
             dwr_normalize_flags(raw);
             if (raw[26] != z2_before)
-                fprintf(stderr, "The Zelda II options conflict, so some are ignored: the shuffle and --lock-tantegel need --z2-map, --lock-tantegel needs --z2-map deep, and --z2-map cannot go with Random Map.\n");
+                fprintf(stderr, "The Zelda II options conflict, so some are ignored: the shuffle and --lock-tantegel need --z2-map, --lock-tantegel needs --z2-map lite or deep, and --z2-map cannot go with Random Map.\n");
         }
         if (biome >= 0) {
             raw[2] &= (uint8_t)~0x33;

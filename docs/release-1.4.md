@@ -14,8 +14,8 @@ This is a hobby remix of [juef17's fork](https://github.com/juef17/dwrandomizer)
 ## Zelda II map (BETA)
 
 - Zelda II Map: the overworld is the Zelda II map, with the Dragon Warrior places on its towns, caves and palaces. It cannot go with Random Map. Command line: `--z2-map on`.
-- Zelda II Shuffle: Lite swaps towns with towns and caves with caves, and Tantegel stays put. Deep mixes every place. Every seed can still be finished. Command line: `--z2-map lite` or `--z2-map deep`.
-- Lock Tantegel: with Deep, Tantegel stays at the north palace. Command line: `--lock-tantegel on`.
+- Zelda II Shuffle: Lite swaps towns with towns and caves with caves, and Tantegel moves among the palaces. Deep mixes every place. Every seed can still be finished. Command line: `--z2-map lite` or `--z2-map deep`.
+- Lock Tantegel: with Lite or Deep, Tantegel stays at the north palace. Command line: `--lock-tantegel on`.
 - These 3 are BETA. A seed made with them may not give the same map in a later version, so don't use them for a race that has to be replayed.
 
 ## Archipelago

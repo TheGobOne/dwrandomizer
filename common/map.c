@@ -2533,8 +2533,8 @@ static const uint8_t z2_zones[32] = {
  * build (Zoom, border tiles, Safe Start, vertical bridges) sees the real map.
  *
  * Plain: every place in its Zelda II spot. Lite: towns trade places with towns and caves with caves; Tantegel
- * stays in the starting palace. Deep: all of them mix, Tantegel included. Lock Tantegel keeps Tantegel in the
- * starting palace in Deep. Entrances without a place become mountain, so nothing says "Thou cannot enter here".
+ * moves among the palaces. Deep: all of them mix. Lock Tantegel keeps Tantegel in the starting palace.
+ * Entrances without a place become mountain, so nothing says "Thou cannot enter here".
  * Bridges are all stored as across bridges, as in the base game: the 2 single bridges at (16,52) and (105,29)
  * would otherwise need the 80-byte vertical bridge code, which a full ROM may have no room for.
  * --------------------------------------------------------------------------------------------------------- */
@@ -2740,21 +2740,24 @@ static void z2_shuffle_token(dw_rom *rom)
     rom->search_table->y[0] = spots[0][1];
 }
 
-/* Lite: towns among the town slots, caves among the cave slots. Tantegel stays in the starting palace.
- * Unused places are mountain. */
+/* Lite: Tantegel among the palace slots (unless Lock Tantegel), towns among the town slots, caves among the
+ * cave slots. Unused places are mountain. */
 static void z2_lite(dw_rom *rom)
 {
-    z2_spot towns[8], caves[9];
+    z2_spot palaces[7], towns[8], caves[9];
     int i;
 
+    memcpy(palaces, z2_palaces, sizeof(palaces));
     memcpy(towns, z2_towns, sizeof(towns));
     memcpy(caves, z2_caves, sizeof(caves));
     z2_shuffle_token(rom);
 
-    z2_tantegel_at(rom, &z2_palaces[0]);
-    z2_put(rom, &z2_palaces[0], TILE_CASTLE);
+    if (!LOCK_TANTEGEL(rom))
+        mt_shuffle(palaces, 7, sizeof(z2_spot));
+    z2_tantegel_at(rom, &palaces[0]);
+    z2_put(rom, &palaces[0], TILE_CASTLE);
     for (i = 1; i < 7; i++)
-        z2_put(rom, &z2_palaces[i], TILE_MOUNTAIN);
+        z2_put(rom, &palaces[i], TILE_MOUNTAIN);
 
     mt_shuffle(towns, 8, sizeof(z2_spot));
     for (i = 0; i < 6; i++)

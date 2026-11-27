@@ -31,7 +31,7 @@ New in 1.4: Zelda II Map, Lock Tantegel, Bigger Radiant, No Sword in Charlock an
 | **Fast Hills** | A step onto a hill takes as long as a step onto grass. |
 | **No Sword in Charlock** | Erdrick's Sword is never in a chest in Charlock Castle. |
 | **Bigger Radiant** | Radiant starts at radius 5 in a cave instead of 3. |
-| **Zelda II Map (BETA)** | The overworld is the Zelda II map, with Lite or Deep shuffle, and Lock Tantegel with Deep. All 3 are BETA. Cannot go with Random Map. |
+| **Zelda II Map (BETA)** | The overworld is the Zelda II map, with Lite or Deep shuffle, and Lock Tantegel. All 3 are BETA. Cannot go with Random Map. |
 | **Disable Cursor Blink** | The menu cursor arrow stays on instead of blinking. |
 | **Fast Flute** | The Fairy Flute plays only the climb up the scale from its song, with or without Speed Hacks. |
 | **Discard Flute** | With a full inventory, the flute can be dropped for a new item, or sold to a shop for 1 G. |
