@@ -2894,27 +2894,6 @@ static void z2_cut_bridge(dw_rom *rom)
     find_walkable_area(map, lm_sizes, &largest, &next);
 }
 
-/* A shuffle must leave a town near Tantegel, on its side of the water: within this many steps (x plus y). */
-#define Z2_TOWN_NEAR 30
-
-static BOOL z2_town_near(dw_map *map)
-{
-    static const dw_warp_index towns[6] = {
-        WARP_BRECCONARY, WARP_GARINHAM, WARP_KOL, WARP_RIMULDAR, WARP_HAUKSNESS, WARP_CANTLIN
-    };
-    const dw_warp *t = &map->warps_from[WARP_TANTEGEL];
-    size_t i;
-
-    for (i = 0; i < 6; i++) {
-        const dw_warp *w = &map->warps_from[towns[i]];
-
-        if (w->map == OVERWORLD && map->walkable[w->x][w->y] == map->walkable[t->x][t->y] &&
-                abs(w->x - t->x) + abs(w->y - t->y) <= Z2_TOWN_NEAR)
-            return TRUE;
-    }
-    return FALSE;
-}
-
 /* The border tile of a town is the kind of ground it stands on, taken from the ground beside it. */
 static dw_border_tile z2_border(dw_map *map, int x, int y)
 {
@@ -2928,57 +2907,6 @@ static dw_border_tile z2_border(dw_map *map, int x, int y)
             return border_for(map->tiles[nx][ny]);
     }
     return BORDER_GRASS;
-}
-
-/* Can every place but Cantlin still be reached with (x, y) blocked? And with Cantlin counted too? */
-static void z2_reach_without(dw_rom *rom, int x, int y, BOOL *others, BOOL *all)
-{
-    dw_map *map = &rom->map;
-    dw_warp *cantlin = &map->warps_from[WARP_CANTLIN];
-    const uint8_t tile = map->tiles[x][y];
-    const uint8_t cantlin_map = cantlin->map;
-
-    map->tiles[x][y] = TILE_MOUNTAIN;
-    *all = places_reachable(rom);
-    cantlin->map = NO_MAP;   /* places_reachable only checks entrances on the overworld */
-    *others = places_reachable(rom);
-    cantlin->map = cantlin_map;
-    map->tiles[x][y] = tile;
-}
-
-/* Where the Golem stands in a shuffle: beside Cantlin, on a tile that blocks nothing else, so every other
- * place, the token and the Return point stay reachable while it is unbeaten. A tile that also shuts off
- * Cantlin is picked first. FALSE when no tile is safe. */
-static BOOL z2_golem_spot(dw_rom *rom, uint8_t *x, uint8_t *y)
-{
-    static const int dir[4][2] = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
-    dw_map *map = &rom->map;
-    const dw_warp *cantlin = &map->warps_from[WARP_CANTLIN];
-    int i, nx, ny, found = 0;   /* 1: a safe tile, 2: a safe tile that is also the only way in */
-
-    for (i = 0; i < 4 && found < 2; i++) {
-        BOOL others, all;
-
-        nx = cantlin->x + dir[i][0];
-        ny = cantlin->y + dir[i][1];
-        if (map_ob(nx) || map_ob(ny) || !tile_is_walkable(map->tiles[nx][ny]) ||
-                z2_is_entrance(map->tiles[nx][ny]))
-            continue;
-        /* Not the Return point, and not the token: a treasure guard there (added later, in a higher entry)
-         * would be hidden behind the Golem, since the first spike entry on a tile wins. */
-        if ((nx == map->return_point->x && ny == map->return_point->y) ||
-                (nx == rom->search_table->x[0] && ny == rom->search_table->y[0]))
-            continue;
-        z2_reach_without(rom, nx, ny, &others, &all);
-        if (!others)
-            continue;
-        if (!found || !all) {
-            *x = (uint8_t)nx;
-            *y = (uint8_t)ny;
-            found = all ? 1 : 2;
-        }
-    }
-    return found > 0;
 }
 
 /* One try at the Zelda II map. FALSE when a shuffle left something out of reach, so map_z2 tries again. */
@@ -3011,9 +2939,7 @@ static BOOL z2_try(dw_rom *rom)
     map->return_point->y = ry;
 
     if (shuffled) {
-        z2_cut_bridge(rom);   /* also fills map->walkable for the check below */
-        if (!z2_town_near(map))
-            return FALSE;
+        z2_cut_bridge(rom);
     }
 
     for (i = 0; i < sizeof(z2_border_towns) / sizeof(z2_border_towns[0]); i++) {
@@ -3025,7 +2951,7 @@ static BOOL z2_try(dw_rom *rom)
         safe_start(map);
     if (!places_reachable(rom))
         return FALSE;
-    return !shuffled || z2_golem_spot(rom, &rx, &ry);
+    return TRUE;
 }
 
 #define Z2_TRIES 500
@@ -3062,7 +2988,7 @@ void map_z2(dw_rom *rom)
 /**
  * Puts the Golem on the road to Cantlin: spike entry 3, which the base leaves free for treasure guards.
  * Runs after spike_rewrite, which writes the whole spike table. Treasure guards come later, in entry 4 on.
- * In a shuffle the spot comes from z2_golem_spot; map_z2 only keeps layouts that have one.
+ * Lite and Deep shuffle leave the Golem out.
  *
  * @param rom The rom struct
  */
@@ -3071,10 +2997,8 @@ void map_z2_guard(dw_rom *rom)
     dwr_spike_table *spike = rom->spike_table;
     uint8_t x = 71, y = 44;   /* where it stands in Zelda II */
 
-    if ((LITE_SHUFFLE(rom) || DEEP_SHUFFLE(rom)) && !z2_golem_spot(rom, &x, &y)) {
-        printf("No safe spot for the Golem beside Cantlin, so it is left out.\n");
+    if (LITE_SHUFFLE(rom) || DEEP_SHUFFLE(rom))
         return;
-    }
     spike->map[3] = OVERWORLD;
     spike->x[3] = x;
     spike->y[3] = y;

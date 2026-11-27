@@ -2328,7 +2328,7 @@ static BOOL should_be_guarded(dw_chest_content item)
  */
 static void treasure_guards(dw_rom *rom)
 {
-    size_t i, spike_entry = Z2_MAP(rom) ? 4 : 3;   /* Z2 keeps entry 3 for the Golem */
+    size_t i, spike_entry = Z2_MAP(rom) && !LITE_SHUFFLE(rom) && !DEEP_SHUFFLE(rom) ? 4 : 3;   /* the plain Z2 map keeps entry 3 for the Golem */
     dwr_spike_table *spike = rom->spike_table;
     dw_chest *chest = rom->chests;
     dwr_search_table *search = rom->search_table;
