@@ -2555,9 +2555,9 @@ typedef struct {
 
 /* Plain tiles where the token can be, in the order they were chosen. The first is used with no shuffle. */
 static const uint8_t z2_search_spots[25][2] = {
-    { 62,  34}, { 37,  12}, {  7,  34}, { 21,  46}, { 33,  57}, { 37,  38}, { 17,  37}, {  8,  41}, { 18,  96},
+    {115,  24}, { 37,  12}, {  7,  34}, { 21,  46}, { 33,  57}, { 37,  38}, { 17,  37}, {  8,  41}, { 18,  96},
     {  9, 105}, { 38,  72}, { 50,  66}, { 48,  62}, { 50,  58}, { 66,  67}, { 69,  76}, { 96,  64}, {110,  52},
-    {115,  24}, {109,  72}, { 82,  89}, {110,  99}, {113, 107}, { 83, 107}, { 60,  99}
+    { 62,  34}, {109,  72}, { 82,  89}, {110,  99}, {113, 107}, { 83, 107}, { 60,  99}
 };
 
 /* Where Tantegel, a town or a cave can be. The first palace is where Tantegel is in Zelda II. */
